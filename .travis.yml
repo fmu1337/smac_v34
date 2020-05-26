@@ -49,3 +49,4 @@ script:
     - ./compile.sh smac_cvars.sp
     - ./compile.sh smac_eyetest.sp
     - ./compile.sh smac_rcon.sp
+    - ./compile.sh ../../../optional/kigen-nsb-fix/kigen-ac-pub.sp
