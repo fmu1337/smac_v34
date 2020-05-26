@@ -29,7 +29,7 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 	
 	// Convars.
-	g_hCvarConnectSpam = SMAC_CreateConVar("smac_antispam_connect", "2", "Block reconnection attempts for X seconds. (0 = Disabled)", FCVAR_PLUGIN, true, 0.0);
+	g_hCvarConnectSpam = SMAC_CreateConVar("smac_antispam_connect", "2", "Block reconnection attempts for X seconds. (0 = Disabled)", _, true, 0.0);
 	g_hClientConnections = CreateTrie();
 	HookUserMessage(GetUserMessageId("TextMsg"), Hook_TextMsg, true);
 	

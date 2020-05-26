@@ -58,11 +58,11 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 public OnPluginStart()
 {
 	g_iCacheTicks = TIME_TO_TICK(0.75);
-	new Handle: hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", FCVAR_PLUGIN, true, 1.0);
+	new Handle: hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", _, true, 1.0);
 	OnMaxTracesChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnMaxTracesChanged);
 	
-	hCvar = CreateConVar("smac_wallhack_ticktime", "0.75", "Scan speed of players are behind the wall.", FCVAR_PLUGIN, true, 0.1, true, 2.0);
+	hCvar = CreateConVar("smac_wallhack_ticktime", "0.75", "Scan speed of players are behind the wall.", _, true, 0.1, true, 2.0);
 	WallHack_TickOnSettingsChanged(hCvar, "", "");
 	HookConVarChange(hCvar, WallHack_TickOnSettingsChanged);
 	
@@ -771,8 +771,13 @@ FarESP_Enable()
 {
 	if ((g_iPlayerManager = GetPlayerResourceEntity()) == -1)
 		return;
-	
+		
+	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+	g_iPlayerSpotted = FindSendPropInfo("CCSPlayerResource", "m_bPlayerSpotted");
+	#else
 	g_iPlayerSpotted = FindSendPropOffs("CCSPlayerResource", "m_bPlayerSpotted");
+	#endif		
+
 	SDKHook(g_iPlayerManager, SDKHook_ThinkPost, PlayerManager_ThinkPost);
 	
 	g_msgUpdateRadar = GetUserMessageId("UpdateRadar");

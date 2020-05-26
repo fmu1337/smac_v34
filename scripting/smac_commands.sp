@@ -33,11 +33,11 @@ public OnPluginStart()
 	
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
-	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "35", "Amount of commands allowed per second. (0 = Disabled)", FCVAR_PLUGIN, true, 0.0);
+	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "35", "Amount of commands allowed per second. (0 = Disabled)", _, true, 0.0);
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 	
-	g_hLogCommands = SMAC_CreateConVar("smac_commands_log", "0", "Log command usage. Use only for debugging purposes.", FCVAR_PLUGIN, true, 0.0);
+	g_hLogCommands = SMAC_CreateConVar("smac_commands_log", "0", "Log command usage. Use only for debugging purposes.", _, true, 0.0);
 	OnSettingsChanged1(g_hLogCommands, "", "");
 	HookConVarChange(g_hLogCommands, OnSettingsChanged1);
 	

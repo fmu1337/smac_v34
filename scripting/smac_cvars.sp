@@ -48,7 +48,7 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 	
-	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", _, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarHldj, OnCvarHldjChanged);
 	
 	g_hCvarTrie = CreateTrie();
@@ -595,6 +595,38 @@ public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newV
 	ReplicateToAll(convar, newValue);
 }
 
+#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
+
+void ScrambleCvars()
+{
+	Handle[][] hCvarADTs = new Handle[2][g_iADTSize];
+	Handle hDataTrie;
+	int iOrder;
+	int iADTIndex[2];
+
+	for (int i = 0; i < g_iADTSize; i++)
+	{
+		hDataTrie = GetArrayCell(g_hCvarADT, i);
+		GetTrieValue(hDataTrie, Cvar_Order, iOrder);
+	
+		hCvarADTs[iOrder][iADTIndex[iOrder]++] = hDataTrie;
+	}
+
+	ClearArray(g_hCvarADT);
+
+	for (int i = 0; i < view_as<int>(CvarOrder); i++)
+	{
+		if (iADTIndex[i] > 0)
+		{
+			SortIntegers(view_as<int>(hCvarADTs[i]), iADTIndex[i], Sort_Random);
+			for (int j = 0; j < iADTIndex[i]; j++)
+			{
+				PushArrayCell(g_hCvarADT, hCvarADTs[i][j]);
+			}
+		}
+	}
+}
+#else
 ScrambleCvars()
 {
 	decl Handle:hCvarADTs[_:CvarOrder][g_iADTSize], Handle:hDataTrie, iOrder;
@@ -623,6 +655,7 @@ ScrambleCvars()
 		}
 	}
 }
+#endif
 
 bool:IsReplicating(Handle:hDataTrie)
 {

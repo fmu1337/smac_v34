@@ -40,15 +40,15 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	g_hCvarVersion = CreateConVar("smac_version", SMAC_VERSION, "SourceMod Anti-Cheat", FCVAR_PLUGIN|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	g_hCvarVersion = CreateConVar("smac_version", SMAC_VERSION, "SourceMod Anti-Cheat", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	OnVersionChanged(g_hCvarVersion, "", "");
 	HookConVarChange(g_hCvarVersion, OnVersionChanged);	
-	g_hCvarWelcomeMsg = CreateConVar("smac_welcomemsg", "2", "Display a message saying that your server is protected. 0 - disable 1 - chat 2 - hint 3 - center", FCVAR_PLUGIN, true, 0.0, true, 3.0);
-	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Time after display welcome message.", FCVAR_PLUGIN, true, 1.0, true, 30.0);
-	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Display client info in client console.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "The duration in minutes used for automatic bans. (0 = Permanent)", FCVAR_PLUGIN, true, 0.0);
-	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Include extra information about a client being logged.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Change GameDescr. to 'Protected by SMAC: v34'", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	g_hCvarWelcomeMsg = CreateConVar("smac_welcomemsg", "2", "Display a message saying that your server is protected. 0 - disable 1 - chat 2 - hint 3 - center", _, true, 0.0, true, 3.0);
+	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Time after display welcome message.", _, true, 1.0, true, 30.0);
+	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Display client info in client console.", _, true, 0.0, true, 1.0);
+	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "The duration in minutes used for automatic bans. (0 = Permanent)", _, true, 0.0);
+	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Include extra information about a client being logged.", _, true, 0.0, true, 1.0);
+	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Change GameDescr. to 'Protected by SMAC: v34'", _, true, 0.0, true, 1.0);
 	RegAdminCmd("smac_status", Command_Status, ADMFLAG_GENERIC, "View the server's player status.");	
 }
 
@@ -97,14 +97,39 @@ public Action:Timer_WelcomeMsg(Handle:timer, any:userid)
 public Action:Command_Status(client, args){
 	ReplyToCommand(client, "UserID  AuthID                IP             Latency       Name");
 	decl String:sAuthID[MAX_AUTHID_LENGTH], String:sIP[17], String:sCountry[3];
-	for (new i = 1; i <= MaxClients; i++){
-		if (IsClientInGame(i) && !IsFakeClient(i)){
-		if (!GetClientAuthString(i, sAuthID, sizeof(sAuthID), true)){
-		if (GetClientAuthString(i, sAuthID, sizeof(sAuthID), false)){Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);}
-		else	strcopy(sAuthID, sizeof(sAuthID), "Unknown");		}
-		if(!GetClientIP(i, sIP, sizeof(sIP))){strcopy(sIP, sizeof(sIP), "Unknown");}
-		GeoipCode3(sIP,sCountry);
-		ReplyToCommand(client, "#%5d  %-21s %-14s %4i ms    %-s|%N", GetClientUserId(i), sAuthID, sIP, RoundToZero(GetClientLatency(i, NetFlow_Outgoing) * 1024),sCountry, i);
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && !IsFakeClient(i))
+		{
+			#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+			if (!GetClientAuthId(i, AuthId_Steam2, sAuthID, sizeof(sAuthID), true))
+			#else
+			if (!GetClientAuthString(i, sAuthID, sizeof(sAuthID), true))
+			#endif
+			{
+				#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+				if (!GetClientAuthId(i, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+				#else
+				if (!GetClientAuthString(i, sAuthID, sizeof(sAuthID), false))
+				#endif
+				{
+					Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);
+				}
+				else
+				{
+					strcopy(sAuthID, sizeof(sAuthID), "Unknown");
+				}
+			}
+			if(!GetClientIP(i, sIP, sizeof(sIP)))
+			{
+				strcopy(sIP, sizeof(sIP), "Unknown");
+			}
+			if(!GeoipCode3(sIP,sCountry))
+			{
+				strcopy(sCountry, sizeof(sCountry), "Unknown");
+			}
+			
+			ReplyToCommand(client, "#%5d  %-21s %-14s %4i ms    %-s|%N", GetClientUserId(i), sAuthID, sIP, RoundToZero(GetClientLatency(i, NetFlow_Outgoing) * 1024),sCountry, i);
 		}
 	}
 	return Plugin_Handled;
@@ -121,12 +146,31 @@ public Native_Log(Handle:plugin, numParams){
 public Native_LogAction(Handle:plugin, numParams)
 {
 	new client = GetNativeCell(1);
-	if (!IS_CLIENT(client) || !IsClientConnected(client)){ThrowNativeError(SP_ERROR_INDEX, "Client index %i is invalid", client);}
+	if (!IS_CLIENT(client) || !IsClientConnected(client))
+	{
+		ThrowNativeError(SP_ERROR_INDEX, "Client index %i is invalid", client);
+	}
 	
 	decl String:sAuthID[MAX_AUTHID_LENGTH];
-	if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), true))	{
-	if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false)){Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);}
-	else	{strcopy(sAuthID, sizeof(sAuthID), "Unknown");}}
+	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+	if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), true))
+	#else
+	if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), true))
+	#endif
+	{
+		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+		#else
+		if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
+		#endif
+		{
+			Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);
+		}
+		else
+		{
+			strcopy(sAuthID, sizeof(sAuthID), "Unknown");
+		}
+	}
 	
 	decl String:sIP[17];
 	if (!GetClientIP(client, sIP, sizeof(sIP)))	{strcopy(sIP, sizeof(sIP), "Unknown");}
@@ -179,11 +223,18 @@ public Native_Ban(Handle:plugin, numParams)
 	GetPluginInfo(plugin, PlInfo_Version, sVersion, sizeof(sVersion));
 	FormatNativeString(0, 2, 3, sizeof(sReason), _, sReason);
 	Format(sReason, sizeof(sReason), "SMAC: %s", sReason);
-	decl String:sAuth[21],String:sIP[17], String:sContact[32];
-	GetClientAuthString(client,sAuth,21); GetClientIP(client,sIP,17); GetConVarString(FindConVar("sv_contact"),sContact, sizeof(sContact));
-//	if (GetConVarBool(g_hCvarNsb)) DoNSB(client,duration);
-//	if (GetConVarBool(g_hCvarBanConsoleMsg))PrintToConsole(client, "\n\n================================\n -= | SMAC v34: Cheat Detected | =- \n================================\n You are Banned from this server!\n================================\n Name: %N\n SteamID: %s \n IP: %s \n Reason: %s \n Duration: %i min \n Contact: %s\n ===============================\n\n", client, sAuth, sIP, sReason, duration, sContact);
-	if (GetConVarBool(g_hCvarBanConsoleMsg))	PrintToConsole(client, "%t", "SMAC_BannedClientCon", client, sAuth, sIP, sReason, duration, sContact);
+	decl String:sAuthID[MAX_AUTHID_LENGTH], String:sIP[17], String:sContact[32];
+	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+	if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), true))
+	#else
+	if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), true))
+	#endif
+	GetClientIP(client,sIP,17);
+	GetConVarString(FindConVar("sv_contact"), sContact, sizeof(sContact));
+	if (GetConVarBool(g_hCvarBanConsoleMsg))
+	{
+		PrintToConsole(client, "%t", "SMAC_BannedClientCon", client, sAuthID, sIP, sReason, duration, sContact);
+	}
 	ServerCommand("sm_ban #%d %i \"%s\"", GetClientUserId(client), duration, sReason);
 }
 

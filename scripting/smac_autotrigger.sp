@@ -30,8 +30,8 @@ new bool:g_bNoitice[MAXPLAYERS];
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	g_hCvarAction = SMAC_CreateConVar("smac_autotrigger_action", "1", "Action on auto-trigger detections.\n 0 - Notice Admin\n 1 - Kick\n 2 - Ban", FCVAR_PLUGIN, true, 0.0, true, 50.0);
-	g_hCvarDetections = SMAC_CreateConVar("smac_autotrigger_detections", "7", "Number of autotrigger detections before a player perform action.\nSMAC default - 20\n SMAC by Den4eGG - 3\n SMAC v34 beta - 10\n Recommended - 7", FCVAR_PLUGIN, true, 0.0, true, 50.0);
+	g_hCvarAction = SMAC_CreateConVar("smac_autotrigger_action", "1", "Action on auto-trigger detections.\n 0 - Notice Admin\n 1 - Kick\n 2 - Ban", _, true, 0.0, true, 50.0);
+	g_hCvarDetections = SMAC_CreateConVar("smac_autotrigger_detections", "7", "Number of autotrigger detections before a player perform action.\nSMAC default - 20\n SMAC by Den4eGG - 3\n SMAC v34 beta - 10\n Recommended - 7", _, true, 0.0, true, 50.0);
 	OnSettingsChanged(g_hCvarDetections, "", "");
 	HookConVarChange(g_hCvarDetections, OnSettingsChanged);
 	g_iAttackMax = RoundToNearest(1.0 / GetTickInterval() / 3.0);

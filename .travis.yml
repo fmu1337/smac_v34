@@ -1,0 +1,43 @@
+language: c
+
+env:
+    - SMVERSION=1.6
+    - SMVERSION=1.11
+
+matrix:
+    fast_finish: true
+    allow_failures:
+    - env: SMVERSION=1.11
+
+before_install:
+    - sudo apt-get update
+    - sudo apt-get install gcc-multilib
+    - sudo apt-get install lib32stdc++6
+
+before_script:
+    - 'if [ $SMVERSION = "1.6" ]; then
+          wget -q "https://bitbucket.org/_4/smdrop-1.6/downloads/sourcemod-1.6.4-stable-git4626-css34-linux.tar.gz" -O sourcemod.tar.gz;
+      else
+          wget -q "http://www.sourcemod.net/latest.php?version=$SMVERSION&os=linux" -O sourcemod.tar.gz;
+      fi'
+    - tar -xzf sourcemod.tar.gz
+    - cd addons/sourcemod/scripting/
+    - chmod +x spcomp
+    - chmod +x compile.sh
+
+script: 
+    - ./compile.sh smac_speedhack.sp
+    - ./compile.sh smac_spinhack.sp
+    - ./compile.sh smac_status.sp
+    - ./compile.sh smac_wallhack.sp
+    - ./compile.sh smac.sp
+    - ./compile.sh smac_aimbot.sp
+    - ./compile.sh smac_autotrigger.sp
+    - ./compile.sh smac_client.sp
+    - ./compile.sh smac_commands.sp
+    - ./compile.sh smac_css_antiflash.sp
+    - ./compile.sh smac_css_antismoke.sp
+    - ./compile.sh smac_css_fixes.sp
+    - ./compile.sh smac_cvars.sp
+    - ./compile.sh smac_eyetest.sp
+    - ./compile.sh smac_rcon.sp

@@ -36,7 +36,7 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 	
 	// Convars.
-	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Automatically ban players on eye test detections.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Automatically ban players on eye test detections.", _, true, 0.0, true, 1.0);
 	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires a newer version of SourceMod.");
 	
 }
@@ -242,8 +242,11 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	
 	new Handle:info = CreateKeyValues("");
 	KvSetVector(info, "angles", angles);
-	
+	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+	if (GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false) && !StrEqual(sAuthID, "BOT") && SMAC_CheatDetected(client, Detection_Eyeangles, info) == Plugin_Continue)
+	#else
 	if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false) && !StrEqual(sAuthID, "BOT") && SMAC_CheatDetected(client, Detection_Eyeangles, info) == Plugin_Continue)
+	#endif
 	{
 		SMAC_PrintAdminNotice("%t", "SMAC_EyetestDetected", client);
 		

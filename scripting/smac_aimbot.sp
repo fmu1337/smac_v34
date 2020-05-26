@@ -30,7 +30,7 @@ new g_iMaxAngleHistory;
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	g_hCvarAimbotBan = SMAC_CreateConVar("smac_aimbot_ban", "3", "Number of aimbot detections before a player is banned. Minimum allowed is 3. (0 = Never ban)", FCVAR_PLUGIN, true, 0.0);
+	g_hCvarAimbotBan = SMAC_CreateConVar("smac_aimbot_ban", "3", "Number of aimbot detections before a player is banned. Minimum allowed is 3. (0 = Never ban)", _, true, 0.0);
 	OnSettingsChanged(g_hCvarAimbotBan, "", "");
 	HookConVarChange(g_hCvarAimbotBan, OnSettingsChanged);
 	if ((g_iMaxAngleHistory = TIME_TO_TICK(0.5)) > sizeof(g_fEyeAngles[]))

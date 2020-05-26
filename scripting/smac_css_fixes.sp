@@ -15,10 +15,10 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 	new Handle:hCvar = INVALID_HANDLE;
-	hCvar = SMAC_CreateConVar("smac_css_defusefix", "1", "Block illegal defuses.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	hCvar = SMAC_CreateConVar("smac_css_defusefix", "1", "Block illegal defuses.", _, true, 0.0, true, 1.0);
 	OnDefuseFixChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnDefuseFixChanged);
-	hCvar = SMAC_CreateConVar("smac_css_respawnfix", "1", "Block players from respawning through rejoins.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	hCvar = SMAC_CreateConVar("smac_css_respawnfix", "1", "Block players from respawning through rejoins.", _, true, 0.0, true, 1.0);
 	OnRespawnFixChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnRespawnFixChanged);
 }
@@ -198,8 +198,11 @@ public Action:Command_JoinClass(client, const String:command[], args)
 	if (iTeam > 1 && GetTeamClientCount(iTeam) > 1)
 	{
 		decl String:sAuthID[MAX_AUTHID_LENGTH], dummy;
-		
+		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false) && GetTrieValue(g_hClientSpawned, sAuthID, dummy))
+		#else
 		if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false) && GetTrieValue(g_hClientSpawned, sAuthID, dummy))
+		#endif
 		{
 			decl String:sBuffer[64];
 			GetCmdArgString(sBuffer, sizeof(sBuffer));
@@ -238,8 +241,13 @@ public Action:Timer_PlayerSpawned(Handle:timer, any:userid)
 	
 	if (IS_CLIENT(client) && IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) > 1)
 	{
+
 		decl String:sAuthID[MAX_AUTHID_LENGTH];
+		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+		#else
 		if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
+		#endif
 		{
 			SetTrieValue(g_hClientSpawned, sAuthID, true);
 		}
