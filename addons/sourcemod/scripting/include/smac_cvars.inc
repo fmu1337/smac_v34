@@ -15,8 +15,9 @@
 #define Cvar_ReplicatedTime "7"
 
 enum CvarOrder {
-	Order_First = 0,
-	Order_Last
+    Order_First = 0,
+    Order_Last,
+    Order_MAX
 }
 
 enum CvarComp {
