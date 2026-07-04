@@ -1,0 +1,50 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  compile:
+    name: SourceMod ${{ matrix.sm-version }}
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.sm-version != '1.6' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        sm-version:
+          - '1.6'
+          - '1.7'
+          - '1.8'
+          - '1.9'
+          - '1.10'
+          - '1.11'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib lib32stdc++6
+
+      - name: Download SourceMod
+        run: |
+          if [ "${{ matrix.sm-version }}" = "1.6" ]; then
+            curl -fsSL \
+              "https://bitbucket.org/_4/smdrop-1.6/downloads/sourcemod-1.6.4-stable-git4626-css34-linux.tar.gz" \
+              -o sourcemod.tar.gz
+          else
+            curl -fsSL \
+              "https://www.sourcemod.net/latest.php?version=${{ matrix.sm-version }}&os=linux" \
+              -o sourcemod.tar.gz
+          fi
+          tar -xzf sourcemod.tar.gz
+
+      - name: Compile plugins
+        run: bash scripts/compile-all.sh
