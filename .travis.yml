@@ -38,6 +38,7 @@ script:
     - ./compile.sh smac_spinhack.sp
     - ./compile.sh smac_status.sp
     - ./compile.sh smac_wallhack.sp
+    - ./compile.sh smac_wallhack_smoke.sp
     - ./compile.sh smac.sp
     - ./compile.sh smac_aimbot.sp
     - ./compile.sh smac_autotrigger.sp
