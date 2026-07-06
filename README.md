@@ -7,3 +7,16 @@
 ![picture alt](https://raw.githubusercontent.com/fmu1337/smac_v34/master/logo.jpg "SMAC v34 Logo")
 
 Поддержка осуществляеться на форуме hlmod.ru, в обсуждениях по ссылке: https://hlmod.ru/threads/smac-v34.28266/
+
+## Требования к SourceMod
+
+Большинство модулей рассчитаны на **SourceMod 1.6** (типичная связка для CSS v34).
+
+Некоторые модули используют 11-параметровый `OnPlayerRunCmd` и **намеренно не загружаются на SM 1.6**:
+
+| Модуль | Минимальная версия SM |
+|--------|----------------------|
+| `smac_wallhack.smx` | 1.7+ |
+| `smac_eyetest.smx` | 1.7+ |
+
+Если wallhack/eyetest не нужны — просто не ставьте их в `plugins/`. Остальной SMAC при этом работает на 1.6.
