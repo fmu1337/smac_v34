@@ -80,6 +80,8 @@ public OnPluginStart()
 	// Initialize.
 	g_iDownloadTable = FindStringTable("downloadables");
 	
+	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires a newer version of SourceMod.");
+	
 	for (new i = 0; i < sizeof(g_bIsVisible); i++)
 	{
 		for (new j = 0; j < sizeof(g_bIsVisible[]); j++)
@@ -456,7 +458,6 @@ public Action:Hook_SetTransmitWeapon(entity, client)
 	return g_bIsVisible[g_iWeaponOwner[entity]][client] ? Plugin_Continue : Plugin_Handled;
 }
 
-#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
 	if (!g_bProcess[client])
@@ -467,18 +468,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	
 	return Plugin_Continue;
 }
-#else
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
-{
-	if (!g_bProcess[client])
-		return Plugin_Continue;
-	
-	g_vEyeAngles[client] = angles;
-	g_iCmdTickCount[client] = GetGameTickCount();
-	
-	return Plugin_Continue;
-}
-#endif
 
 UpdateClientData(client)
 {
