@@ -80,7 +80,8 @@ public OnPluginStart()
 	// Initialize.
 	g_iDownloadTable = FindStringTable("downloadables");
 	
-	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires a newer version of SourceMod.");
+	// FEATURECAP_PLAYERRUNCMD_11PARAMS shipped in SourceMod 1.5.0 (not 1.7).
+	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires SourceMod 1.5.0 or newer (FEATURECAP_PLAYERRUNCMD_11PARAMS).");
 	
 	for (new i = 0; i < sizeof(g_bIsVisible); i++)
 	{

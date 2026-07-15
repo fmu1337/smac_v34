@@ -96,7 +96,7 @@ public Action:Timer_WelcomeMsg(Handle:timer, any:userid)
 
 public Action:Command_Status(client, args){
 	ReplyToCommand(client, "UserID  AuthID                IP             Latency       Name");
-	decl String:sAuthID[MAX_AUTHID_LENGTH], String:sIP[17], String:sCountry[3];
+	decl String:sAuthID[MAX_AUTHID_LENGTH], String:sIP[17], String:sCountry[4];
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsFakeClient(i))

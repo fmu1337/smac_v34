@@ -10,7 +10,7 @@
 
 ## Сборка
 
-CI собирает плагины под SourceMod **1.6–1.13**. Обязательные: **1.6** (CSS v34) и **1.12 / 1.13**. Релизы публикуются автоматически при пуше тега (`v*` / `v34*`).
+CI собирает плагины под SourceMod **1.6–1.13**. Обязательные: **1.6** (CSS v34) и **1.11 / 1.12 / 1.13**. Релизы публикуются автоматически при пуше тега (`v*` / `v34*`).
 
 Локально (Linux, пример для SM 1.12):
 
@@ -24,3 +24,11 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 ```
 
 Для CSS v34 возьмите SM 1.6 с [css34 drop](https://bitbucket.org/_4/smdrop-1.6/downloads/sourcemod-1.6.4-stable-git4626-css34-linux.tar.gz).
+
+## Требования к SourceMod
+
+Типичная цель — **SourceMod 1.6** (CSS v34).
+
+`smac_wallhack` и `smac_eyetest` вызывают `RequireFeature(..., FEATURECAP_PLAYERRUNCMD_11PARAMS)`. Этот capability появился в **SourceMod 1.5.0** ([API Changes](https://wiki.alliedmods.net/Sourcemod_1.5.0_API_Changes)), не в 1.7. На нормальном SM ≥ 1.5 (включая css34 SM 1.6.4) модули должны загружаться.
+
+Если wallhack не грузится с сообщением про «newer version of SourceMod» — проверьте, что у вас действительно SM ≥ 1.5 с рабочим SDKTools, а не урезанный/битый билд.

@@ -31,7 +31,7 @@ jobs:
           - sm-version: '1.10'
             allow-failure: true
           - sm-version: '1.11'
-            allow-failure: true
+            allow-failure: false
           - sm-version: '1.12'
             allow-failure: false
           - sm-version: '1.13'
