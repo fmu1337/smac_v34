@@ -28,6 +28,24 @@ enum DetectionType {
 	
 };
 
+#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
+// Newer compilers require an explicit type; older ones create the GameType tag implicitly.
+enum GameType {
+	Game_Unknown = 0,
+	Game_CSS,
+	Game_TF2,
+	Game_DODS,
+	Game_INS,
+	Game_L4D,
+	Game_L4D2,
+	Game_HL2DM,
+	Game_CSGO,
+	Game_GMODOS,
+	Game_ND,
+	Game_CSGOZombie
+};
+#endif
+
 /* Natives */
 native GameType:SMAC_GetGameType();
 native SMAC_Log(const String:format[], any:...);
