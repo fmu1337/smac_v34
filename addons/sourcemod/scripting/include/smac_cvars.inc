@@ -199,7 +199,8 @@ stock CvarAction:GetCActionInt(const String:sAction[])
 
 stock GetCActionString(CvarAction:CAction, String:sAction[], iSize)
 {
-	switch (CCompType)
+	// Was incorrectly switching on CCompType (typo); fixed for all SM versions.
+	switch (CAction)
 	{
 		case Action_Warn:
 		{

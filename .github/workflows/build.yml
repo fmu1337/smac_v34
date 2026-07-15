@@ -1,0 +1,116 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*', 'v34*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: SM ${{ matrix.sm-version }}
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.allow-failure }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sm-version: '1.6'
+            allow-failure: false
+          - sm-version: '1.7'
+            allow-failure: true
+          - sm-version: '1.8'
+            allow-failure: true
+          - sm-version: '1.9'
+            allow-failure: true
+          - sm-version: '1.10'
+            allow-failure: true
+          - sm-version: '1.11'
+            allow-failure: false
+          - sm-version: '1.12'
+            allow-failure: false
+          - sm-version: '1.13'
+            allow-failure: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install 32-bit runtime (spcomp)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib lib32stdc++6
+
+      - name: Download SourceMod ${{ matrix.sm-version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/sourcemod"
+          if [ "${{ matrix.sm-version }}" = "1.6" ]; then
+            curl -fsSL "https://bitbucket.org/_4/smdrop-1.6/downloads/sourcemod-1.6.4-stable-git4626-css34-linux.tar.gz" -o sourcemod.tar.gz
+          else
+            curl -fsSL "https://www.sourcemod.net/latest.php?version=${{ matrix.sm-version }}&os=linux" -o sourcemod.tar.gz
+          fi
+          tar -xzf sourcemod.tar.gz -C "$HOME/sourcemod"
+          chmod +x "$HOME/sourcemod/addons/sourcemod/scripting/spcomp"
+          "$HOME/sourcemod/addons/sourcemod/scripting/spcomp" || true
+
+      - name: Compile plugins
+        run: |
+          export SPCOMP="$HOME/sourcemod/addons/sourcemod/scripting/spcomp"
+          export SM_INCLUDE="$HOME/sourcemod/addons/sourcemod/scripting/include"
+          export OUT_DIR="$GITHUB_WORKSPACE/package/addons/sourcemod/plugins"
+          chmod +x scripts/compile-all.sh
+          ./scripts/compile-all.sh
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p package/addons/sourcemod/translations/ru
+          cp addons/sourcemod/translations/smac.phrases.txt package/addons/sourcemod/translations/
+          cp addons/sourcemod/translations/ru/smac.phrases.txt package/addons/sourcemod/translations/ru/
+          cd package
+          zip -r "../smac_v34-SM${{ matrix.sm-version }}.zip" addons
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smac_v34-SM${{ matrix.sm-version }}
+          path: smac_v34-SM${{ matrix.sm-version }}.zip
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: smac_v34-SM*
+          merge-multiple: false
+
+      - name: Flatten artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f -name '*.zip' -exec cp -v {} release/ \;
+          ls -la release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
