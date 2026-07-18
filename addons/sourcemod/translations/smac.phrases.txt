@@ -40,6 +40,24 @@
 	{
 		"en"		"Your client has failed to authorize in time! Please reconnect or restart your game."
 	}
+
+	"SMAC_AimlockDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of using an aimlock. (Detection #{2})"
+	}
+
+	"SMAC_pSilentDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of using pSilent / NoRecoil. (Detection #{2})"
+	}
+
+	"SMAC_AimOriginDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of consistent aim origin. (Detection #{2})"
+	}
 	
 	"SMAC_Muted"
 	{

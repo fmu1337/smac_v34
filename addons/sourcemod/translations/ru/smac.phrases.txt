@@ -29,6 +29,21 @@
 	{
 		"ru"		"Клиент не прошел авторизацию. Попробуйте перезапустить клиента."
 	}
+
+	"SMAC_AimlockDetected"
+	{
+		"ru"		"{1} подозревается в использовании aimlock. (Детект #{2})"
+	}
+
+	"SMAC_pSilentDetected"
+	{
+		"ru"		"{1} подозревается в pSilent / NoRecoil. (Детект #{2})"
+	}
+
+	"SMAC_AimOriginDetected"
+	{
+		"ru"		"{1} подозревается в consistent aim origin. (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{

@@ -34,6 +34,8 @@ fi
 PLUGINS=(
 	smac.sp
 	smac_aimbot.sp
+	smac_aimlock.sp
+	smac_aimorigin.sp
 	smac_antiaim.sp
 	smac_autotrigger.sp
 	smac_client.sp
@@ -43,6 +45,8 @@ PLUGINS=(
 	smac_css_fixes.sp
 	smac_cvars.sp
 	smac_eyetest.sp
+	smac_immunity.sp
+	smac_psilent.sp
 	smac_rcon.sp
 	smac_speedhack.sp
 	smac_spinhack.sp

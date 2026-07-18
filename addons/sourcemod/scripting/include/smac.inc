@@ -25,6 +25,13 @@ enum DetectionType {
 	Detection_Eyeangles,
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
+
+	/* Ported detectors from Cheat-Acid GRAB (LilAC / StAC / 2xAA / FFC). */
+	Detection_Aimlock = 900,
+	Detection_pSilent = 1000,
+	Detection_AimOriginConsistency = 1100,
+	Detection_ChatClear = 1200,
+	Detection_HardFlood = 1300,
 	
 };
 

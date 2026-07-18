@@ -83,6 +83,8 @@ public OnPluginStart()
 	AddCvar(Order_Last, "cl_overdraw_test",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "cl_phys_timescale",	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "cl_showevents",		Comp_Equal, Action_Ban, "0.0");
+	/* From StAC / LilAC via Cheat-Acid — blocks NoLerp cheats that disable interpolation. */
+	AddCvar(Order_Last, "cl_interpolate",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "fog_enable",		Comp_Equal, Action_Ban, "1.0");
 	
 	
