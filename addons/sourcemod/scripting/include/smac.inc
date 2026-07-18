@@ -58,7 +58,14 @@ enum DetectionType {
 	Detection_EntitySpam = 3100,
 	Detection_SensitivitySpam = 3200,
 	Detection_ImpulseSpam = 3300,
-	
+
+	/* SSAC v2 ideas — rewritten, Danyas. */
+	Detection_TimedBhop = 3400,
+	Detection_AirStuck = 3500,
+	Detection_FastLadder = 3600,
+	Detection_FastRun = 3700,
+	Detection_LagExploit = 3800,
+	Detection_MouselessAim = 3900,
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

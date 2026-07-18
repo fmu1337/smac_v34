@@ -100,6 +100,21 @@ public OnPluginStart()
 	SetTrieValue(g_hBlockedCmds, "sv_soundemitter_flush", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "sv_soundscape_printdebuginfo", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "wc_update_entity", Action_Block);
+	/* Extra CSS v34 abuse cmds from ProtectCMDS (WeSTManCoder) — SP block list only. */
+	SetTrieValue(g_hBlockedCmds, "q_sndrcn", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "send_me_rcon", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "wc_update_safe_entities", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_create_aimed", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_destroy", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_freeze", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_conditions", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_combat", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_focus", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_enemies", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_bipass", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_tasks", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_teleport", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_go", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "changelevel", Action_Ban);
 	SetTrieValue(g_hBlockedCmds, "speed.toggle", Action_Kick);
 	

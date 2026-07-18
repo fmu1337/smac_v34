@@ -60,6 +60,7 @@ PLUGINS=(
 	smac_strikeback.sp
 	smac_teleport.sp
 	smac_entityspam.sp
+	smac_ssac.sp
 	smac_wallhack.sp
 )
 

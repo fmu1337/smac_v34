@@ -154,6 +154,36 @@
 	{
 		"ru"		"Вы кикнуты за спам impulse"
 	}
+
+	"SMAC_TimedBhopDetected"
+	{
+		"ru"		"{1} подозревается в timed bhop. (Детект #{2})"
+	}
+
+	"SMAC_AirStuckDetected"
+	{
+		"ru"		"{1} подозревается в airstuck. (Детект #{2})"
+	}
+
+	"SMAC_FastLadderDetected"
+	{
+		"ru"		"{1} подозревается в fast ladder. (Детект #{2})"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"ru"		"{1} подозревается в illegal wishspeed. (Детект #{2})"
+	}
+
+	"SMAC_LagExploitDetected"
+	{
+		"ru"		"{1} подозревается в cmdnum lag exploit. (Детект #{2})"
+	}
+
+	"SMAC_MouselessAimDetected"
+	{
+		"ru"		"{1} подозревается в mouse-less aim. (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{

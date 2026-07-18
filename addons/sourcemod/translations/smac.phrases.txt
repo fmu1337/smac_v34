@@ -186,6 +186,42 @@
 	{
 		"en"		"You were kicked for impulse command spam"
 	}
+
+	"SMAC_TimedBhopDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of timed bhop hack. (Detection #{2})"
+	}
+
+	"SMAC_AirStuckDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of airstuck. (Detection #{2})"
+	}
+
+	"SMAC_FastLadderDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of fast ladder. (Detection #{2})"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of illegal wishspeed. (Detection #{2})"
+	}
+
+	"SMAC_LagExploitDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of cmdnum lag exploit. (Detection #{2})"
+	}
+
+	"SMAC_MouselessAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of mouse-less aim. (Detection #{2})"
+	}
 	
 	"SMAC_Muted"
 	{
