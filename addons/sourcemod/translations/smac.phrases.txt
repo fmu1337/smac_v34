@@ -263,6 +263,42 @@
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of Fast AIM. (Detection #{2})"
 	}
+
+	"SMAC_UltraPRGDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ PRG aim (Pass.Mode 30x). (Detection #{2})"
+	}
+
+	"SMAC_UltraAGTDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AGT aim (Mode 288/299). (Detection #{2})"
+	}
+
+	"SMAC_UltraAGTAFDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AGTAF aim (Mode 88/99). (Detection #{2})"
+	}
+
+	"SMAC_UltraTriggerAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ Trigger aim (Mode 188/199). (Detection #{2})"
+	}
+
+	"SMAC_UltraNullAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ Null-Level aim (Mode 200). (Detection #{2})"
+	}
+
+	"SMAC_UltraRCSDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ Recoil Control System. (Detection #{2})"
+	}
 	
 	"SMAC_Muted"
 	{

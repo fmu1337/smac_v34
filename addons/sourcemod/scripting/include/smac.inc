@@ -72,6 +72,14 @@ enum DetectionType {
 	Detection_FakeLag = 4100,
 	Detection_Attack2Macro = 4200,
 	Detection_FastAim = 4300,
+
+	/* SMAC Ultra aim modes restored from R52 Global.smx .data / dbg symbols. */
+	Detection_UltraPRG = 4400,		/* Pass.Mode:301-304 */
+	Detection_UltraAGT = 4500,		/* Mode:288/299 */
+	Detection_UltraAGTAF = 4600,	/* Mode:88/99/108/109 */
+	Detection_UltraTriggerAim = 4700,	/* Mode:188/199 */
+	Detection_UltraNullAim = 4800,	/* Mode:200/201 AGTNL */
+	Detection_UltraRCS = 4900,		/* Recoil Control System -H/-F */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

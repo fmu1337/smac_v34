@@ -219,6 +219,36 @@
 	{
 		"ru"		"{1} подозревается в Fast AIM. (Детект #{2})"
 	}
+
+	"SMAC_UltraPRGDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ PRG aim (Pass.Mode 30x). (Детект #{2})"
+	}
+
+	"SMAC_UltraAGTDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AGT aim (Mode 288/299). (Детект #{2})"
+	}
+
+	"SMAC_UltraAGTAFDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AGTAF aim (Mode 88/99). (Детект #{2})"
+	}
+
+	"SMAC_UltraTriggerAimDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ Trigger aim (Mode 188/199). (Детект #{2})"
+	}
+
+	"SMAC_UltraNullAimDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ Null-Level aim (Mode 200). (Детект #{2})"
+	}
+
+	"SMAC_UltraRCSDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ Recoil Control System. (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{

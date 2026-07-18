@@ -64,6 +64,7 @@ PLUGINS=(
 	smac_norecoil.sp
 	smac_fakelag.sp
 	smac_firemacro.sp
+	smac_ultra_aim.sp
 	smac_wallhack.sp
 )
 
