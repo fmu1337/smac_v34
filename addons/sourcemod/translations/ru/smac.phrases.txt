@@ -249,6 +249,16 @@
 	{
 		"ru"		"{1} подозревается в Ultr@ Recoil Control System. (Детект #{2})"
 	}
+
+	"SMAC_UltraAGTWSDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AGTWS aim (Mode 100). (Детект #{2})"
+	}
+
+	"SMAC_UltraAMSAFDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AMSAF aim (Mode 101). (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{

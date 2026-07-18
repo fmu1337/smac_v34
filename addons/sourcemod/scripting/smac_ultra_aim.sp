@@ -12,74 +12,98 @@
  *
  * Original module by Danyas for SMAC v34.
  *
- * Restored from SMAC Ultra (Ultr@) R52 Global.smx after decompressing the
- * FFPS image and recovering plaintext detection labels + dbg symbols +
- * Accurate_Analysis_Module float thresholds from Lysis dumps:
+ * Sources used to restore Ultr@ aim detectors:
+ *  1) R52 smac.cfg comments (mode → detector mapping)
+ *  2) Author listing (Terminator-ws) on counter-strike.cn.ua / sourceplay.ru:
+ *       "цифровая кодировка (представляют собой градусы)"
+ *       Automatic Guidance to the Target     → 288, 299
+ *       Passive Route Guidance                 → 301, 302, 303, 304
+ *       Automatic Route - Null Level          → 200
+ *       AimBot Trigger                        → 188, 199
+ *       Automatic Route Guidance When a Shot  → 100   (AGTWS)
+ *       Automatic Route Guidance After Firing → 88, 99
+ *       Analysis Module Shooting using WH     → 102, 103  (see smac_strikeback)
+ *       Analysis Module Shooting After Firing → 101   (AMSAF)
+ *  3) Decompressed Global.smx .data labels + Accurate_Analysis_Module
+ *     float bands 0.4° / 0.6° / 2.0° and mode floats 188.88 / 288.88 / …
+ *  4) RCS -F/-H = smac_Advanced_Eye_Angle_Test_Fire / _Hurt
+ *     (eye↔bullet / eye↔hurt desync)
  *
- *   Pass.Mode:301-304          → Passive Route Guidance (PRG)
- *   Mode 288/299               → Automatic Guidance (AGT) while firing
- *   Mode 88/99/108/109         → Automatic Guidance After Firing (AGTAF)
- *   Mode 188/199               → Trigger aim
- *   Mode 200/201               → Null-Level guidance (AGTNL)
- *   Mode 100                   → Guidance while spraying (AGTWS)
- *   Mode 101                   → Analysis Module After Firing (AMSAF)
- *   Recoil Control System -H/F → perfect RCS compensation
- *
- * Not a bytecode 1:1 port (control-flow remains obfuscated); algorithms are
- * reconstructed from recovered strings, symbols (g_fAngleDiff, FireAng,
- * iTarget, AIM_Sens, g_bIsVisible) and threshold constants (0.4 / 0.6 / 2.0°
- * bands, mode-id floats 188.88 / 200 / 288.88 / 299.99 / 301.99).
+ * Soft ban defaults (0). Ultr@ used signed kick/ban style; we keep SMAC_Ban only.
  */
 
 public Plugin:myinfo =
 {
 	name = "SMAC: Ultra Aim (Restored)",
 	author = SMAC_AUTHOR,
-	description = "Restored Ultr@ advanced aim modes (PRG/AGT/AGTAF/Tr/RCS)",
+	description = "Restored Ultr@ aim modes from cfg + author docs + smx dump",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
 
-#define HISTORY			32
-#define SNAP_TICKS		5
-#define PRG_STREAK		48
-#define AGT_STREAK		36
-#define AGTAF_WINDOW	0.35
-#define TRIGGER_FOV		3.0
-#define NULL_MOUSE		2
-#define RCS_STREAK		12
+/* Ultr@ mode codes (degrees encoding per author). */
+#define MODE_AGTAF_LO		88.0
+#define MODE_AGTAF_HI		109.0
+#define MODE_AGTWS			100.0
+#define MODE_AMSAF			101.0
+#define MODE_TRIGGER_LO		188.0
+#define MODE_TRIGGER_HI		199.0
+#define MODE_NULL_LO		200.0
+#define MODE_NULL_HI		201.0
+#define MODE_AGT_LO			288.0
+#define MODE_AGT_HI			299.0
+#define MODE_PRG_LO			300.0
+#define MODE_PRG_HI			305.0
 
+/* Accurate_Analysis_Module micro-bands */
+#define BAND_LO				0.4
+#define BAND_MID			0.6
+#define BAND_HI				2.0
+
+#define SNAP_TICKS			5
+#define PRG_STREAK			48
+#define AGT_STREAK			36
+#define AGTWS_STREAK		20
+#define AGTAF_WINDOW		0.35
+#define TRIGGER_FOV			3.0
+#define NULL_MOUSE			2
+
+new Handle:g_hCvarEnabled = INVALID_HANDLE;
 new Handle:g_hCvarPrgBan = INVALID_HANDLE;
 new Handle:g_hCvarAgtBan = INVALID_HANDLE;
+new Handle:g_hCvarAgtwsBan = INVALID_HANDLE;
 new Handle:g_hCvarAgtafBan = INVALID_HANDLE;
 new Handle:g_hCvarTrigBan = INVALID_HANDLE;
 new Handle:g_hCvarNullBan = INVALID_HANDLE;
-new Handle:g_hCvarRcsBan = INVALID_HANDLE;
-new Handle:g_hCvarEnabled = INVALID_HANDLE;
+new Handle:g_hCvarAmsafBan = INVALID_HANDLE;
+new Handle:g_hCvarRcsFire = INVALID_HANDLE;
+new Handle:g_hCvarRcsHurt = INVALID_HANDLE;
 
 new bool:g_bWhNative = false;
 
 new Float:g_fPrevAng[MAXPLAYERS+1][3];
 new bool:g_bHaveAng[MAXPLAYERS+1];
 new g_iPrevButtons[MAXPLAYERS+1];
-new g_iPrevMouse[MAXPLAYERS+1][2];
 
 new g_iPrgStreak[MAXPLAYERS+1];
 new g_iAgtStreak[MAXPLAYERS+1];
-new g_iRcsStreak[MAXPLAYERS+1];
-new Float:g_fLastPunch[MAXPLAYERS+1][3];
-new bool:g_bHavePunch[MAXPLAYERS+1];
+new g_iAgtwsStreak[MAXPLAYERS+1];
 
 new Float:g_fLastFire[MAXPLAYERS+1];
 new Float:g_fFireAng[MAXPLAYERS+1][3];
+new Float:g_fFireEye[MAXPLAYERS+1][3];
 new g_iSnapLeft[MAXPLAYERS+1];
+new Float:g_fAmsafAccum[MAXPLAYERS+1];
 
 new g_iPrgDet[MAXPLAYERS+1];
 new g_iAgtDet[MAXPLAYERS+1];
+new g_iAgtwsDet[MAXPLAYERS+1];
 new g_iAgtafDet[MAXPLAYERS+1];
 new g_iTrigDet[MAXPLAYERS+1];
 new g_iNullDet[MAXPLAYERS+1];
-new g_iRcsDet[MAXPLAYERS+1];
+new g_iAmsafDet[MAXPLAYERS+1];
+new g_iRcsFireDet[MAXPLAYERS+1];
+new g_iRcsHurtDet[MAXPLAYERS+1];
 
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 
@@ -94,13 +118,19 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarEnabled = SMAC_CreateConVar("smac_ultra_aim", "1", "Enable restored Ultr@ advanced aim detectors.", _, true, 0.0, true, 1.0);
-	/* Soft defaults — Ultra shipped aggressive bans; we log first. */
-	g_hCvarPrgBan = SMAC_CreateConVar("smac_ultra_prg_ban", "0", "PRG (Pass.Mode 30x) detections before ban. (0=Never)", _, true, 0.0);
-	g_hCvarAgtBan = SMAC_CreateConVar("smac_ultra_agt_ban", "0", "AGT (Mode 288/299) detections before ban. (0=Never)", _, true, 0.0);
-	g_hCvarAgtafBan = SMAC_CreateConVar("smac_ultra_agtaf_ban", "0", "AGTAF (Mode 88/99) detections before ban. (0=Never)", _, true, 0.0);
-	g_hCvarTrigBan = SMAC_CreateConVar("smac_ultra_trigger_ban", "0", "Trigger-aim (Mode 188/199) detections before ban. (0=Never)", _, true, 0.0);
-	g_hCvarNullBan = SMAC_CreateConVar("smac_ultra_null_ban", "0", "Null-level aim (Mode 200) detections before ban. (0=Never)", _, true, 0.0);
-	g_hCvarRcsBan = SMAC_CreateConVar("smac_ultra_rcs_ban", "0", "Perfect RCS detections before ban. (0=Never)", _, true, 0.0);
+
+	/* Mirror Ultr@ smac_aimbot_Advanced_* names; default 0 = never ban (safer than Ultra). */
+	g_hCvarPrgBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_PRG", "0", "PRG Mode:300-305 bans after N detects. (0=Never)", _, true, 0.0);
+	g_hCvarAgtBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGT", "0", "AGT Mode:288/299 bans after N detects. (0=Never)", _, true, 0.0);
+	g_hCvarAgtwsBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AGTWS Mode:100 bans after N detects. (0=Never)", _, true, 0.0);
+	g_hCvarAgtafBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTAF", "0", "AGTAF Mode:88/99 bans after N detects. (0=Never)", _, true, 0.0);
+	g_hCvarTrigBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_Tr", "0", "Trigger Mode:188/199 bans after N detects. (0=Never)", _, true, 0.0);
+	g_hCvarNullBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTNL", "0", "Null Mode:200/201 bans after N detects. (0=Never)", _, true, 0.0);
+	g_hCvarAmsafBan = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AMSAF Mode:101 bans after N detects. (0=Never)", _, true, 0.0);
+
+	/* Ultr@ Eye Angle Test — signed: 0=off, we treat abs as threshold, ban off by default. */
+	g_hCvarRcsFire = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Fire", "0.0", "RCS-F: eye↔shot desync units before detect. 0=off. Ultra default was -40.", _, true, 0.0);
+	g_hCvarRcsHurt = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Hurt", "0.0", "RCS-H: eye↔hurt desync degrees before detect. 0=off. Ultra default was 4.", _, true, 0.0);
 
 	HookEvent("player_spawn", Event_Spawn, EventHookMode_Post);
 	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
@@ -128,21 +158,22 @@ public OnClientDisconnect(client)
 ResetClient(client)
 {
 	g_bHaveAng[client] = false;
-	g_bHavePunch[client] = false;
 	g_iPrevButtons[client] = 0;
-	g_iPrevMouse[client][0] = 0;
-	g_iPrevMouse[client][1] = 0;
 	g_iPrgStreak[client] = 0;
 	g_iAgtStreak[client] = 0;
-	g_iRcsStreak[client] = 0;
+	g_iAgtwsStreak[client] = 0;
 	g_iSnapLeft[client] = 0;
 	g_fLastFire[client] = 0.0;
+	g_fAmsafAccum[client] = 0.0;
 	g_iPrgDet[client] = 0;
 	g_iAgtDet[client] = 0;
+	g_iAgtwsDet[client] = 0;
 	g_iAgtafDet[client] = 0;
 	g_iTrigDet[client] = 0;
 	g_iNullDet[client] = 0;
-	g_iRcsDet[client] = 0;
+	g_iAmsafDet[client] = 0;
+	g_iRcsFireDet[client] = 0;
+	g_iRcsHurtDet[client] = 0;
 	g_fIgnoreUntil[client] = 0.0;
 }
 
@@ -152,8 +183,8 @@ public Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if (IS_CLIENT(client))
 	{
 		g_bHaveAng[client] = false;
-		g_bHavePunch[client] = false;
 		g_fIgnoreUntil[client] = GetGameTime() + 1.5;
+		g_fAmsafAccum[client] = 0.0;
 	}
 }
 
@@ -169,17 +200,18 @@ public Teleport_OnEndTouch(const String:output[], caller, activator, Float:delay
 public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (!IS_CLIENT(client) || !IsClientInGame(client))
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client))
 		return;
 
 	g_fLastFire[client] = GetGameTime();
 	GetClientEyeAngles(client, g_fFireAng[client]);
+	GetClientEyePosition(client, g_fFireEye[client]);
 	g_iSnapLeft[client] = SNAP_TICKS;
+	g_fAmsafAccum[client] = 0.0;
 }
 
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	/* Advanced_Eye_Angle_Test_Hurt idea — snap onto victim on hurt tick. */
 	if (!GetConVarBool(g_hCvarEnabled))
 		return;
 
@@ -194,25 +226,35 @@ public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 
 	decl Float:eye[3], Float:tgt[3], Float:ang[3], Float:toTarget[3];
 	GetClientEyePosition(attacker, eye);
-	GetClientEyePosition(victim, tgt);
+	GetClientAbsOrigin(victim, tgt);
+	tgt[2] += 40.0; /* approx chest */
 	GetClientEyeAngles(attacker, ang);
 	MakeVectorFromPoints(eye, tgt, toTarget);
 	GetVectorAngles(toTarget, toTarget);
 
 	new Float:dyaw = FloatAbs(AngleDiff(ang[1], toTarget[1]));
 	new Float:dpitch = FloatAbs(AngleDiff(ang[0], toTarget[0]));
-	if (dyaw > TRIGGER_FOV || dpitch > TRIGGER_FOV)
-		return;
+	new Float:fov = dyaw + dpitch;
 
-	/* Hurt with FOV lock + recent fire snap → AGTAF-style. */
-	if (GetGameTime() - g_fLastFire[attacker] <= AGTAF_WINDOW)
+	/* RCS-H: Eye Angle Test Hurt — desync look vs hit point (Ultra cfg). */
+	new Float:hurtLimit = GetConVarFloat(g_hCvarRcsHurt);
+	if (hurtLimit > 0.0 && fov >= hurtLimit)
 	{
-		new Float:snap = FloatAbs(AngleDiff(ang[1], g_fFireAng[attacker][1]));
-		if (snap >= 2.0 && snap <= 60.0)
+		g_iRcsHurtDet[attacker]++;
+		FireDetect(attacker, Detection_UltraRCS, g_iRcsHurtDet[attacker], INVALID_HANDLE,
+			"SMAC_UltraRCSDetected", "RCS-H EyeAngleTest_Hurt", fov, MODE_AMSAF);
+	}
+
+	/* AGTAF Mode:88/99 — snap onto victim after fire. */
+	if (GetGameTime() - g_fLastFire[attacker] <= AGTAF_WINDOW && fov <= TRIGGER_FOV)
+	{
+		new Float:snap = FloatAbs(AngleDiff(ang[1], g_fFireAng[attacker][1]))
+			+ FloatAbs(AngleDiff(ang[0], g_fFireAng[attacker][0]));
+		if (snap >= BAND_HI && snap <= MODE_AGTAF_HI)
 		{
 			g_iAgtafDet[attacker]++;
 			FireDetect(attacker, Detection_UltraAGTAF, g_iAgtafDet[attacker], g_hCvarAgtafBan,
-				"SMAC_UltraAGTAFDetected", "AGTAF Mode:88/99 (guidance after firing)", snap);
+				"SMAC_UltraAGTAFDetected", "AGTAF Mode:88/99", snap, ClassifyAgtaf(snap));
 		}
 	}
 }
@@ -244,8 +286,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_fPrevAng[client][1] = angles[1];
 		g_bHaveAng[client] = true;
 		g_iPrevButtons[client] = buttons;
-		g_iPrevMouse[client][0] = mouse[0];
-		g_iPrevMouse[client][1] = mouse[1];
 		return Plugin_Continue;
 	}
 
@@ -259,17 +299,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	new Float:bestFov = 999.0;
 	new bestTarget = FindBestTarget(client, angles, bestFov);
+	new score = ScoreBand(delta);
 
-	/* Ultra Accurate_Analysis_Module bands: 0.4 / 0.6 / 2.0° */
-	new score = 0;
-	if (delta >= 2.0)
-		score = 3;
-	else if (delta >= 0.6)
-		score = 2;
-	else if (delta >= 0.4)
-		score = 1;
-
-	/* --- PRG Pass.Mode:301-304 — passive guidance, mouse still --- */
+	/* PRG Pass.Mode:301-304 — passive guidance */
 	if (!attacking && mouseStill && score >= 1 && bestTarget > 0 && bestFov < 25.0)
 	{
 		if (IsAimToward(client, angles, g_fPrevAng[client], bestTarget))
@@ -280,16 +312,15 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 				g_iPrgStreak[client] = 0;
 				g_iPrgDet[client]++;
 				FireDetect(client, Detection_UltraPRG, g_iPrgDet[client], g_hCvarPrgBan,
-					"SMAC_UltraPRGDetected", "PRG Pass.Mode:301-304", delta);
+					"SMAC_UltraPRGDetected", "PRG Pass.Mode:301-304", delta, MODE_PRG_LO + float(score));
 			}
 		}
-		else
-			g_iPrgStreak[client] = 0;
+		else g_iPrgStreak[client] = 0;
 	}
 	else if (!mouseStill)
 		g_iPrgStreak[client] = 0;
 
-	/* --- AGT Mode:288/299 — guidance while firing --- */
+	/* AGT Mode:288/299 — guidance while holding attack */
 	if (attacking && mouseStill && score >= 1 && bestTarget > 0 && bestFov < 20.0)
 	{
 		if (IsAimToward(client, angles, g_fPrevAng[client], bestTarget))
@@ -300,102 +331,116 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 				g_iAgtStreak[client] = 0;
 				g_iAgtDet[client]++;
 				FireDetect(client, Detection_UltraAGT, g_iAgtDet[client], g_hCvarAgtBan,
-					"SMAC_UltraAGTDetected", "AGT Mode:288/299", delta);
+					"SMAC_UltraAGTDetected", "AGT Mode:288/299", delta, MODE_AGT_LO);
 			}
 		}
-		else
-			g_iAgtStreak[client] = 0;
+		else g_iAgtStreak[client] = 0;
 	}
 	else if (!attacking)
 		g_iAgtStreak[client] = 0;
 
-	/* --- AGTAF Mode:88/99 — snap after fire (RunCmd path) --- */
+	/* AGTWS Mode:100 — Automatic Route Guidance When a Shot (attack edge) */
+	if (attackEdge && mouseStill && score >= 1 && bestTarget > 0 && bestFov < 18.0)
+	{
+		if (IsAimToward(client, angles, g_fPrevAng[client], bestTarget))
+		{
+			g_iAgtwsStreak[client] += score;
+			if (g_iAgtwsStreak[client] >= AGTWS_STREAK)
+			{
+				g_iAgtwsStreak[client] = 0;
+				g_iAgtwsDet[client]++;
+				FireDetect(client, Detection_UltraAGTWS, g_iAgtwsDet[client], g_hCvarAgtwsBan,
+					"SMAC_UltraAGTWSDetected", "AGTWS Mode:100", delta, MODE_AGTWS);
+			}
+		}
+	}
+	else if (!attacking)
+		g_iAgtwsStreak[client] = 0;
+
+	/* AGTAF Mode:88/99 — post-fire snap (RunCmd) */
 	if (g_iSnapLeft[client] > 0)
 	{
 		g_iSnapLeft[client]--;
-		if (mouseStill && delta >= 2.0 && delta <= 60.0 && bestTarget > 0 && bestFov < 15.0)
+		g_fAmsafAccum[client] += delta;
+
+		if (mouseStill && delta >= BAND_HI && delta <= MODE_AGTAF_HI && bestTarget > 0 && bestFov < 15.0)
 		{
 			if (IsAimToward(client, angles, g_fFireAng[client], bestTarget))
 			{
 				g_iAgtafDet[client]++;
 				g_iSnapLeft[client] = 0;
 				FireDetect(client, Detection_UltraAGTAF, g_iAgtafDet[client], g_hCvarAgtafBan,
-					"SMAC_UltraAGTAFDetected", "AGTAF Mode:88/99", delta);
+					"SMAC_UltraAGTAFDetected", "AGTAF Mode:88/99", delta, ClassifyAgtaf(delta));
 			}
+		}
+
+		/* AMSAF Mode:101 — Analysis Module Shooting After Firing */
+		if (g_iSnapLeft[client] == 0 && g_fAmsafAccum[client] >= MODE_AGTWS)
+		{
+			g_iAmsafDet[client]++;
+			FireDetect(client, Detection_UltraAMSAF, g_iAmsafDet[client], g_hCvarAmsafBan,
+				"SMAC_UltraAMSAFDetected", "AMSAF Mode:101", g_fAmsafAccum[client], MODE_AMSAF);
+			g_fAmsafAccum[client] = 0.0;
 		}
 	}
 
-	/* --- Trigger Mode:188/199 — attack edge as FOV collapses --- */
-	if (attackEdge && bestTarget > 0 && bestFov <= TRIGGER_FOV && delta >= 1.0 && mouseStill)
+	/* Trigger Mode:188/199 */
+	if (attackEdge && bestTarget > 0 && bestFov <= TRIGGER_FOV && delta >= BAND_HI && mouseStill)
 	{
 		g_iTrigDet[client]++;
 		FireDetect(client, Detection_UltraTriggerAim, g_iTrigDet[client], g_hCvarTrigBan,
-			"SMAC_UltraTriggerAimDetected", "Trigger Mode:188/199", bestFov);
+			"SMAC_UltraTriggerAimDetected", "Trigger Mode:188/199", bestFov, MODE_TRIGGER_LO);
 	}
 
-	/* --- AGTNL Mode:200/201 — null mouse + aim move toward target --- */
-	if (mouseZero && delta >= 0.6 && delta <= 40.0 && bestTarget > 0 && bestFov < 18.0)
+	/* AGTNL Mode:200/201 — null mouse */
+	if (mouseZero && delta >= BAND_MID && delta <= 40.0 && bestTarget > 0 && bestFov < 18.0)
 	{
 		if (IsAimToward(client, angles, g_fPrevAng[client], bestTarget))
 		{
 			g_iNullDet[client]++;
-			if (g_iNullDet[client] % 3 == 0) /* need repeated ticks */
+			if ((g_iNullDet[client] % 3) == 0)
 			{
 				FireDetect(client, Detection_UltraNullAim, g_iNullDet[client] / 3, g_hCvarNullBan,
-					"SMAC_UltraNullAimDetected", "AGTNL Mode:200/201", delta);
+					"SMAC_UltraNullAimDetected", "AGTNL Mode:200/201", delta, MODE_NULL_LO);
 			}
 		}
 	}
 
-	/* --- RCS Recoil Control System -H/-F — perfect punch cancel --- */
-	CheckRCS(client, angles);
+	/* RCS-F: Eye Angle Test Fire — cmd angles vs eye angles at recent fire */
+	new Float:fireLimit = GetConVarFloat(g_hCvarRcsFire);
+	if (fireLimit > 0.0 && attacking && g_fLastFire[client] > 0.0
+		&& (GetGameTime() - g_fLastFire[client]) < 0.25)
+	{
+		new Float:desync = FloatAbs(AngleDiff(angles[0], g_fFireAng[client][0]))
+			+ FloatAbs(AngleDiff(angles[1], g_fFireAng[client][1]));
+		if (desync >= fireLimit)
+		{
+			g_iRcsFireDet[client]++;
+			FireDetect(client, Detection_UltraRCS, g_iRcsFireDet[client], INVALID_HANDLE,
+				"SMAC_UltraRCSDetected", "RCS-F EyeAngleTest_Fire", desync, MODE_AMSAF);
+		}
+	}
 
 	g_fPrevAng[client][0] = angles[0];
 	g_fPrevAng[client][1] = angles[1];
 	g_iPrevButtons[client] = buttons;
-	g_iPrevMouse[client][0] = mouse[0];
-	g_iPrevMouse[client][1] = mouse[1];
 	return Plugin_Continue;
 }
 
-CheckRCS(client, const Float:angles[3])
+ScoreBand(Float:delta)
 {
-	decl Float:punch[3];
-	GetEntPropVector(client, Prop_Send, "m_vecPunchAngle", punch);
+	if (delta >= BAND_HI) return 3;
+	if (delta >= BAND_MID) return 2;
+	if (delta >= BAND_LO) return 1;
+	return 0;
+}
 
-	if (!g_bHavePunch[client])
-	{
-		g_fLastPunch[client][0] = punch[0];
-		g_fLastPunch[client][1] = punch[1];
-		g_fLastPunch[client][2] = punch[2];
-		g_bHavePunch[client] = true;
-		return;
-	}
-
-	new Float:dpunchPitch = punch[0] - g_fLastPunch[client][0];
-	new Float:dangPitch = angles[0] - g_fPrevAng[client][0];
-	g_fLastPunch[client][0] = punch[0];
-	g_fLastPunch[client][1] = punch[1];
-	g_fLastPunch[client][2] = punch[2];
-
-	/* Punch grew (recoil up) and eye pitch compensated almost exactly opposite. */
-	if (dpunchPitch > 0.15 && dangPitch < -0.10)
-	{
-		new Float:ratio = FloatAbs(dangPitch / dpunchPitch);
-		if (ratio > 0.85 && ratio < 1.25)
-		{
-			g_iRcsStreak[client]++;
-			if (g_iRcsStreak[client] >= RCS_STREAK)
-			{
-				g_iRcsStreak[client] = 0;
-				g_iRcsDet[client]++;
-				FireDetect(client, Detection_UltraRCS, g_iRcsDet[client], g_hCvarRcsBan,
-					"SMAC_UltraRCSDetected", "Recoil Control System", ratio);
-			}
-			return;
-		}
-	}
-	g_iRcsStreak[client] = 0;
+Float:ClassifyAgtaf(Float:snap)
+{
+	if (snap >= 108.0) return 109.0;
+	if (snap >= 99.0) return 108.0;
+	if (snap >= 88.0) return 99.0;
+	return MODE_AGTAF_LO;
 }
 
 FindBestTarget(client, const Float:angles[3], &Float:bestFov)
@@ -459,22 +504,26 @@ AbsInt(v)
 	return (v < 0) ? -v : v;
 }
 
-FireDetect(client, DetectionType:type, detects, Handle:hBan, const String:phrase[], const String:logTag[], Float:metric)
+FireDetect(client, DetectionType:type, detects, Handle:hBan, const String:phrase[], const String:logTag[], Float:metric, Float:modeDeg)
 {
 	new Handle:info = CreateKeyValues("");
 	KvSetNum(info, "detection", detects);
 	KvSetFloat(info, "metric", metric);
+	KvSetFloat(info, "mode", modeDeg);
 	KvSetString(info, "ultra_tag", logTag);
 
 	if (SMAC_CheatDetected(client, type, info) == Plugin_Continue)
 	{
 		SMAC_PrintAdminNotice("%t", phrase, client, detects);
-		SMAC_LogAction(client, "%s (Detection #%i | metric=%.2f)", logTag, detects, metric);
-		new banAt = GetConVarInt(hBan);
-		if (banAt && detects >= banAt)
+		SMAC_LogAction(client, "%s (Detection #%i | Mode:%.1f | metric=%.2f)", logTag, detects, modeDeg, metric);
+		if (hBan != INVALID_HANDLE)
 		{
-			SMAC_LogAction(client, "was banned for %s.", logTag);
-			SMAC_Ban(client, "Ultra Aim Detection");
+			new banAt = GetConVarInt(hBan);
+			if (banAt && detects >= banAt)
+			{
+				SMAC_LogAction(client, "was banned for %s.", logTag);
+				SMAC_Ban(client, "Ultra Aim Detection");
+			}
 		}
 	}
 	CloseHandle(info);

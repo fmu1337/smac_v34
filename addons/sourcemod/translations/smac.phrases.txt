@@ -299,6 +299,18 @@
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of Ultr@ Recoil Control System. (Detection #{2})"
 	}
+
+	"SMAC_UltraAGTWSDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AGTWS aim (Mode 100). (Detection #{2})"
+	}
+
+	"SMAC_UltraAMSAFDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AMSAF aim (Mode 101). (Detection #{2})"
+	}
 	
 	"SMAC_Muted"
 	{

@@ -80,6 +80,8 @@ enum DetectionType {
 	Detection_UltraTriggerAim = 4700,	/* Mode:188/199 */
 	Detection_UltraNullAim = 4800,	/* Mode:200/201 AGTNL */
 	Detection_UltraRCS = 4900,		/* Recoil Control System -H/-F */
+	Detection_UltraAGTWS = 5000,	/* Mode:100 When a Shot */
+	Detection_UltraAMSAF = 5100,	/* Mode:101 Analysis After Firing */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
