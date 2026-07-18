@@ -150,6 +150,16 @@
 		"ru"		"Вы кикнуты за частую смену sensitivity"
 	}
 
+	"SMAC_SensitivityLowKick"
+	{
+		"ru"		"Вы кикнуты за слишком низкую sensitivity ({1} < {2})"
+	}
+
+	"SMAC_SensitivityHighKick"
+	{
+		"ru"		"Вы кикнуты за слишком высокую sensitivity ({1} > {2})"
+	}
+
 	"SMAC_ImpulseSpamKick"
 	{
 		"ru"		"Вы кикнуты за спам impulse"
@@ -183,6 +193,31 @@
 	"SMAC_MouselessAimDetected"
 	{
 		"ru"		"{1} подозревается в mouse-less aim. (Детект #{2})"
+	}
+
+	"SMAC_NoRecoilDetected"
+	{
+		"ru"		"{1} подозревается в NoRecoil. (Детект #{2})"
+	}
+
+	"SMAC_FakeLagDetected"
+	{
+		"ru"		"{1} подозревается в Fake Lag. (Детект #{2})"
+	}
+
+	"SMAC_FakeLagKick"
+	{
+		"ru"		"Вы кикнуты за подозрение в Fake Lag"
+	}
+
+	"SMAC_Attack2MacroDetected"
+	{
+		"ru"		"{1} подозревается в +attack2 fire macro. (Детект #{2})"
+	}
+
+	"SMAC_FastAimDetected"
+	{
+		"ru"		"{1} подозревается в Fast AIM. (Детект #{2})"
 	}
 		
 	"SMAC_Muted"

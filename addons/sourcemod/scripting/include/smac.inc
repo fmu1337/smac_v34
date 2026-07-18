@@ -66,6 +66,12 @@ enum DetectionType {
 	Detection_FastRun = 3700,
 	Detection_LagExploit = 3800,
 	Detection_MouselessAim = 3900,
+
+	/* SMAC Ultra deep-mine — rewritten, Danyas. */
+	Detection_NoRecoil = 4000,
+	Detection_FakeLag = 4100,
+	Detection_Attack2Macro = 4200,
+	Detection_FastAim = 4300,
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

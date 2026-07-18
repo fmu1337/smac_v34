@@ -16,6 +16,8 @@ new Handle:g_hCvarMuteVoiceLoopback = INVALID_HANDLE;
 new Handle:g_hCvarHardFloodCmds = INVALID_HANDLE;
 new Handle:g_hCvarHardFloodInterval = INVALID_HANDLE;
 new Handle:g_hCvarSensSpam = INVALID_HANDLE;
+new Handle:g_hCvarSensMin = INVALID_HANDLE;
+new Handle:g_hCvarSensMax = INVALID_HANDLE;
 new Handle:g_hCvarImpulseSpam = INVALID_HANDLE;
 new Handle:g_hClientConnections = INVALID_HANDLE;
 new Float:g_fTeamJoinTime[MAXPLAYERS+1][6];
@@ -53,8 +55,10 @@ public OnPluginStart()
 	g_hCvarMuteVoiceLoopback = SMAC_CreateConVar("smac_mute_voice_loopback", "1", "Mute clients with voice_loopback enabled.", _, true, 0.0, true, 1.0);
 	g_hCvarHardFloodCmds = SMAC_CreateConVar("smac_hardflood_cmds", "40", "Settings/cmd hard-flood threshold. (0 = Disabled)", _, true, 0.0);
 	g_hCvarHardFloodInterval = SMAC_CreateConVar("smac_hardflood_interval", "1.0", "Hard-flood window in seconds.", _, true, 0.1);
-	/* SMAC Ultra smac_antispam_Mouse_Sensitivity / smac_css_Impulse ideas. */
+	/* SMAC Ultra smac_antispam_Mouse_Sensitivity / smac_css_Impulse / Sensitivity_L|H ideas. */
 	g_hCvarSensSpam = SMAC_CreateConVar("smac_antispam_sensitivity", "0", "Sensitivity changes allowed per map before kick. (0 = Disabled)", _, true, 0.0);
+	g_hCvarSensMin = SMAC_CreateConVar("smac_sensitivity_min", "0.0", "Kick if sensitivity below this. (0 = Disabled)", _, true, 0.0);
+	g_hCvarSensMax = SMAC_CreateConVar("smac_sensitivity_max", "0.0", "Kick if sensitivity above this. (0 = Disabled)", _, true, 0.0);
 	g_hCvarImpulseSpam = SMAC_CreateConVar("smac_css_impulse", "0", "Impulse commands per second before kick. (0 = Disabled)", _, true, 0.0);
 	g_hClientConnections = CreateTrie();
 	HookUserMessage(GetUserMessageId("TextMsg"), Hook_TextMsg, true);
@@ -626,7 +630,10 @@ HardFloodCheck(client)
 
 public Action:Timer_QuerySensitivity(Handle:timer)
 {
-	if (GetConVarInt(g_hCvarSensSpam) <= 0)
+	new bool:need = (GetConVarInt(g_hCvarSensSpam) > 0
+		|| GetConVarFloat(g_hCvarSensMin) > 0.0
+		|| GetConVarFloat(g_hCvarSensMax) > 0.0);
+	if (!need)
 		return Plugin_Continue;
 
 	for (new client = 1; client <= MaxClients; client++)
@@ -639,12 +646,31 @@ public Action:Timer_QuerySensitivity(Handle:timer)
 
 public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
 {
-	/* SMAC Ultra smac_antispam_Mouse_Sensitivity idea. */
-	new limit = GetConVarInt(g_hCvarSensSpam);
-	if (result != ConVarQuery_Okay || !IS_CLIENT(client) || !IsClientInGame(client) || limit <= 0)
+	/* SMAC Ultra smac_antispam_Mouse_Sensitivity / Sensitivity_L|H ideas. */
+	if (result != ConVarQuery_Okay || !IS_CLIENT(client) || !IsClientInGame(client) || IsClientInKickQueue(client))
 		return;
 
 	new Float:sens = StringToFloat(cvarValue);
+	new Float:sensMin = GetConVarFloat(g_hCvarSensMin);
+	new Float:sensMax = GetConVarFloat(g_hCvarSensMax);
+
+	if (sensMin > 0.0 && sens < sensMin)
+	{
+		SMAC_LogAction(client, "was kicked for low sensitivity (%.3f < %.3f).", sens, sensMin);
+		KickClient(client, "%t", "SMAC_SensitivityLowKick", sens, sensMin);
+		return;
+	}
+	if (sensMax > 0.0 && sens > sensMax)
+	{
+		SMAC_LogAction(client, "was kicked for high sensitivity (%.3f > %.3f).", sens, sensMax);
+		KickClient(client, "%t", "SMAC_SensitivityHighKick", sens, sensMax);
+		return;
+	}
+
+	new limit = GetConVarInt(g_hCvarSensSpam);
+	if (limit <= 0)
+		return;
+
 	if (!g_bHaveSens[client])
 	{
 		g_fLastSens[client] = sens;

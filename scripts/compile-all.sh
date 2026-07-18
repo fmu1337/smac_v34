@@ -61,6 +61,9 @@ PLUGINS=(
 	smac_teleport.sp
 	smac_entityspam.sp
 	smac_ssac.sp
+	smac_norecoil.sp
+	smac_fakelag.sp
+	smac_firemacro.sp
 	smac_wallhack.sp
 )
 

@@ -182,6 +182,18 @@
 		"en"		"You were kicked for frequent mouse sensitivity changes"
 	}
 
+	"SMAC_SensitivityLowKick"
+	{
+		"#format"	"{1:.1f},{2:.1f}"
+		"en"		"You were kicked for low mouse sensitivity ({1} < {2})"
+	}
+
+	"SMAC_SensitivityHighKick"
+	{
+		"#format"	"{1:.1f},{2:.1f}"
+		"en"		"You were kicked for high mouse sensitivity ({1} > {2})"
+	}
+
 	"SMAC_ImpulseSpamKick"
 	{
 		"en"		"You were kicked for impulse command spam"
@@ -221,6 +233,35 @@
 	{
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of mouse-less aim. (Detection #{2})"
+	}
+
+	"SMAC_NoRecoilDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of NoRecoil. (Detection #{2})"
+	}
+
+	"SMAC_FakeLagDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fake Lag. (Detection #{2})"
+	}
+
+	"SMAC_FakeLagKick"
+	{
+		"en"		"You were kicked for suspicious Fake Lag"
+	}
+
+	"SMAC_Attack2MacroDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of +attack2 fire macro. (Detection #{2})"
+	}
+
+	"SMAC_FastAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fast AIM. (Detection #{2})"
 	}
 	
 	"SMAC_Muted"

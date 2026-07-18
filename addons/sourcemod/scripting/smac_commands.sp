@@ -115,6 +115,27 @@ public OnPluginStart()
 	SetTrieValue(g_hBlockedCmds, "npc_tasks", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "npc_teleport", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "npc_go", Action_Block);
+	/* Extra blocks from SMAC Ultra smac_cmd_block.cfg */
+	SetTrieValue(g_hBlockedCmds, "kill", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "noclip", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "bat_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_create", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_fire", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_remove", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_rotate", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_setname", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_install", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_uninstall", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_unload", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "est_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "eventscripts_ver", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "lua", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "openscript", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "mani_admin_plugin_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "r_showothermodels", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "shutdown", Action_Ban);
+	SetTrieValue(g_hBlockedCmds, "mine", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "changelevel", Action_Ban);
 	SetTrieValue(g_hBlockedCmds, "speed.toggle", Action_Kick);
 	
