@@ -82,6 +82,66 @@
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of using a triggerbot. (Detection #{2})"
 	}
+
+	"SMAC_MouseAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of mouse-aim desync. (Detection #{2})"
+	}
+
+	"SMAC_AngleDesyncDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of identical yaw-delta desync. (Detection #{2})"
+	}
+
+	"SMAC_WiggleDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of wiggle (+left+right). (Detection #{2})"
+	}
+
+	"SMAC_AntiAimAnglesDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of anti-aim angle snaps. (Detection #{2})"
+	}
+
+	"SMAC_AngleDelayDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of angle delay after strafe. (Detection #{2})"
+	}
+
+	"SMAC_WishVelocityDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of illegal wish velocity. (Detection #{2})"
+	}
+
+	"SMAC_PerfectBhopDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of perfect bunnyhop. (Detection #{2})"
+	}
+
+	"SMAC_AutoShootDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of autoshoot. (Detection #{2})"
+	}
+
+	"SMAC_KeySwitchDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of scripted key switches. (Detection #{2})"
+	}
+
+	"SMAC_StrafeSyncDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of perfect strafe sync. (Detection #{2})"
+	}
 	
 	"SMAC_Muted"
 	{

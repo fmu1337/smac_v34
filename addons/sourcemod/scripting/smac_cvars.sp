@@ -113,6 +113,13 @@ public OnPluginStart()
 	
 	
 	AddCvar(Order_Last, "host_timescale",		Comp_Replicated, Action_Ban);
+	// HOTGUARD / CA-ClientProtect client sanity (CSS-safe subset).
+	AddCvar(Order_Last, "cl_pitchup",			Comp_Equal, Action_Ban, "89.0");
+	AddCvar(Order_Last, "cl_pitchdown",		Comp_Equal, Action_Ban, "89.0");
+	AddCvar(Order_Last, "cl_bobcycle",			Comp_Equal, Action_Ban, "0.98");
+	AddCvar(Order_Last, "net_fakelag",			Comp_Equal, Action_Ban, "0.0");
+	AddCvar(Order_Last, "net_fakeloss",			Comp_Equal, Action_Ban, "0.0");
+	AddCvar(Order_Last, "net_fakejitter",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_dxlevel",			Comp_Greater, Action_Kick, "80.0");
 	AddCvar(Order_Last, "mat_fillrate",			Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_measurefillrate",	Comp_Equal, Action_Ban, "0.0");

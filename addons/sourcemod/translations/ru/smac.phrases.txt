@@ -64,6 +64,56 @@
 	{
 		"ru"		"{1} подозревается в triggerbot. (Детект #{2})"
 	}
+
+	"SMAC_MouseAimDetected"
+	{
+		"ru"		"{1} подозревается в mouse-aim desync. (Детект #{2})"
+	}
+
+	"SMAC_AngleDesyncDetected"
+	{
+		"ru"		"{1} подозревается в identical yaw-delta desync. (Детект #{2})"
+	}
+
+	"SMAC_WiggleDetected"
+	{
+		"ru"		"{1} подозревается в wiggle (+left+right). (Детект #{2})"
+	}
+
+	"SMAC_AntiAimAnglesDetected"
+	{
+		"ru"		"{1} подозревается в anti-aim angle snaps. (Детект #{2})"
+	}
+
+	"SMAC_AngleDelayDetected"
+	{
+		"ru"		"{1} подозревается в angle delay after strafe. (Детект #{2})"
+	}
+
+	"SMAC_WishVelocityDetected"
+	{
+		"ru"		"{1} подозревается в illegal wish velocity. (Детект #{2})"
+	}
+
+	"SMAC_PerfectBhopDetected"
+	{
+		"ru"		"{1} подозревается в perfect bunnyhop. (Детект #{2})"
+	}
+
+	"SMAC_AutoShootDetected"
+	{
+		"ru"		"{1} подозревается в autoshoot. (Детект #{2})"
+	}
+
+	"SMAC_KeySwitchDetected"
+	{
+		"ru"		"{1} подозревается в scripted key switches. (Детект #{2})"
+	}
+
+	"SMAC_StrafeSyncDetected"
+	{
+		"ru"		"{1} подозревается в perfect strafe sync. (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{

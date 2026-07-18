@@ -38,6 +38,18 @@ enum DetectionType {
 	Detection_PerfectStrafe = 1500,
 	Detection_IllegalSidemove = 1600,
 	Detection_TriggerBot = 1700,
+
+	/* HOTGUARD / Ash / Bash / Oryx / Cow Private (rewritten, Danyas). */
+	Detection_MouseAim = 1800,
+	Detection_AngleDesync = 1900,
+	Detection_WiggleHack = 2000,
+	Detection_AntiAimAngles = 2100,
+	Detection_AngleDelay = 2200,
+	Detection_WishVelocity = 2300,
+	Detection_PerfectBhop = 2400,
+	Detection_AutoShoot = 2500,
+	Detection_KeySwitchHack = 2600,
+	Detection_StrafeSync = 2700,
 	
 };
 

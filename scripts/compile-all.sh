@@ -53,7 +53,10 @@ PLUGINS=(
 	smac_spinhack.sp
 	smac_status.sp
 	smac_strafe.sp
+	smac_strafesync.sp
 	smac_triggerbot.sp
+	smac_turncheck.sp
+	smac_movesanity.sp
 	smac_wallhack.sp
 )
 
