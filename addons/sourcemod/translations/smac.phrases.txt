@@ -36,6 +36,11 @@
 		"en"		"Your client has failed to reply to a query in time. Please reconnect or restart your game"
 	}
 	
+	"SMAC_FailedAuth"
+	{
+		"en"		"Your client has failed to authorize in time! Please reconnect or restart your game."
+	}
+	
 	"SMAC_Muted"
 	{
 		"#format"	"{1:N}"

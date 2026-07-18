@@ -13,6 +13,13 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
+/* Optional SourceBans / SourceBans++ — ported from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC). */
+#define SOURCEBANS_AVAILABLE()	(GetFeatureStatus(FeatureType_Native, "SBBanPlayer") == FeatureStatus_Available)
+#define SBPP_AVAILABLE()		(GetFeatureStatus(FeatureType_Native, "SBPP_BanPlayer") == FeatureStatus_Available)
+
+native SBBanPlayer(client, target, time, String:reason[]);
+native SBPP_BanPlayer(client, target, time, String:reason[]);
+
 new Handle:g_OnCheatDetected = INVALID_HANDLE;
 new Handle:g_hCvarVersion = INVALID_HANDLE;
 new Handle:g_hCvarWelcomeMsg = INVALID_HANDLE;
@@ -34,6 +41,8 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	CreateNative("SMAC_CheatDetected", Native_CheatDetected);
 	g_OnCheatDetected = CreateGlobalForward("SMAC_OnCheatDetected", ET_Event, Param_Cell, Param_String, Param_Cell, Param_Cell);
 	RegPluginLibrary("smac");
+	MarkNativeAsOptional("SBBanPlayer");
+	MarkNativeAsOptional("SBPP_BanPlayer");
 	return APLRes_Success;
 }
 
@@ -229,13 +238,34 @@ public Native_Ban(Handle:plugin, numParams)
 	#else
 	if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), true))
 	#endif
+	{
+		strcopy(sAuthID, sizeof(sAuthID), "STEAM_ID_PENDING");
+	}
 	GetClientIP(client,sIP,17);
 	GetConVarString(FindConVar("sv_contact"), sContact, sizeof(sContact));
 	if (GetConVarBool(g_hCvarBanConsoleMsg))
 	{
 		PrintToConsole(client, "%t", "SMAC_BannedClientCon", client, sAuthID, sIP, sReason, duration, sContact);
 	}
-	ServerCommand("sm_ban #%d %i \"%s\"", GetClientUserId(client), duration, sReason);
+
+	/* Prefer SourceBans++ / SourceBans when available (xMaZax/SMAC 0.8.7.3), else sm_ban for MA/basebans. */
+	if (SBPP_AVAILABLE())
+	{
+		SBPP_BanPlayer(0, client, duration, sReason);
+	}
+	else if (SOURCEBANS_AVAILABLE())
+	{
+		SBBanPlayer(0, client, duration, sReason);
+	}
+	else
+	{
+		ServerCommand("sm_ban #%d %i \"%s\"", GetClientUserId(client), duration, sReason);
+	}
+
+	if (IsClientConnected(client))
+	{
+		KickClient(client, sReason);
+	}
 }
 
 public Native_PrintAdminNotice(Handle:plugin, numParams)

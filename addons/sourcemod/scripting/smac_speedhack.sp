@@ -94,6 +94,10 @@ public Action:Timer_AddTicks(Handle:timer)
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
+	/* Ported from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC) — skip connecting clients. */
+	if (!IsClientInGame(client))
+		return Plugin_Handled;
+	
 	if (!g_iTicksLeft[client])
 		return Plugin_Handled;
 	

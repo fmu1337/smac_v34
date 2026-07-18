@@ -22,10 +22,10 @@ public Plugin:myinfo =
 
 new Handle:g_hCvarAction = INVALID_HANDLE;
 new Handle:g_hCvarDetections = INVALID_HANDLE;
-new g_iDetections[METHOD_MAX][MAXPLAYERS];
+new g_iDetections[METHOD_MAX][MAXPLAYERS+1];
 new g_iDetectionsMax;
 new g_iAttackMax = 66;
-new bool:g_bNoitice[MAXPLAYERS];
+new bool:g_bNoitice[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -65,30 +65,34 @@ public Action:Timer_DecreaseCount(Handle:timer)
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
-	static iPrevButtons[MAXPLAYERS];
-	static Float:fCheckTime[MAXPLAYERS];
-	if (!(buttons & IN_JUMP) && (GetEntityFlags(client) & FL_ONGROUND) && fCheckTime[client] > 0.0){fCheckTime[client] = 0.0;}
-	if ((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP))
+	static iPrevButtons[MAXPLAYERS+1];
+	static Float:fCheckTime[MAXPLAYERS+1];
+	/* BunnyHop — ladder skip from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC). */
+	if (GetEntityMoveType(client) != MOVETYPE_LADDER)
 	{
-		if (GetEntityFlags(client) & FL_ONGROUND)
+		if (!(buttons & IN_JUMP) && (GetEntityFlags(client) & FL_ONGROUND) && fCheckTime[client] > 0.0){fCheckTime[client] = 0.0;}
+		if ((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP))
 		{
-			new Float:fGameTime = GetGameTime();
-			if (fCheckTime[client] > 0.0 && fGameTime > fCheckTime[client])
+			if (GetEntityFlags(client) & FL_ONGROUND)
 			{
-				AutoTrigger_Detected(client, METHOD_BUNNYHOP);
+				new Float:fGameTime = GetGameTime();
+				if (fCheckTime[client] > 0.0 && fGameTime > fCheckTime[client])
+				{
+					AutoTrigger_Detected(client, METHOD_BUNNYHOP);
+				}
+				else
+				{
+					fCheckTime[client] = fGameTime + MIN_JUMP_TIME;
+				}
 			}
 			else
 			{
-				fCheckTime[client] = fGameTime + MIN_JUMP_TIME;
+				fCheckTime[client] = 0.0;
 			}
 		}
-		else
-		{
-			fCheckTime[client] = 0.0;
-		}
 	}
-	static iAttackAmt[MAXPLAYERS];
-	static bool:bResetNext[MAXPLAYERS];
+	static iAttackAmt[MAXPLAYERS+1];
+	static bool:bResetNext[MAXPLAYERS+1];
 	if (((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP)) || (!(buttons & IN_JUMP) && (iPrevButtons[client] & IN_JUMP)))
 	{
 		if (++iAttackAmt[client] >= g_iAttackMax)

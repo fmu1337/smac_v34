@@ -19,10 +19,11 @@ public Plugin:myinfo =
 new Handle:g_hCvarAimbotBan = INVALID_HANDLE;
 new Handle:g_IgnoreWeapons = INVALID_HANDLE;
 
-new Float:g_fEyeAngles[MAXPLAYERS][64][3];
-new g_iEyeIndex[MAXPLAYERS];
+/* Array sizing aligned with xMaZax/SMAC 0.8.7.3 (MAXPLAYERS+1). */
+new Float:g_fEyeAngles[MAXPLAYERS+1][64][3];
+new g_iEyeIndex[MAXPLAYERS+1];
 
-new g_iAimDetections[MAXPLAYERS];
+new g_iAimDetections[MAXPLAYERS+1];
 new g_iAimbotBan = 0;
 new g_iMaxAngleHistory;
 

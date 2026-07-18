@@ -11,6 +11,7 @@ public Plugin:myinfo =
 };
 
 new Handle:g_hCvarConnectSpam = INVALID_HANDLE;
+new Handle:g_hCvarValidateAuth = INVALID_HANDLE;
 new Handle:g_hClientConnections = INVALID_HANDLE;
 new Float:g_fTeamJoinTime[MAXPLAYERS+1][6];
 new g_iNameChanges[MAXPLAYERS+1];
@@ -30,11 +31,15 @@ public OnPluginStart()
 	
 	// Convars.
 	g_hCvarConnectSpam = SMAC_CreateConVar("smac_antispam_connect", "2", "Block reconnection attempts for X seconds. (0 = Disabled)", _, true, 0.0);
+	/* Ported from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC). */
+	g_hCvarValidateAuth = SMAC_CreateConVar("smac_validate_auth", "0", "Kick clients that fail to authenticate within 10 seconds of joining the server.", _, true, 0.0, true, 1.0);
 	g_hClientConnections = CreateTrie();
 	HookUserMessage(GetUserMessageId("TextMsg"), Hook_TextMsg, true);
 	
 	HookEventEx("player_team", Event_PlayerTeam, EventHookMode_Pre);
 	HookEvent("player_changename", Event_PlayerChangeName, EventHookMode_Post);
+	/* Ported from xMaZax/SMAC 0.8.7.3 — block achievement earn spam. */
+	HookEventEx("achievement_earned", Event_AchievementEarned, EventHookMode_Pre);
 	CreateTimer(10.0, Timer_DecreaseCount, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	AddCommandListener(Command_Autobuy, "autobuy");
 
@@ -105,6 +110,24 @@ public OnClientPutInServer(client)
 		g_iNameChanges[client] = 0;
 		g_iAchievements[client] = 0;
 	}
+
+	/* Ported from xMaZax/SMAC 0.8.7.3 — optional auth timeout kick. */
+	if (!IsFakeClient(client) && !IsClientAuthorized(client) && GetConVarBool(g_hCvarValidateAuth))
+	{
+		CreateTimer(10.0, Timer_ValidateAuth, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public Action:Timer_ValidateAuth(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+
+	if (IS_CLIENT(client) && IsClientConnected(client) && !IsClientAuthorized(client))
+	{
+		KickClient(client, "%t", "SMAC_FailedAuth");
+	}
+
+	return Plugin_Stop;
 }
 
 public OnClientSettingsChanged(client)
@@ -195,6 +218,19 @@ public Event_PlayerChangeName(Handle:event, const String:name[], bool:dontBroadc
 	}
 }
 
+/* Ported from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC). */
+public Action:Event_AchievementEarned(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetEventInt(event, "player");
+
+	if (IS_CLIENT(client) && ++g_iAchievements[client] >= 5)
+	{
+		return Plugin_Stop;
+	}
+
+	return Plugin_Continue;
+}
+
 public Action:Command_Autobuy(client, const String:command[], args)
 {
 	if (!IS_CLIENT(client))
@@ -238,7 +274,12 @@ public Action:Command_Autobuy(client, const String:command[], args)
 public Action:Timer_DecreaseCount(Handle:timer)
 {
 	for (new i = 1; i <= MaxClients; i++)
-	{if (g_iNameChanges[i])g_iNameChanges[i]--;}
+	{
+		if (g_iNameChanges[i])
+			g_iNameChanges[i]--;
+		if (g_iAchievements[i])
+			g_iAchievements[i]--;
+	}
 	return Plugin_Continue;
 }
 

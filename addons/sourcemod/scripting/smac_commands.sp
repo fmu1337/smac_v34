@@ -24,6 +24,7 @@ new g_iCmdSpamLimit = 35;
 new bool:g_bLogCommands;
 new g_iCmdCount[MAXPLAYERS+1] = {0, ...};
 new Handle:g_hCvarCmdSpam = INVALID_HANDLE;
+new Handle:g_hCvarCmdSpmKick = INVALID_HANDLE;
 new Handle:g_hLogCommands = INVALID_HANDLE;
 
 new String:g_sLogPath[PLATFORM_MAX_PATH];
@@ -34,6 +35,8 @@ public OnPluginStart()
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
 	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "35", "Amount of commands allowed per second. (0 = Disabled)", _, true, 0.0);
+	/* Ported from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC). */
+	g_hCvarCmdSpmKick = SMAC_CreateConVar("smac_anticmdspam_kick", "1", "Choose to kick or simply notify that commands are being spammed. (0 = Notify  1 = Kick)", _, true, 0.0, true, 1.0);
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 	
@@ -45,6 +48,8 @@ public OnPluginStart()
 	AddCommandListener(Command_Say, "say_team");
 	AddCommandListener(Command_BlockEntExploit, "ent_create");
 	AddCommandListener(Command_BlockEntExploit, "ent_fire");
+	/* Ported from xMaZax/SMAC 0.8.7.3 — block give entity exploit. */
+	AddCommandListener(Command_BlockEntExploit, "give");
 	HookEvent("player_disconnect", Commands_EventDisconnect, EventHookMode_Pre);
 	g_hBlockedCmds = CreateTrie();
 	g_hIgnoredCmds = CreateTrie();
@@ -355,11 +360,12 @@ public Action:Command_BlockEntExploit(client, const String:command[], args)
 
 public Action:Command_CommandListener(client, const String:command[], argc)
 {
-	if (!IS_CLIENT(client))// || (IsClientConnected(client) && IsFakeClient(client)))
+	/* Restored client gates from xMaZax/SMAC 0.8.7.3. */
+	if (!IS_CLIENT(client) || (IsClientConnected(client) && IsFakeClient(client)))
 		return Plugin_Continue;
 		
-
-//	if (!IsClientInGame(client))	return Plugin_Stop;
+	if (!IsClientInGame(client))
+		return Plugin_Stop;
 
 	// NOTE: InternalDispatch automatically lower cases "command".
 	new ActionType:cAction = Action_Block;
@@ -409,13 +415,20 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 		KvSetString(info, "command", command);
 		KvSetString(info, "argstring", sArgString);
 		
-		PrintToServer("DEBUG: Client %i - Command %s - arg %s", client, command, sArgString);
-		
 		if (SMAC_CheatDetected(client, Detection_CommandSpamming, info) == Plugin_Continue)
 		{
-			SMAC_PrintAdminNotice("%N was kicked for spamming: %s %s", client, command, sArgString);
-			SMAC_LogAction(client, "was kicked for spamming: %s %s", command, sArgString);
-			KickClient(client, "%t", "SMAC_CommandSpamKick");
+			/* Ported from xMaZax/SMAC 0.8.7.3 — optional notify-only mode. */
+			if (GetConVarInt(g_hCvarCmdSpmKick) == 1)
+			{
+				SMAC_PrintAdminNotice("%N was kicked for spamming: %s %s", client, command, sArgString);
+				SMAC_LogAction(client, "was kicked for spamming: %s %s", command, sArgString);
+				KickClient(client, "%t", "SMAC_CommandSpamKick");
+			}
+			else
+			{
+				SMAC_PrintAdminNotice("%N looks to be spamming commands: %s %s", client, command, sArgString);
+				SMAC_LogAction(client, "looks to be spamming commands: %s %s", command, sArgString);
+			}
 		}
 		
 		CloseHandle(info);
