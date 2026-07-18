@@ -50,6 +50,14 @@ enum DetectionType {
 	Detection_AutoShoot = 2500,
 	Detection_KeySwitchHack = 2600,
 	Detection_StrafeSync = 2700,
+
+	/* SMAC Ultra (Ultr@) ideas — rewritten, Danyas. */
+	Detection_KnifeBotWH = 2800,
+	Detection_AimThroughWH = 2900,
+	Detection_TeleportHack = 3000,
+	Detection_EntitySpam = 3100,
+	Detection_SensitivitySpam = 3200,
+	Detection_ImpulseSpam = 3300,
 	
 };
 

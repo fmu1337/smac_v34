@@ -57,6 +57,9 @@ PLUGINS=(
 	smac_triggerbot.sp
 	smac_turncheck.sp
 	smac_movesanity.sp
+	smac_strikeback.sp
+	smac_teleport.sp
+	smac_entityspam.sp
 	smac_wallhack.sp
 )
 

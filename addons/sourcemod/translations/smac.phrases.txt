@@ -142,6 +142,50 @@
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of perfect strafe sync. (Detection #{2})"
 	}
+
+	"SMAC_KnifeBotWHDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of knifebot through wallhack. (Detection #{2})"
+	}
+
+	"SMAC_AimThroughWHDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of aiming through wallhack. (Detection #{2})"
+	}
+
+	"SMAC_TeleportDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of teleport hack. (Detection #{2})"
+	}
+
+	"SMAC_TeleportKick"
+	{
+		"en"		"You were kicked for suspicious teleport movement"
+	}
+
+	"SMAC_EntitySpamDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of entity spam. (Detection #{2})"
+	}
+
+	"SMAC_EntitySpamKick"
+	{
+		"en"		"You were kicked for entity spam"
+	}
+
+	"SMAC_SensitivitySpamKick"
+	{
+		"en"		"You were kicked for frequent mouse sensitivity changes"
+	}
+
+	"SMAC_ImpulseSpamKick"
+	{
+		"en"		"You were kicked for impulse command spam"
+	}
 	
 	"SMAC_Muted"
 	{

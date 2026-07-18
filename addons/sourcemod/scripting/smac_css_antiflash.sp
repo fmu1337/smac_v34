@@ -24,19 +24,26 @@ public Plugin:myinfo =
 #define M_PI	3.1415926535
 
 new Handle:g_hCvarAngleScale = INVALID_HANDLE;
+new Handle:g_hCvarNoTeamFlash = INVALID_HANDLE;
 new bool:g_bAngleScale = true;
+new g_iNoTeamFlash = 0;
 
 new Float:g_fFlashedUntil[MAXPLAYERS+1];
 new bool:g_bFlashHooked = false;
 new Float:g_vLastFlash[3];
 new bool:g_bHaveFlashOrigin = false;
 new Float:g_fFlashOriginTime = 0.0;
+new g_iFlashOwner = -1;
 
 public OnPluginStart()
 {
 	g_hCvarAngleScale = SMAC_CreateConVar("smac_antiflash_anglescale", "1", "Scale totally-blind hide window by flashbang angle (SauRay idea).", _, true, 0.0, true, 1.0);
+	/* SMAC Ultra smac_No_Team_Flash idea. */
+	g_hCvarNoTeamFlash = SMAC_CreateConVar("smac_no_team_flash", "0", "0=off, 1=both teams, 2=T only, 3=CT only — skip team-flash blindness.", _, true, 0.0, true, 3.0);
 	OnAngleScaleChanged(g_hCvarAngleScale, "", "");
+	OnNoTeamFlashChanged(g_hCvarNoTeamFlash, "", "");
 	HookConVarChange(g_hCvarAngleScale, OnAngleScaleChanged);
+	HookConVarChange(g_hCvarNoTeamFlash, OnNoTeamFlashChanged);
 
 	HookEvent("player_blind", Event_PlayerBlind, EventHookMode_Post);
 	HookEvent("flashbang_detonate", Event_FlashDetonate, EventHookMode_Post);
@@ -45,6 +52,11 @@ public OnPluginStart()
 public OnAngleScaleChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	g_bAngleScale = GetConVarBool(convar);
+}
+
+public OnNoTeamFlashChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_iNoTeamFlash = GetConVarInt(convar);
 }
 
 public OnClientPutInServer(client)
@@ -65,6 +77,7 @@ public Event_FlashDetonate(Handle:event, const String:name[], bool:dontBroadcast
 	g_vLastFlash[2] = GetEventFloat(event, "z");
 	g_bHaveFlashOrigin = true;
 	g_fFlashOriginTime = GetGameTime();
+	g_iFlashOwner = GetClientOfUserId(GetEventInt(event, "userid"));
 }
 
 public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
@@ -73,6 +86,23 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 
 	if (IS_CLIENT(client) && !IsFakeClient(client))
 	{
+		/* Ultra No-Team-Flash: clear teammate flashes (except thrower). */
+		if (g_iNoTeamFlash > 0 && IS_CLIENT(g_iFlashOwner) && IsClientInGame(g_iFlashOwner)
+			&& client != g_iFlashOwner && GetClientTeam(client) == GetClientTeam(g_iFlashOwner))
+		{
+			new team = GetClientTeam(client);
+			new bool:protect = (g_iNoTeamFlash == 1)
+				|| (g_iNoTeamFlash == 2 && team == 2)
+				|| (g_iNoTeamFlash == 3 && team == 3);
+			if (protect)
+			{
+				SetEntPropFloat(client, Prop_Send, "m_flFlashMaxAlpha", 0.5);
+				SetEntPropFloat(client, Prop_Send, "m_flFlashDuration", 0.0);
+				g_fFlashedUntil[client] = 0.0;
+				return;
+			}
+		}
+
 		new Float:alpha = GetEntPropFloat(client, Prop_Send, "m_flFlashMaxAlpha");
 
 		if (alpha < 255.0)

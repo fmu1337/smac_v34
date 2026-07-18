@@ -114,6 +114,46 @@
 	{
 		"ru"		"{1} подозревается в perfect strafe sync. (Детект #{2})"
 	}
+
+	"SMAC_KnifeBotWHDetected"
+	{
+		"ru"		"{1} подозревается в knifebot через wallhack. (Детект #{2})"
+	}
+
+	"SMAC_AimThroughWHDetected"
+	{
+		"ru"		"{1} подозревается в аиме через wallhack. (Детект #{2})"
+	}
+
+	"SMAC_TeleportDetected"
+	{
+		"ru"		"{1} подозревается в teleport hack. (Детект #{2})"
+	}
+
+	"SMAC_TeleportKick"
+	{
+		"ru"		"Вы кикнуты за подозрительный телепорт"
+	}
+
+	"SMAC_EntitySpamDetected"
+	{
+		"ru"		"{1} подозревается в entity spam. (Детект #{2})"
+	}
+
+	"SMAC_EntitySpamKick"
+	{
+		"ru"		"Вы кикнуты за спам entity"
+	}
+
+	"SMAC_SensitivitySpamKick"
+	{
+		"ru"		"Вы кикнуты за частую смену sensitivity"
+	}
+
+	"SMAC_ImpulseSpamKick"
+	{
+		"ru"		"Вы кикнуты за спам impulse"
+	}
 		
 	"SMAC_Muted"
 	{

@@ -64,8 +64,21 @@ new g_iTickCount, g_iCmdTickCount[MAXPLAYERS], g_iTickRate;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
+	CreateNative("SMAC_IsClientVisible", Native_IsClientVisible);
 	RegPluginLibrary("smac_wallhack");
 	return APLRes_Success;
+}
+
+/* Expose visibility cache for Strike Back modules (SMAC Ultra idea). */
+public Native_IsClientVisible(Handle:plugin, numParams)
+{
+	new viewer = GetNativeCell(1);
+	new subject = GetNativeCell(2);
+	if (!IS_CLIENT(viewer) || !IS_CLIENT(subject))
+		return true;
+	if (viewer >= MAXPLAYERS || subject >= MAXPLAYERS)
+		return true;
+	return g_bIsVisible[subject][viewer];
 }
 
 public OnPluginStart()

@@ -15,6 +15,8 @@ new Handle:g_hCvarValidateAuth = INVALID_HANDLE;
 new Handle:g_hCvarMuteVoiceLoopback = INVALID_HANDLE;
 new Handle:g_hCvarHardFloodCmds = INVALID_HANDLE;
 new Handle:g_hCvarHardFloodInterval = INVALID_HANDLE;
+new Handle:g_hCvarSensSpam = INVALID_HANDLE;
+new Handle:g_hCvarImpulseSpam = INVALID_HANDLE;
 new Handle:g_hClientConnections = INVALID_HANDLE;
 new Float:g_fTeamJoinTime[MAXPLAYERS+1][6];
 new g_iNameChanges[MAXPLAYERS+1];
@@ -24,6 +26,13 @@ new bool:g_bMapStarted = false;
 /* Forlix FloodCheck hardflood / voice_loopback via Cheat-Acid GRAB/FFC. */
 new Float:g_fHardFloodTime[MAXPLAYERS+1];
 new g_iHardFloodCnt[MAXPLAYERS+1];
+
+/* SMAC Ultra: sensitivity change spam + impulse spam. */
+new Float:g_fLastSens[MAXPLAYERS+1];
+new bool:g_bHaveSens[MAXPLAYERS+1];
+new g_iSensChanges[MAXPLAYERS+1];
+new g_iImpulseCnt[MAXPLAYERS+1];
+new Float:g_fImpulseWindow[MAXPLAYERS+1];
 
 /* Plugin Functions */
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
@@ -44,6 +53,9 @@ public OnPluginStart()
 	g_hCvarMuteVoiceLoopback = SMAC_CreateConVar("smac_mute_voice_loopback", "1", "Mute clients with voice_loopback enabled.", _, true, 0.0, true, 1.0);
 	g_hCvarHardFloodCmds = SMAC_CreateConVar("smac_hardflood_cmds", "40", "Settings/cmd hard-flood threshold. (0 = Disabled)", _, true, 0.0);
 	g_hCvarHardFloodInterval = SMAC_CreateConVar("smac_hardflood_interval", "1.0", "Hard-flood window in seconds.", _, true, 0.1);
+	/* SMAC Ultra smac_antispam_Mouse_Sensitivity / smac_css_Impulse ideas. */
+	g_hCvarSensSpam = SMAC_CreateConVar("smac_antispam_sensitivity", "0", "Sensitivity changes allowed per map before kick. (0 = Disabled)", _, true, 0.0);
+	g_hCvarImpulseSpam = SMAC_CreateConVar("smac_css_impulse", "0", "Impulse commands per second before kick. (0 = Disabled)", _, true, 0.0);
 	g_hClientConnections = CreateTrie();
 	HookUserMessage(GetUserMessageId("TextMsg"), Hook_TextMsg, true);
 	
@@ -53,6 +65,7 @@ public OnPluginStart()
 	HookEventEx("achievement_earned", Event_AchievementEarned, EventHookMode_Pre);
 	CreateTimer(10.0, Timer_DecreaseCount, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	CreateTimer(30.0, Timer_QueryVoiceLoopback, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(15.0, Timer_QuerySensitivity, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	AddCommandListener(Command_Autobuy, "autobuy");
 
 	// Check all clients.
@@ -124,6 +137,11 @@ public OnClientPutInServer(client)
 	}
 	g_fHardFloodTime[client] = 0.0;
 	g_iHardFloodCnt[client] = 0;
+	g_fLastSens[client] = 0.0;
+	g_bHaveSens[client] = false;
+	g_iSensChanges[client] = 0;
+	g_iImpulseCnt[client] = 0;
+	g_fImpulseWindow[client] = 0.0;
 
 	/* Ported from xMaZax/SMAC 0.8.7.3 — optional auth timeout kick. */
 	if (!IsFakeClient(client) && !IsClientAuthorized(client) && GetConVarBool(g_hCvarValidateAuth))
@@ -604,4 +622,74 @@ HardFloodCheck(client)
 		SMAC_LogAction(client, "was banned for hard-flooding commands/settings.");
 		SMAC_Ban(client, "Hard Flood Detection");
 	}
+}
+
+public Action:Timer_QuerySensitivity(Handle:timer)
+{
+	if (GetConVarInt(g_hCvarSensSpam) <= 0)
+		return Plugin_Continue;
+
+	for (new client = 1; client <= MaxClients; client++)
+	{
+		if (IsClientInGame(client) && !IsFakeClient(client))
+			QueryClientConVar(client, "sensitivity", Query_Sensitivity);
+	}
+	return Plugin_Continue;
+}
+
+public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
+{
+	/* SMAC Ultra smac_antispam_Mouse_Sensitivity idea. */
+	new limit = GetConVarInt(g_hCvarSensSpam);
+	if (result != ConVarQuery_Okay || !IS_CLIENT(client) || !IsClientInGame(client) || limit <= 0)
+		return;
+
+	new Float:sens = StringToFloat(cvarValue);
+	if (!g_bHaveSens[client])
+	{
+		g_fLastSens[client] = sens;
+		g_bHaveSens[client] = true;
+		return;
+	}
+
+	if (FloatAbs(sens - g_fLastSens[client]) < 0.0001)
+		return;
+
+	g_fLastSens[client] = sens;
+	g_iSensChanges[client]++;
+	if (g_iSensChanges[client] < limit)
+		return;
+
+	g_iSensChanges[client] = 0;
+	if (SMAC_CheatDetected(client, Detection_SensitivitySpam, INVALID_HANDLE) == Plugin_Continue)
+	{
+		SMAC_LogAction(client, "was kicked for sensitivity change spam.");
+		KickClient(client, "%t", "SMAC_SensitivitySpamKick");
+	}
+}
+
+public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
+{
+	new limit = GetConVarInt(g_hCvarImpulseSpam);
+	if (limit <= 0 || impulse == 0 || !IS_CLIENT(client) || IsFakeClient(client))
+		return Plugin_Continue;
+
+	new Float:now = GetGameTime();
+	if (g_fImpulseWindow[client] <= 0.0 || now - g_fImpulseWindow[client] > 1.0)
+	{
+		g_fImpulseWindow[client] = now;
+		g_iImpulseCnt[client] = 0;
+	}
+
+	g_iImpulseCnt[client]++;
+	if (g_iImpulseCnt[client] < limit)
+		return Plugin_Continue;
+
+	g_iImpulseCnt[client] = 0;
+	if (SMAC_CheatDetected(client, Detection_ImpulseSpam, INVALID_HANDLE) == Plugin_Continue)
+	{
+		SMAC_LogAction(client, "was kicked for impulse spam.");
+		KickClient(client, "%t", "SMAC_ImpulseSpamKick");
+	}
+	return Plugin_Continue;
 }
