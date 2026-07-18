@@ -32,6 +32,12 @@ enum DetectionType {
 	Detection_AimOriginConsistency = 1100,
 	Detection_ChatClear = 1200,
 	Detection_HardFlood = 1300,
+
+	/* Rewritten detectors (inspired by CowAC / Bash / CA-ServerProtect ideas). */
+	Detection_SilentStrafe = 1400,
+	Detection_PerfectStrafe = 1500,
+	Detection_IllegalSidemove = 1600,
+	Detection_TriggerBot = 1700,
 	
 };
 

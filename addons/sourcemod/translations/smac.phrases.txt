@@ -58,6 +58,30 @@
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of consistent aim origin. (Detection #{2})"
 	}
+
+	"SMAC_SilentStrafeDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of silent strafe. (Detection #{2})"
+	}
+
+	"SMAC_PerfectStrafeDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of perfect strafe sync. (Detection #{2})"
+	}
+
+	"SMAC_IllegalSidemoveDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of illegal sidemove. (Detection #{2})"
+	}
+
+	"SMAC_TriggerBotDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of using a triggerbot. (Detection #{2})"
+	}
 	
 	"SMAC_Muted"
 	{

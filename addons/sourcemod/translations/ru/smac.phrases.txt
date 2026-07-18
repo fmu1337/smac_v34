@@ -44,6 +44,26 @@
 	{
 		"ru"		"{1} подозревается в consistent aim origin. (Детект #{2})"
 	}
+
+	"SMAC_SilentStrafeDetected"
+	{
+		"ru"		"{1} подозревается в silent strafe. (Детект #{2})"
+	}
+
+	"SMAC_PerfectStrafeDetected"
+	{
+		"ru"		"{1} подозревается в perfect strafe sync. (Детект #{2})"
+	}
+
+	"SMAC_IllegalSidemoveDetected"
+	{
+		"ru"		"{1} подозревается в illegal sidemove. (Детект #{2})"
+	}
+
+	"SMAC_TriggerBotDetected"
+	{
+		"ru"		"{1} подозревается в triggerbot. (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{

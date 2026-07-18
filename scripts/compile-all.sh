@@ -48,9 +48,12 @@ PLUGINS=(
 	smac_immunity.sp
 	smac_psilent.sp
 	smac_rcon.sp
+	smac_serverlock.sp
 	smac_speedhack.sp
 	smac_spinhack.sp
 	smac_status.sp
+	smac_strafe.sp
+	smac_triggerbot.sp
 	smac_wallhack.sp
 )
 
