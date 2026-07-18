@@ -82,6 +82,13 @@ enum DetectionType {
 	Detection_UltraRCS = 4900,		/* Recoil Control System -H/-F */
 	Detection_UltraAGTWS = 5000,	/* Mode:100 When a Shot */
 	Detection_UltraAMSAF = 5100,	/* Mode:101 Analysis After Firing */
+
+	/* Ultra Backtrack A/B + Lilac/Jay patch + StAC cmdnum/aimsnap. */
+	Detection_Backtrack = 5200,
+	Detection_CmdnumSpike = 5300,
+	Detection_FastReload = 5400,
+	Detection_FastShoot = 5500,
+	Detection_Aimsnap = 5600,
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

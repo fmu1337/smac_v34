@@ -65,6 +65,9 @@ PLUGINS=(
 	smac_fakelag.sp
 	smac_firemacro.sp
 	smac_ultra_aim.sp
+	smac_backtrack.sp
+	smac_fastreload.sp
+	smac_aimsnap.sp
 	smac_wallhack.sp
 )
 

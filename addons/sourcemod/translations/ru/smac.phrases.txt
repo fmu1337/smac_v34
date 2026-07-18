@@ -259,6 +259,31 @@
 	{
 		"ru"		"{1} подозревается в Ultr@ AMSAF aim (Mode 101). (Детект #{2})"
 	}
+
+	"SMAC_BacktrackDetected"
+	{
+		"ru"		"{1} подозревается в Backtrack exploit (Mode A). (Детект #{2})"
+	}
+
+	"SMAC_CmdnumSpikeDetected"
+	{
+		"ru"		"{1} подозревается в cmdnum spike (nospread). (Детект #{2})"
+	}
+
+	"SMAC_FastReloadDetected"
+	{
+		"ru"		"{1} подозревается в Fast Reload. (Детект #{2})"
+	}
+
+	"SMAC_FastShootDetected"
+	{
+		"ru"		"{1} подозревается в Fast Shoot (rate). (Детект #{2})"
+	}
+
+	"SMAC_AimsnapDetected"
+	{
+		"ru"		"{1} подозревается в Aimsnap. (Детект #{2})"
+	}
 		
 	"SMAC_Muted"
 	{
