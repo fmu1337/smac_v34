@@ -27,6 +27,7 @@
 | `smac_speedlimit` | `smac_SpeedLimitDetect` + `smac_SpeedUp` |
 | `smac_aimkill` | AIM_Kill soft escalate |
 | `smac_soundesp` | SoundESP LOS sound strip + soft react |
+| `smac_ultratools` | Ultr@Tools natives shim (`SetBan`/`ClearBanList`/…) |
 | `smac_entityspam` | Control_Entity / weapon spam |
 | `smac_client` | sens spam/min/max, impulse extras |
 | antiflash/antismoke/wallhack | частично усилены |
@@ -81,7 +82,7 @@
 
 16. `smac_Check_Hack` / `smac_Check_Changer` / `smac_Check_CheatsC` / `smac_indirect_cheat` — что реально проверяется на клиенте (без закрытых DLL).  
 17. `smac_Lock_Adm`, `smac_ClanTag_Spam`, status/ping prot — если есть нетривиальная логика.  
-18. **Ultr@Tools.ext** — полный список natives и семантика (`SetBan`, `ClearBanList`, `GetCmdStr`, …).
+18. **Ultr@Tools.ext** — **done:** see `docs/ULTRATOOLS_API.md`, `include/ultratools.inc`, shim `smac_ultratools.sp` (natives when closed `.ext` absent).
 
 ---
 

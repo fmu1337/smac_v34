@@ -67,7 +67,7 @@ Sources: live `001_SMAC_Global.smx` (FFPS+zlib unpack), `smac.cfg` comments, `.d
 | SoundESP | **added** blocker+soft react |
 | Fast Reload | already present |
 | WH Ignore / UCP / SoftDetector DLL | **still not** (by design) |
-| Ultr@Tools natives full list | **still not** (P2) |
+| Ultr@Tools natives full list | **documented + SP shim** `smac_ultratools` / `ULTRATOOLS_API.md` |
 
 ## Live CSS test plan
 1. Compile `scripts/compile-all.sh`, load new smx on CSS34 test.

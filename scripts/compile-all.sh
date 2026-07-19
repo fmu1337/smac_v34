@@ -73,6 +73,7 @@ PLUGINS=(
 	smac_speedlimit.sp
 	smac_aimkill.sp
 	smac_soundesp.sp
+	smac_ultratools.sp
 	smac_wallhack.sp
 )
 
