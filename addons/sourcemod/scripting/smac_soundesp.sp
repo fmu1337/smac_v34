@@ -73,10 +73,9 @@ public Action:NormalSoundHook(clients[64], &numClients, String:sample[PLATFORM_M
 	if (!IS_CLIENT(entity) || !IsClientInGame(entity))
 		return Plugin_Continue;
 
-	/* Only filter player movement / weapon noises. */
+	/* Footsteps / weapon fire only — avoid stripping all player VO. */
 	if (StrContains(sample, "footsteps", false) == -1
-		&& StrContains(sample, "weapons", false) == -1
-		&& StrContains(sample, "player", false) == -1)
+		&& StrContains(sample, "weapons", false) == -1)
 	{
 		return Plugin_Continue;
 	}
@@ -160,7 +159,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			continue;
 
 		/* Turned hard toward recent invisible shooter. */
-		decl Float:eye[3], Float:tgt[3], Float:angTo[3], Float:fwd[3], Float:dir[3];
+		decl Float:eye[3], Float:tgt[3], Float:fwd[3], Float:dir[3];
 		GetClientEyePosition(client, eye);
 		GetClientAbsOrigin(s, tgt);
 		MakeVectorFromPoints(eye, tgt, dir);

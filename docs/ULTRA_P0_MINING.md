@@ -5,16 +5,16 @@ Sources: live `001_SMAC_Global.smx` (FFPS+zlib unpack), `smac.cfg` comments, `.d
 ### smac_AdvancedTrigger_* / Advanced AutoFire
 - **Файлы:** Ultr@ Global; v34 `smac_advtrigger.sp`
 - **Триггер:** `OnPlayerRunCmd` + eye trace
-- **Условие:** AdvTrigger = `IN_ATTACK` edge on first tick of enemy acquire (×6); AdvAutoFire ≈ 1s hold-fire while lock ≈ hold window
+- **Условие:** AdvTrigger = `IN_ATTACK` edge on first tick of enemy acquire (×6); AdvAutoFire = already holding fire on acquire edge, then lock ≥~0.25s (×3 hits)
 - **Игноры:** spawn/teleport grace, knife/nades
 - **Наказание:** Ultr@ signed `Warning`/`Ban` (−N kick / +N ban); soft ban default `0`
 - **Порт:** new module; cvars keep Ultr@ names
-- **FP:** good players flick-shot; keep ban=0 on pub
+- **FP:** good players flick-shot; keep ban=0 on pub. AutoFire no longer flags legit spray (aim-then-hold).
 
 ### BunnyHop: Fast Detect / smac_FD_BHOP
 - **Файлы:** Global string `BunnyHop: Fast Detect` + Fast Run; v34 `smac_fdbhop.sp`
-- **Триггер:** ground land edges + XY speed
-- **Условие:** land→land ≤0.12s at ≥250 u/s ×12; Fast Run ≥320 u/s ×40 ticks
+- **Триггер:** ground land / leave-ground edges + XY speed
+- **Условие:** land→leave ≤0.08s at ≥250 u/s ×12; Fast Run ≥320 u/s ×40 ticks (`Detection_FdFastRun`, ≠ SSAC wishspeed)
 - **Игноры:** noclip/ladder; default mode `0` (surf)
 - **Наказание:** `0/1/2/3` = off/notice/kick/ban (Ultr@)
 - **Отличие от ssac timed-bhop:** no jump-button required; separate Fast Run

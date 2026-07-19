@@ -94,6 +94,7 @@ enum DetectionType {
 	Detection_AdvancedTrigger = 5700,	/* AimBot (Advanced Trigger) */
 	Detection_AdvancedAutoFire = 5800,	/* Trigger + Advanced Auto-Fire */
 	Detection_FastBhop = 5900,		/* BunnyHop: Fast Detect */
+	Detection_FdFastRun = 6000,		/* FD_BHOP sustained overspeed (≠ SSAC wishspeed) */
 	Detection_SpeedLimit = 6100,		/* smac_SpeedLimitDetect / SpeedUp */
 	Detection_TeleportFast = 6200,		/* Teleport Hack: Fast Detect */
 	Detection_NoRecoilB = 6300,		/* No Recoil Active Mode:B */

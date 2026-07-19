@@ -8,8 +8,8 @@
  *
  * Original module by Danyas for SMAC v34.
  * Rewritten from SMAC Ultr@ R52 Global behaviour (smac_AdvancedTrigger_*,
- * smac_AdvancedAutoFire_*): weapon-tagged trigger aim vs sustained auto-hold
- * fire while ray-locked on an enemy. Not a 1:1 dump.
+ * smac_AdvancedAutoFire_*): weapon-tagged trigger aim vs pre-fire lock
+ * while ray-locked on an enemy. Not a 1:1 dump.
  */
 
 public Plugin:myinfo =
@@ -28,9 +28,11 @@ new Handle:g_hCvarFireBan = INVALID_HANDLE;
 
 new g_iTicksOnTarget[MAXPLAYERS+1];
 new g_iPrevButtons[MAXPLAYERS+1];
+new bool:g_bWasOnEnemy[MAXPLAYERS+1];
 new g_iTrigShots[MAXPLAYERS+1];
 new g_iTrigDet[MAXPLAYERS+1];
-new g_iHoldTicks[MAXPLAYERS+1];
+new g_iPrefireHold[MAXPLAYERS+1];
+new g_iFireHits[MAXPLAYERS+1];
 new g_iFireDet[MAXPLAYERS+1];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 
@@ -62,9 +64,11 @@ ResetClient(client)
 {
 	g_iTicksOnTarget[client] = 0;
 	g_iPrevButtons[client] = 0;
+	g_bWasOnEnemy[client] = false;
 	g_iTrigShots[client] = 0;
 	g_iTrigDet[client] = 0;
-	g_iHoldTicks[client] = 0;
+	g_iPrefireHold[client] = 0;
+	g_iFireHits[client] = 0;
 	g_iFireDet[client] = 0;
 	g_fIgnoreUntil[client] = 0.0;
 }
@@ -75,7 +79,8 @@ public Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if (IS_CLIENT(client))
 	{
 		g_iTicksOnTarget[client] = 0;
-		g_iHoldTicks[client] = 0;
+		g_iPrefireHold[client] = 0;
+		g_bWasOnEnemy[client] = false;
 		g_fIgnoreUntil[client] = GetGameTime() + 1.5;
 	}
 }
@@ -85,7 +90,8 @@ public Teleport_OnEndTouch(const String:output[], caller, activator, Float:delay
 	if (IS_CLIENT(activator) && IsClientConnected(activator))
 	{
 		g_iTicksOnTarget[activator] = 0;
-		g_iHoldTicks[activator] = 0;
+		g_iPrefireHold[activator] = 0;
+		g_bWasOnEnemy[activator] = false;
 		g_fIgnoreUntil[activator] = GetGameTime() + 0.5 + delay;
 	}
 }
@@ -130,7 +136,8 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		g_iPrevButtons[client] = buttons;
 		g_iTicksOnTarget[client] = 0;
-		g_iHoldTicks[client] = 0;
+		g_iPrefireHold[client] = 0;
+		g_bWasOnEnemy[client] = false;
 		return Plugin_Continue;
 	}
 
@@ -143,13 +150,15 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		g_iPrevButtons[client] = buttons;
 		g_iTicksOnTarget[client] = 0;
-		g_iHoldTicks[client] = 0;
+		g_iPrefireHold[client] = 0;
+		g_bWasOnEnemy[client] = false;
 		return Plugin_Continue;
 	}
 
 	new bool:atk = (buttons & IN_ATTACK) != 0;
 	new bool:wasAtk = (g_iPrevButtons[client] & IN_ATTACK) != 0;
 	new bool:atkEdge = atk && !wasAtk;
+	new bool:acquireEdge = onEnemy && !g_bWasOnEnemy[client];
 
 	if (onEnemy)
 		g_iTicksOnTarget[client]++;
@@ -168,17 +177,29 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		}
 	}
 
-	/* Advanced Auto-Fire: hold IN_ATTACK while locked without prior track. */
-	if (atk && onEnemy)
+	/*
+	 * Advanced Auto-Fire: already holding fire when first acquiring an enemy,
+	 * then stay locked ~0.25s. Legit spray aims first then holds — not this.
+	 */
+	new holdNeed = RoundToNearest(0.25 / GetTickInterval());
+	if (holdNeed < 8)
+		holdNeed = 8;
+
+	if (acquireEdge && atk && wasAtk)
 	{
-		g_iHoldTicks[client]++;
-		if (g_iHoldTicks[client] >= RoundToNearest(1.0 / GetTickInterval()) /* ~1s lock-fire */
-			&& g_iTicksOnTarget[client] <= g_iHoldTicks[client])
+		/* Prefire into acquire — start candidate window. */
+		g_iPrefireHold[client] = 1;
+	}
+	else if (g_iPrefireHold[client] > 0 && atk && onEnemy)
+	{
+		g_iPrefireHold[client]++;
+		if (g_iPrefireHold[client] >= holdNeed)
 		{
-			/* Acquired and held fire almost the entire lock window. */
-			if (g_iTicksOnTarget[client] >= g_iHoldTicks[client] - 2)
+			g_iPrefireHold[client] = 0;
+			g_iFireHits[client]++;
+			if (g_iFireHits[client] >= 3)
 			{
-				g_iHoldTicks[client] = 0;
+				g_iFireHits[client] = 0;
 				g_iFireDet[client]++;
 				MaybeReactFire(client, wpn);
 			}
@@ -186,9 +207,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 	else
 	{
-		g_iHoldTicks[client] = 0;
+		g_iPrefireHold[client] = 0;
 	}
 
+	g_bWasOnEnemy[client] = onEnemy;
 	g_iPrevButtons[client] = buttons;
 	return Plugin_Continue;
 }

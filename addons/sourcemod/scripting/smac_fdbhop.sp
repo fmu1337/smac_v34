@@ -20,7 +20,8 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-#define BHOP_LAND_WINDOW	0.12
+/* Land → leave-ground window (~5 ticks @ 66). Script hops rejump instantly. */
+#define BHOP_LEAVE_WINDOW	0.08
 #define BHOP_MIN_SPEED		250.0
 #define BHOP_STREAK_NEED	12
 #define FASTRUN_SPEED		320.0
@@ -30,7 +31,7 @@ new Handle:g_hCvarFd = INVALID_HANDLE;
 
 new bool:g_bWasOnGround[MAXPLAYERS+1];
 new Float:g_fLastLand[MAXPLAYERS+1];
-new g_iPerfectLands[MAXPLAYERS+1];
+new g_iPerfectHops[MAXPLAYERS+1];
 new g_iBhopDet[MAXPLAYERS+1];
 new g_iRunStreak[MAXPLAYERS+1];
 new g_iRunDet[MAXPLAYERS+1];
@@ -60,7 +61,7 @@ ResetClient(client)
 {
 	g_bWasOnGround[client] = false;
 	g_fLastLand[client] = 0.0;
-	g_iPerfectLands[client] = 0;
+	g_iPerfectHops[client] = 0;
 	g_iBhopDet[client] = 0;
 	g_iRunStreak[client] = 0;
 	g_iRunDet[client] = 0;
@@ -72,7 +73,7 @@ public Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (IS_CLIENT(client))
 	{
-		g_iPerfectLands[client] = 0;
+		g_iPerfectHops[client] = 0;
 		g_iRunStreak[client] = 0;
 		g_fIgnoreUntil[client] = GetGameTime() + 2.0;
 	}
@@ -92,7 +93,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	if (mt == MOVETYPE_NOCLIP || mt == MOVETYPE_LADDER || mt == MOVETYPE_OBSERVER)
 	{
 		g_bWasOnGround[client] = false;
-		g_iPerfectLands[client] = 0;
+		g_iPerfectHops[client] = 0;
 		g_iRunStreak[client] = 0;
 		return Plugin_Continue;
 	}
@@ -101,35 +102,43 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	decl Float:v[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", v);
 	new Float:speed = SquareRoot((v[0] * v[0]) + (v[1] * v[1]));
+	new Float:now = GetGameTime();
 
-	/* Fast Detect Bhop: land→leave ground in tiny window at speed, jump optional. */
+	/* Fast Detect: land then leave ground in a tiny window at speed (jump optional). */
 	if (onGround && !g_bWasOnGround[client])
 	{
-		new Float:now = GetGameTime();
-		if (g_fLastLand[client] > 0.0 && (now - g_fLastLand[client]) <= BHOP_LAND_WINDOW && speed >= BHOP_MIN_SPEED)
-		{
-			g_iPerfectLands[client]++;
-			if (g_iPerfectLands[client] >= BHOP_STREAK_NEED)
-			{
-				g_iPerfectLands[client] = 0;
-				g_iBhopDet[client]++;
-				ReactBhop(client, mode);
-			}
-		}
-		else if (speed < BHOP_MIN_SPEED)
-		{
-			g_iPerfectLands[client] = 0;
-		}
 		g_fLastLand[client] = now;
 	}
 	else if (!onGround && g_bWasOnGround[client])
 	{
-		/* Airborne after land — keep streak if jumped soon. */
+		if (g_fLastLand[client] > 0.0
+			&& (now - g_fLastLand[client]) <= BHOP_LEAVE_WINDOW
+			&& speed >= BHOP_MIN_SPEED)
+		{
+			g_iPerfectHops[client]++;
+			if (g_iPerfectHops[client] >= BHOP_STREAK_NEED)
+			{
+				g_iPerfectHops[client] = 0;
+				g_iBhopDet[client]++;
+				ReactBhop(client, mode);
+			}
+		}
+		else
+		{
+			g_iPerfectHops[client] = 0;
+		}
+		g_fLastLand[client] = 0.0;
 	}
-	else if (onGround && speed < 200.0)
+	else if (onGround && g_fLastLand[client] > 0.0
+		&& (now - g_fLastLand[client]) > BHOP_LEAVE_WINDOW)
 	{
-		g_iPerfectLands[client] = 0;
+		/* Stood / walked after landing — break perfect-hop streak. */
+		g_iPerfectHops[client] = 0;
+		g_fLastLand[client] = 0.0;
 	}
+
+	if (onGround && speed < 200.0)
+		g_iPerfectHops[client] = 0;
 
 	/* Fast Run: sustained XY speed above CSS walk+sprint ceiling. */
 	if (onGround && speed >= FASTRUN_SPEED)
@@ -172,10 +181,10 @@ ReactRun(client, mode, Float:speed)
 	new Handle:info = CreateKeyValues("");
 	KvSetNum(info, "detection", g_iRunDet[client]);
 	KvSetFloat(info, "speed", speed);
-	if (SMAC_CheatDetected(client, Detection_FastRun, info) == Plugin_Continue)
+	if (SMAC_CheatDetected(client, Detection_FdFastRun, info) == Plugin_Continue)
 	{
 		SMAC_PrintAdminNotice("%t", "SMAC_FastRunDetected", client, g_iRunDet[client]);
-		SMAC_LogAction(client, "fast-run (Detection #%i | speed=%.1f)", g_iRunDet[client], speed);
+		SMAC_LogAction(client, "fd fast-run (Detection #%i | speed=%.1f)", g_iRunDet[client], speed);
 		if (mode == 2)
 			KickClient(client, "%t", "SMAC_FastRunKick");
 		else if (mode == 3)
