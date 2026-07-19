@@ -15,16 +15,23 @@
 | Модуль v34 | Ultr@ идея |
 |------------|------------|
 | `smac_ultra_aim` | PRG 301–304, AGT 288/299, AGTAF 88/99, Tr 188/199, Null 200/201, AGTWS 100, AMSAF 101, RCS-F/H cvars |
-| `smac_norecoil` | No Recoil Mode A/B (punch) |
+| `smac_norecoil` | No Recoil Mode A/B (punch + absorb) |
 | `smac_fakelag` | `smac_FL_Ctrl` / DDoS-style loss-choke (**выкл** loss/choke=0) |
 | `smac_firemacro` | `smac_method_2X_*`, Fast AIM detect |
 | `smac_backtrack` | Mode A detect + Mode B patch; + StAC cmdnum spike |
 | `smac_fastreload` | «Fast Reload or Shooting of Weapon» |
 | `smac_strikeback` | KnifeBot/Aim UsingWH (102/103) |
-| `smac_teleport` | SpeedTeleport (**dist=0 выкл**) |
+| `smac_teleport` | SpeedTeleport signed + Fast Detect |
+| `smac_advtrigger` | Advanced Trigger / Advanced AutoFire |
+| `smac_fdbhop` | `smac_FD_BHOP` Fast Detect + Fast Run |
+| `smac_speedlimit` | `smac_SpeedLimitDetect` + `smac_SpeedUp` |
+| `smac_aimkill` | AIM_Kill soft escalate |
+| `smac_soundesp` | SoundESP LOS sound strip + soft react |
 | `smac_entityspam` | Control_Entity / weapon spam |
 | `smac_client` | sens spam/min/max, impulse extras |
 | antiflash/antismoke/wallhack | частично усилены |
+
+См. также `docs/ULTRA_P0_MINING.md` (алгоритмы P0).
 
 **Не тащить:** WH Ignore API, UCP, SoftDetector/AntiDLL без ext, 1:1 dump Ultr@.
 

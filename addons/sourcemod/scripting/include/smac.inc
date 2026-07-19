@@ -89,6 +89,16 @@ enum DetectionType {
 	Detection_FastReload = 5400,
 	Detection_FastShoot = 5500,
 	Detection_Aimsnap = 5600,
+
+	/* Ultr@ P0 — rewritten, Danyas (R52 Global.cfg / .data mining). */
+	Detection_AdvancedTrigger = 5700,	/* AimBot (Advanced Trigger) */
+	Detection_AdvancedAutoFire = 5800,	/* Trigger + Advanced Auto-Fire */
+	Detection_FastBhop = 5900,		/* BunnyHop: Fast Detect */
+	Detection_SpeedLimit = 6100,		/* smac_SpeedLimitDetect / SpeedUp */
+	Detection_TeleportFast = 6200,		/* Teleport Hack: Fast Detect */
+	Detection_NoRecoilB = 6300,		/* No Recoil Active Mode:B */
+	Detection_AimKill = 6400,		/* kill escalate after aim snap */
+	Detection_SoundESP = 6500,		/* sound-through-wall hear react */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

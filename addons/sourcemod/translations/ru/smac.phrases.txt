@@ -284,6 +284,93 @@
 	{
 		"ru"		"{1} подозревается в Aimsnap. (Детект #{2})"
 	}
+
+	"SMAC_AdvancedTriggerDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"ru"		"{1} подозревается в AimBot (Advanced Trigger). (Детект #{2} | Оружие: {3})"
+	}
+
+	"SMAC_AdvancedTriggerKick"
+	{
+		"ru"		"Вы кикнуты по подозрению в Advanced Trigger"
+	}
+
+	"SMAC_AdvancedAutoFireDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"ru"		"{1} подозревается в AimBot (Trigger, Advanced Auto-Fire). (Детект #{2} | Оружие: {3})"
+	}
+
+	"SMAC_AdvancedAutoFireKick"
+	{
+		"ru"		"Вы кикнуты по подозрению в Advanced Auto-Fire"
+	}
+
+	"SMAC_FastBhopDetected"
+	{
+		"ru"		"{1} подозревается в BunnyHop: Fast Detect. (Детект #{2})"
+	}
+
+	"SMAC_FastBhopKick"
+	{
+		"ru"		"Вы кикнуты за BunnyHop Fast Detect"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"ru"		"{1} подозревается в Fast Run Cheat. (Детект #{2})"
+	}
+
+	"SMAC_FastRunKick"
+	{
+		"ru"		"Вы кикнуты за Fast Run"
+	}
+
+	"SMAC_SpeedLimitDetected"
+	{
+		"ru"		"{1} подозревается в SpeedLimit (пакеты). (Детект #{2})"
+	}
+
+	"SMAC_SpeedLimitKick"
+	{
+		"ru"		"Вы кикнуты за SpeedLimit аномалию"
+	}
+
+	"SMAC_TeleportFastDetected"
+	{
+		"ru"		"{1} подозревается в Teleport Hack: Fast Detect. (Детект #{2})"
+	}
+
+	"SMAC_NoRecoilBDetected"
+	{
+		"ru"		"{1} подозревается в No Recoil [Mode:B]. (Детект #{2})"
+	}
+
+	"SMAC_NoRecoilKick"
+	{
+		"ru"		"Вы кикнуты за NoRecoil"
+	}
+
+	"SMAC_AimKillDetected"
+	{
+		"ru"		"{1} подозревается в Aim-Kill. (Детект #{2})"
+	}
+
+	"SMAC_AimKillKick"
+	{
+		"ru"		"Вы кикнуты за Aim-Kill"
+	}
+
+	"SMAC_SoundESPDetected"
+	{
+		"ru"		"{1} подозревается в SoundESP. (Детект #{2})"
+	}
+
+	"SMAC_SoundESPKick"
+	{
+		"ru"		"Вы кикнуты за SoundESP"
+	}
 		
 	"SMAC_Muted"
 	{

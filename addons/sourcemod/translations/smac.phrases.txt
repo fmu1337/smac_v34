@@ -341,6 +341,100 @@
 		"#format"	"{1:N},{2:i}"
 		"en"		"{1} is suspected of Aimsnap. (Detection #{2})"
 	}
+
+	"SMAC_AdvancedTriggerDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"en"		"{1} is suspected of AimBot (Advanced Trigger). (Detection #{2} | Weapon: {3})"
+	}
+
+	"SMAC_AdvancedTriggerKick"
+	{
+		"en"		"You were kicked for Advanced Trigger suspicion"
+	}
+
+	"SMAC_AdvancedAutoFireDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"en"		"{1} is suspected of AimBot (Trigger, Advanced Auto-Fire). (Detection #{2} | Weapon: {3})"
+	}
+
+	"SMAC_AdvancedAutoFireKick"
+	{
+		"en"		"You were kicked for Advanced Auto-Fire suspicion"
+	}
+
+	"SMAC_FastBhopDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of BunnyHop: Fast Detect. (Detection #{2})"
+	}
+
+	"SMAC_FastBhopKick"
+	{
+		"en"		"You were kicked for BunnyHop Fast Detect"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fast Run Cheat. (Detection #{2})"
+	}
+
+	"SMAC_FastRunKick"
+	{
+		"en"		"You were kicked for Fast Run suspicion"
+	}
+
+	"SMAC_SpeedLimitDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of packet-rate SpeedLimit. (Detection #{2})"
+	}
+
+	"SMAC_SpeedLimitKick"
+	{
+		"en"		"You were kicked for SpeedLimit anomaly"
+	}
+
+	"SMAC_TeleportFastDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Teleport Hack: Fast Detect. (Detection #{2})"
+	}
+
+	"SMAC_NoRecoilBDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of No Recoil [Mode:B]. (Detection #{2})"
+	}
+
+	"SMAC_NoRecoilKick"
+	{
+		"en"		"You were kicked for NoRecoil suspicion"
+	}
+
+	"SMAC_AimKillDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Aim-Kill. (Detection #{2})"
+	}
+
+	"SMAC_AimKillKick"
+	{
+		"en"		"You were kicked for Aim-Kill suspicion"
+	}
+
+	"SMAC_SoundESPDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of SoundESP react. (Detection #{2})"
+	}
+
+	"SMAC_SoundESPKick"
+	{
+		"en"		"You were kicked for SoundESP suspicion"
+	}
 	
 	"SMAC_Muted"
 	{

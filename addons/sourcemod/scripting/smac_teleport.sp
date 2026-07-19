@@ -4,37 +4,39 @@
 #include <smac>
 
 /*
- * SMAC: Teleport / Tick-Move
+ * SMAC: Teleport / Tick-Move / Fast Detect
  *
  * Original module by Danyas for SMAC v34.
- * Inspired by SMAC Ultra smac_SpeedTeleport — flags sudden origin jumps
- * larger than a threshold in one tick (teleport hacks / grenade boost abuse).
+ * Ultr@ smac_SpeedTeleport: signed dist ( -N kick / +N ban / 0 off ).
+ * Fast Detect uses a lower distance streak counter.
  */
 
 public Plugin:myinfo =
 {
 	name = "SMAC: Teleport Detector",
 	author = SMAC_AUTHOR,
-	description = "Detects impossible per-tick origin jumps",
+	description = "Detects impossible per-tick origin jumps (Ultr@ SpeedTeleport)",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
 
 new Handle:g_hCvarDist = INVALID_HANDLE;
-new Handle:g_hCvarBan = INVALID_HANDLE;
+new Handle:g_hCvarFast = INVALID_HANDLE;
 
 new Float:g_vPrevOrigin[MAXPLAYERS+1][3];
 new bool:g_bHaveOrigin[MAXPLAYERS+1];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 new g_iDetects[MAXPLAYERS+1];
+new g_iFastStreak[MAXPLAYERS+1];
+new g_iFastDet[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	/* Negative = kick after abs value; positive = ban; 0 = off (Ultra style). Default off. */
-	g_hCvarDist = SMAC_CreateConVar("smac_teleport_dist", "0.0", "Max units/tick before detect. 0=off. Use ~1000-1500 on pub CSS.", _, true, 0.0);
-	g_hCvarBan = SMAC_CreateConVar("smac_teleport_ban", "2", "Detections before ban. (0 = Never ban, kick-only if dist set)", _, true, 0.0);
+	/* Ultr@ signed float: abs=threshold units/tick; sign selects kick/ban. */
+	g_hCvarDist = SMAC_CreateConVar("smac_SpeedTeleport", "0.0", "Teleport dist. 0=off, -1500=kick@1500u, +1500=ban@1500u", _, true, -50000.0, true, 50000.0);
+	g_hCvarFast = SMAC_CreateConVar("smac_SpeedTeleport_fast", "0", "Fast Detect: streak of mid jumps (400-999u). 0=off, -N=kick, +N=ban", _, true, -100.0, true, 100.0);
 
 	HookEvent("player_spawn", Event_Spawn, EventHookMode_Post);
 	HookEntityOutput("trigger_teleport", "OnEndTouch", Teleport_OnEndTouch);
@@ -44,6 +46,8 @@ public OnClientPutInServer(client)
 {
 	g_bHaveOrigin[client] = false;
 	g_iDetects[client] = 0;
+	g_iFastStreak[client] = 0;
+	g_iFastDet[client] = 0;
 	g_fIgnoreUntil[client] = 0.0;
 }
 
@@ -53,6 +57,7 @@ public Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if (IS_CLIENT(client))
 	{
 		g_bHaveOrigin[client] = false;
+		g_iFastStreak[client] = 0;
 		g_fIgnoreUntil[client] = GetGameTime() + 2.0;
 	}
 }
@@ -62,14 +67,16 @@ public Teleport_OnEndTouch(const String:output[], caller, activator, Float:delay
 	if (IS_CLIENT(activator) && IsClientConnected(activator))
 	{
 		g_bHaveOrigin[activator] = false;
+		g_iFastStreak[activator] = 0;
 		g_fIgnoreUntil[activator] = GetGameTime() + 0.75 + delay;
 	}
 }
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
-	new Float:limit = GetConVarFloat(g_hCvarDist);
-	if (limit <= 0.0)
+	new Float:signedLimit = GetConVarFloat(g_hCvarDist);
+	new fastReact = GetConVarInt(g_hCvarFast);
+	if (signedLimit == 0.0 && fastReact == 0)
 		return Plugin_Continue;
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsPlayerAlive(client))
 		return Plugin_Continue;
@@ -91,39 +98,63 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	if (!g_bHaveOrigin[client])
 	{
-		g_vPrevOrigin[client] = origin;
+		g_vPrevOrigin[client][0] = origin[0];
+		g_vPrevOrigin[client][1] = origin[1];
+		g_vPrevOrigin[client][2] = origin[2];
 		g_bHaveOrigin[client] = true;
 		return Plugin_Continue;
 	}
 
 	new Float:dist = GetVectorDistance(origin, g_vPrevOrigin[client]);
-	g_vPrevOrigin[client] = origin;
+	g_vPrevOrigin[client][0] = origin[0];
+	g_vPrevOrigin[client][1] = origin[1];
+	g_vPrevOrigin[client][2] = origin[2];
 
-	if (dist < limit)
-		return Plugin_Continue;
+	new Float:limit = FloatAbs(signedLimit);
 
-	g_iDetects[client]++;
-	new Handle:info = CreateKeyValues("");
-	KvSetNum(info, "detection", g_iDetects[client]);
-	KvSetFloat(info, "distance", dist);
-
-	if (SMAC_CheatDetected(client, Detection_TeleportHack, info) == Plugin_Continue)
+	/* Hard teleport */
+	if (signedLimit != 0.0 && dist >= limit)
 	{
-		SMAC_PrintAdminNotice("%t", "SMAC_TeleportDetected", client, g_iDetects[client]);
-		SMAC_LogAction(client, "teleport / tick-move (Detection #%i | dist=%.1f limit=%.1f)", g_iDetects[client], dist, limit);
-
-		new banAt = GetConVarInt(g_hCvarBan);
-		if (banAt && g_iDetects[client] >= banAt)
+		g_iDetects[client]++;
+		new reactN = (signedLimit > 0.0) ? 1 : -1;
+		new Handle:info = CreateKeyValues("");
+		KvSetNum(info, "detection", g_iDetects[client]);
+		KvSetFloat(info, "distance", dist);
+		if (SMAC_CheatDetected(client, Detection_TeleportHack, info) == Plugin_Continue)
 		{
-			SMAC_LogAction(client, "was banned for teleport hack.");
-			SMAC_Ban(client, "Teleport Hack Detection");
+			SMAC_PrintAdminNotice("%t", "SMAC_TeleportDetected", client, g_iDetects[client]);
+			SMAC_LogAction(client, "teleport (Detection #%i | dist=%.1f limit=%.1f)", g_iDetects[client], dist, limit);
+			SMAC_UltraReact(client, 1, reactN, "Teleport Hack Detection", "SMAC_TeleportKick");
 		}
-		else
+		CloseHandle(info);
+		g_bHaveOrigin[client] = false;
+		return Plugin_Continue;
+	}
+
+	/* Fast Detect: repeated mid-range jumps (grenade boost / micro-tp). */
+	if (fastReact != 0 && dist >= 400.0 && dist < 1000.0)
+	{
+		g_iFastStreak[client]++;
+		if (g_iFastStreak[client] >= 3)
 		{
-			KickClient(client, "%t", "SMAC_TeleportKick");
+			g_iFastStreak[client] = 0;
+			g_iFastDet[client]++;
+			new Handle:info = CreateKeyValues("");
+			KvSetNum(info, "detection", g_iFastDet[client]);
+			KvSetFloat(info, "distance", dist);
+			if (SMAC_CheatDetected(client, Detection_TeleportFast, info) == Plugin_Continue)
+			{
+				SMAC_PrintAdminNotice("%t", "SMAC_TeleportFastDetected", client, g_iFastDet[client]);
+				SMAC_LogAction(client, "teleport fast-detect (Detection #%i | dist=%.1f)", g_iFastDet[client], dist);
+				SMAC_UltraReact(client, g_iFastDet[client], fastReact, "Teleport Fast Detect", "SMAC_TeleportKick");
+			}
+			CloseHandle(info);
 		}
 	}
-	CloseHandle(info);
-	g_bHaveOrigin[client] = false;
+	else if (dist < 200.0)
+	{
+		g_iFastStreak[client] = 0;
+	}
+
 	return Plugin_Continue;
 }

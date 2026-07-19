@@ -32,11 +32,15 @@ new Float:g_fAngPrev1[MAXPLAYERS+1][2];
 new Float:g_fAngPrev2[MAXPLAYERS+1][2];
 new g_iDetects[MAXPLAYERS+1];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
+new g_iButtonsCur[MAXPLAYERS+1];
+new g_iButtonsPrev1[MAXPLAYERS+1];
+new Handle:g_hCvarUltra = INVALID_HANDLE;
 
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 	g_hCvarBan = SMAC_CreateConVar("smac_psilent_ban", "5", "pSilent detections before ban. Minimum 3. (0 = Never ban)", _, true, 0.0);
+	g_hCvarUltra = SMAC_CreateConVar("smac_psilent_ultra", "1", "Ultr@ Active Mode: require +attack on silent B frame.", _, true, 0.0, true, 1.0);
 	OnBanChanged(g_hCvarBan, "", "");
 	HookConVarChange(g_hCvarBan, OnBanChanged);
 
@@ -113,8 +117,11 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	g_fAngPrev1[client][1] = g_fAngCur[client][1];
 	g_fAngCur[client][0] = angles[0];
 	g_fAngCur[client][1] = angles[1];
+	g_iButtonsPrev1[client] = g_iButtonsCur[client];
+	g_iButtonsCur[client] = buttons;
 
-	/* StAC pSilent: cur == prev2, but prev1 differs (A-B-A). */
+	/* StAC pSilent: cur == prev2, but prev1 differs (A-B-A).
+	 * Ultr@ Active Mode: silent B frame should carry +attack. */
 	if (g_fAngCur[client][0] == g_fAngPrev2[client][0]
 		&& g_fAngCur[client][1] == g_fAngPrev2[client][1]
 		&& g_fAngPrev1[client][0] != g_fAngCur[client][0]
@@ -128,6 +135,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		&& g_fAngPrev2[client][0] != 0.0
 		&& g_fAngPrev2[client][1] != 0.0)
 	{
+		if (GetConVarBool(g_hCvarUltra) && !(g_iButtonsPrev1[client] & IN_ATTACK))
+			return Plugin_Continue;
+
 		new Float:aDiff[2];
 		aDiff[0] = FloatAbs(g_fAngCur[client][0] - g_fAngPrev1[client][0]);
 		aDiff[1] = FloatAbs(g_fAngCur[client][1] - g_fAngPrev1[client][1]);
@@ -147,7 +157,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			if (SMAC_CheatDetected(client, Detection_pSilent, info) == Plugin_Continue)
 			{
 				SMAC_PrintAdminNotice("%t", "SMAC_pSilentDetected", client, g_iDetects[client]);
-				SMAC_LogAction(client, "pSilent / one-tick aim snap (Detection #%i | dP=%.2f° dY=%.2f°)", g_iDetects[client], aDiff[0], aDiff[1]);
+				SMAC_LogAction(client, "pSilent Ultr@-active (Detection #%i | dP=%.2f° dY=%.2f°)", g_iDetects[client], aDiff[0], aDiff[1]);
 
 				if (g_iBanAt && g_iDetects[client] >= g_iBanAt)
 				{

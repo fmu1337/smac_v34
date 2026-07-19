@@ -78,6 +78,35 @@ stock bool:IsConVarDefault(Handle:convar)
 	return StrEqual(sDefaultVal, sCurrentVal);
 }
 
+/**
+ * Ultr@-style signed reaction:
+ *   0  = off / notice-only (caller still logs)
+ *  +N  = ban after N detections
+ *  -N  = kick after abs(N) detections
+ * Returns true if a kick/ban was applied.
+ */
+stock bool:SMAC_UltraReact(client, detections, reaction, const String:banReason[], const String:kickPhrase[])
+{
+	if (reaction == 0 || detections <= 0)
+		return false;
+
+	new need = reaction;
+	if (need < 0)
+		need = -need;
+
+	if (detections < need)
+		return false;
+
+	if (reaction > 0)
+	{
+		SMAC_Ban(client, banReason);
+		return true;
+	}
+
+	KickClient(client, "%t", kickPhrase);
+	return true;
+}
+
 stock StringToLower(String:input[])
 {
 	new length = strlen(input);

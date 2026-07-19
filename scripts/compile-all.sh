@@ -68,6 +68,11 @@ PLUGINS=(
 	smac_backtrack.sp
 	smac_fastreload.sp
 	smac_aimsnap.sp
+	smac_advtrigger.sp
+	smac_fdbhop.sp
+	smac_speedlimit.sp
+	smac_aimkill.sp
+	smac_soundesp.sp
 	smac_wallhack.sp
 )
 
