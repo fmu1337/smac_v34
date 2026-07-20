@@ -216,7 +216,7 @@ FireAirReact(client, DetectionType:type, detects, react, const String:phrase[], 
 		if (react >= 1)
 			SMAC_PrintAdminNotice("%t", phrase, client, detects);
 		SMAC_LogAction(client, "%s (Detection #%i)", logTag, detects);
-		if (react == 2)
+		if (react == 2 && SMAC_MayEnforce(type))
 			KickClient(client, "%t", "SMAC_AirStuckKick");
 		else if (react == 3)
 			SMAC_Ban(client, "Airstuck Detection");
