@@ -75,6 +75,7 @@ PLUGINS=(
 	smac_soundesp.sp
 	smac_ultratools.sp
 	smac_wallhack.sp
+	0_smac_testbench.sp
 )
 
 mkdir -p "$OUT_DIR"
@@ -89,7 +90,12 @@ echo
 failed=0
 for plugin in "${PLUGINS[@]}"; do
 	src="$SCRIPTING/$plugin"
-	out="$OUT_DIR/${plugin%.sp}.smx"
+	if [[ "$plugin" == "0_smac_testbench.sp" ]]; then
+		mkdir -p "$OUT_DIR/disabled"
+		out="$OUT_DIR/disabled/${plugin%.sp}.smx"
+	else
+		out="$OUT_DIR/${plugin%.sp}.smx"
+	fi
 	echo "Compiling $plugin ..."
 	if ! "$SPCOMP" \
 		"-i$PROJECT_INCLUDE" \
