@@ -103,7 +103,7 @@ public OnEntityCreated(entity, const String:classname[])
 				SMAC_LogAction(owner, "was banned for entity spam.");
 				SMAC_Ban(owner, "Entity Spam Detection");
 			}
-			else
+			else if (SMAC_MayEnforce(Detection_EntitySpam))
 			{
 				KickClient(owner, "%t", "SMAC_EntitySpamKick");
 			}

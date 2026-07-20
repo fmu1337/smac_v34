@@ -41,9 +41,9 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_knifebot_wh_warn", "1", "KnifeBot-through-WH detections before admin notice. (0 = silent)", _, true, 0.0);
-	g_hCvarKnifeBan = SMAC_CreateConVar("smac_knifebot_wh_ban", "2", "KnifeBot-through-WH detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarKnifeBan = SMAC_CreateConVar("smac_knifebot_wh_ban", "0", "KnifeBot-through-WH detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarAimWarn = SMAC_CreateConVar("smac_aim_wh_warn", "5", "Aim-through-WH detections before admin notice. (0 = silent)", _, true, 0.0);
-	g_hCvarAimBan = SMAC_CreateConVar("smac_aim_wh_ban", "10", "Aim-through-WH detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarAimBan = SMAC_CreateConVar("smac_aim_wh_ban", "0", "Aim-through-WH detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarMinDist = SMAC_CreateConVar("smac_strikeback_mindist", "80.0", "Min attacker→victim distance for gun Strike Back (skip point-blank).", _, true, 0.0);
 
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);

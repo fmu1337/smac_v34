@@ -79,6 +79,55 @@ stock bool:IsConVarDefault(Handle:convar)
 }
 
 /**
+ * Legacy xMaZax SMAC detectors — may ban/kick even when smac_observe_new is on.
+ */
+stock bool:SMAC_IsLegacyDetection(DetectionType:type)
+{
+	return (type == Detection_Aimbot
+		|| type == Detection_AutoTrigger
+		|| type == Detection_NameChangeSpam
+		|| type == Detection_CommandSpamming
+		|| type == Detection_BannedCommand
+		|| type == Detection_CvarViolation
+		|| type == Detection_UserCmdReuse
+		|| type == Detection_UserCmdTamperingTickcount
+		|| type == Detection_UserCmdTamperingButtons
+		|| type == Detection_Eyeangles
+		|| type == Detection_ChatClear
+		|| type == Detection_HardFlood);
+}
+
+stock bool:SMAC_IsLegacyPlugin(const String:basename[])
+{
+	return (StrEqual(basename, "smac_aimbot", false)
+		|| StrEqual(basename, "smac_autotrigger", false)
+		|| StrEqual(basename, "smac_commands", false)
+		|| StrEqual(basename, "smac_cvars", false)
+		|| StrEqual(basename, "smac_eyetest", false)
+		|| StrEqual(basename, "smac_client", false)
+		|| StrEqual(basename, "smac_status", false));
+}
+
+/**
+ * When smac_observe_new=1, only legacy detections/plugins may kick/ban.
+ * New ports stay on log + admin notice for live data collection.
+ */
+stock bool:SMAC_MayEnforce(DetectionType:type, const String:plugin[]="")
+{
+	new Handle:hObserve = FindConVar("smac_observe_new");
+	if (hObserve == INVALID_HANDLE || !GetConVarBool(hObserve))
+		return true;
+
+	if (SMAC_IsLegacyDetection(type))
+		return true;
+
+	if (type == Detection_Unknown && strlen(plugin) > 0 && SMAC_IsLegacyPlugin(plugin))
+		return true;
+
+	return false;
+}
+
+/**
  * Ultr@-style signed reaction:
  *   0  = off / notice-only (caller still logs)
  *  +N  = ban after N detections
@@ -87,6 +136,9 @@ stock bool:IsConVarDefault(Handle:convar)
  */
 stock bool:SMAC_UltraReact(client, detections, reaction, const String:banReason[], const String:kickPhrase[])
 {
+	if (!SMAC_MayEnforce(Detection_Unknown))
+		return false;
+
 	if (reaction == 0 || detections <= 0)
 		return false;
 

@@ -52,9 +52,9 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarSilentBan = SMAC_CreateConVar("smac_strafe_silent_ban", "3", "Silent-strafe detections before ban. (0 = Never ban)", _, true, 0.0);
+	g_hCvarSilentBan = SMAC_CreateConVar("smac_strafe_silent_ban", "0", "Silent-strafe detections before ban. (0 = Never ban)", _, true, 0.0);
 	g_hCvarSilentStreak = SMAC_CreateConVar("smac_strafe_silent_streak", "14", "Consecutive opposite sidemove flips in a window before one detection.", _, true, 6.0);
-	g_hCvarPerfectBan = SMAC_CreateConVar("smac_strafe_perfect_ban", "4", "Perfect-strafe detections before ban. (0 = Never ban)", _, true, 0.0);
+	g_hCvarPerfectBan = SMAC_CreateConVar("smac_strafe_perfect_ban", "0", "Perfect-strafe detections before ban. (0 = Never ban)", _, true, 0.0);
 	g_hCvarPerfectStreak = SMAC_CreateConVar("smac_strafe_perfect_streak", "18", "Consecutive turn+key syncs before one detection.", _, true, 8.0);
 	g_hCvarIllegalBan = SMAC_CreateConVar("smac_strafe_illegal_ban", "0", "Illegal sidemove detections before ban. (0 = Never ban; default off — can FP on controllers)", _, true, 0.0);
 	g_hCvarIllegalStreak = SMAC_CreateConVar("smac_strafe_illegal_streak", "12", "Consecutive illegal button/sidemove ticks before one detection.", _, true, 4.0);

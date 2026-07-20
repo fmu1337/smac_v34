@@ -250,7 +250,7 @@ FireLegacy(client, const String:kind[], Float:value)
 		new banAt = GetConVarInt(g_hCvarBan);
 		if (banAt && g_iDetects[client] >= banAt)
 			SMAC_Ban(client, "Fake Lag Detection");
-		else
+		else if (SMAC_MayEnforce(Detection_FakeLag))
 			KickClient(client, "%t", "SMAC_FakeLagKick");
 	}
 	CloseHandle(info);

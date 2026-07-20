@@ -129,7 +129,7 @@ public OnPluginStart()
 	}
 	
 	AddNormalSoundHook(Hook_NormalSound);
-	AddTempEntHook("FireBullets", TE_OnFireBullets);
+	Wallhack_InitBulletTEHook();
 	
 	HookEvent("player_spawn", Event_PlayerStateChanged, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerStateChanged, EventHookMode_Post);
@@ -407,12 +407,39 @@ public OnWeaponTipChanged(Handle:convar, const String:oldValue[], const String:n
 	g_fWeaponTip = GetConVarFloat(convar);
 }
 
+/**
+ * Bullet TE names:
+ *   CS:S / CSS34 — "Shotgun Shot" (space!) — see FrozDark custom_weapons
+ *   DoD / some engines — "FireBullets"
+ * Wrong name throws Invalid TempEntity and aborts OnPluginStart.
+ */
+Wallhack_InitBulletTEHook()
+{
+	if (!g_bTeJitter)
+		return;
+
+	decl String:game[32];
+	GetGameFolderName(game, sizeof(game));
+
+	if (StrEqual(game, "cstrike", false))
+	{
+		AddTempEntHook("Shotgun Shot", TE_OnFireBullets);
+		LogMessage("[SMAC] wallhack: hooked temp ent \"Shotgun Shot\" (CS:S).");
+	}
+	else
+	{
+		AddTempEntHook("FireBullets", TE_OnFireBullets);
+		LogMessage("[SMAC] wallhack: hooked temp ent \"FireBullets\".");
+	}
+}
+
 public Action:TE_OnFireBullets(const String:te_name[], const Players[], numClients, Float:delay)
 {
 	if (!g_bTeJitter)
 		return Plugin_Continue;
 
-	/* Jitter shot TE origin so WH clients cannot pinpoint hidden shooters. */
+	/* Jitter shot TE origin so WH clients cannot pinpoint hidden shooters.
+	 * CSS TE fields (custom_weapons): m_vecOrigin, m_vecAngles[0/1], m_iPlayer. */
 	decl Float:vOrigin[3];
 	TE_ReadVector("m_vecOrigin", vOrigin);
 	vOrigin[0] += float(GetRandomInt(0, 200) - 100);

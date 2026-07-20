@@ -63,10 +63,10 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarWishBan = SMAC_CreateConVar("smac_move_wish_ban", "3", "Illegal wishspeed detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarWishBan = SMAC_CreateConVar("smac_move_wish_ban", "0", "Illegal wishspeed detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarBhopBan = SMAC_CreateConVar("smac_move_bhop_ban", "0", "Perfect-bhop detections before ban. (0 = Never; off by default for surf)", _, true, 0.0);
 	g_hCvarBhopEnabled = SMAC_CreateConVar("smac_move_bhop", "1", "Enable perfect ground-tick bhop detection.", _, true, 0.0, true, 1.0);
-	g_hCvarAutoBan = SMAC_CreateConVar("smac_move_autoshoot_ban", "2", "Autoshoot detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarAutoBan = SMAC_CreateConVar("smac_move_autoshoot_ban", "0", "Autoshoot detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarKeyBan = SMAC_CreateConVar("smac_move_keyswitch_ban", "0", "Zero-hold keyswitch detections before ban. (0 = Never; keyboard FP)", _, true, 0.0);
 	g_hCvarBlockBullrush = SMAC_CreateConVar("smac_move_block_bullrush", "1", "Strip IN_BULLRUSH (FastDuck) and log.", _, true, 0.0, true, 1.0);
 }

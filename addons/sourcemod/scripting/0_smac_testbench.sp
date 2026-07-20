@@ -336,6 +336,8 @@ FindNearestEnemy(client)
 ApplySoftCvars(client)
 {
 	/* Notice / soft punish — avoid kicking yourself mid-test. */
+	ServerCommand("smac_observe_new 1");
+	ServerCommand("smac_log_verbose 1");
 	ServerCommand("smac_AdvancedTrigger_Warning 1");
 	ServerCommand("smac_AdvancedTrigger_Ban 0");
 	ServerCommand("smac_AdvancedAutoFire_Warning 1");

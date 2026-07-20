@@ -39,7 +39,7 @@ new Handle:g_hCvarUltra = INVALID_HANDLE;
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	g_hCvarBan = SMAC_CreateConVar("smac_psilent_ban", "5", "pSilent detections before ban. Minimum 3. (0 = Never ban)", _, true, 0.0);
+	g_hCvarBan = SMAC_CreateConVar("smac_psilent_ban", "0", "pSilent detections before ban. Minimum 3. (0 = Never ban)", _, true, 0.0);
 	g_hCvarUltra = SMAC_CreateConVar("smac_psilent_ultra", "1", "Ultr@ Active Mode: require +attack on silent B frame.", _, true, 0.0, true, 1.0);
 	OnBanChanged(g_hCvarBan, "", "");
 	HookConVarChange(g_hCvarBan, OnBanChanged);

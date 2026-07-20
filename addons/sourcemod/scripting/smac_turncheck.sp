@@ -61,10 +61,10 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarMouseBan = SMAC_CreateConVar("smac_turn_mouse_ban", "2", "Mouse-aim detections before ban. (0 = Never)", _, true, 0.0);
-	g_hCvarDesyncBan = SMAC_CreateConVar("smac_turn_desync_ban", "3", "Identical yaw-delta detections before ban. (0 = Never)", _, true, 0.0);
-	g_hCvarWiggleBan = SMAC_CreateConVar("smac_turn_wiggle_ban", "3", "Wiggle (+left+right) detections before ban. (0 = Never)", _, true, 0.0);
-	g_hCvarAntiAimBan = SMAC_CreateConVar("smac_turn_antiaim_ban", "3", "Anti-aim snap detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarMouseBan = SMAC_CreateConVar("smac_turn_mouse_ban", "0", "Mouse-aim detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarDesyncBan = SMAC_CreateConVar("smac_turn_desync_ban", "0", "Identical yaw-delta detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarWiggleBan = SMAC_CreateConVar("smac_turn_wiggle_ban", "0", "Wiggle (+left+right) detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarAntiAimBan = SMAC_CreateConVar("smac_turn_antiaim_ban", "0", "Anti-aim snap detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarDelayBan = SMAC_CreateConVar("smac_turn_delay_ban", "0", "Angle-delay detections before ban. (0 = Never; default off — lag FP)", _, true, 0.0);
 	g_hCvarBlockWiggle = SMAC_CreateConVar("smac_turn_block_wiggle", "1", "Strip IN_LEFT|IN_RIGHT when both pressed in air.", _, true, 0.0, true, 1.0);
 

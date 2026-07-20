@@ -38,7 +38,7 @@ new g_iAimlockDet[MAXPLAYERS+1];
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	g_hCvarBan = SMAC_CreateConVar("smac_aimlock_ban", "3", "Aimlock detections before ban. Minimum 2. (0 = Never ban)", _, true, 0.0);
+	g_hCvarBan = SMAC_CreateConVar("smac_aimlock_ban", "0", "Aimlock detections before ban. Minimum 2. (0 = Never ban)", _, true, 0.0);
 	OnBanChanged(g_hCvarBan, "", "");
 	HookConVarChange(g_hCvarBan, OnBanChanged);
 

@@ -134,11 +134,11 @@ native SMAC_PrintAdminNotice(const String:format[], any:...);
 native Handle:SMAC_CreateConVar(const String:name[], const String:defaultValue[], const String:description[]="", flags=0, bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0);
 native Action:SMAC_CheatDetected(client, DetectionType:type = Detection_Unknown, Handle:info = INVALID_HANDLE);
 
-/* Forwards */
-forward Action:SMAC_OnCheatDetected(client, const String:module[], DetectionType:type, Handle:info);
-
 /* Stocks after natives — SM 1.6 compiles referenced stocks immediately and needs SMAC_Ban visible. */
 #include <smac_stocks>
+
+/* Forwards */
+forward Action:SMAC_OnCheatDetected(client, const String:module[], DetectionType:type, Handle:info);
 
 public SharedPlugin:__pl_smac = 
 {

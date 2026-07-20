@@ -39,7 +39,7 @@ public OnPluginStart()
 	g_hCvarEnabled = SMAC_CreateConVar("smac_aimorigin_enabled", "1", "Enable consistent impact-origin aimbot detection.", _, true, 0.0, true, 1.0);
 	g_hCvarConsistency = SMAC_CreateConVar("smac_aimorigin_consistency", "4", "Consecutive consistent hits required (MIN 3).", _, true, 3.0, true, 10.0);
 	g_hCvarThreshold = SMAC_CreateConVar("smac_aimorigin_threshold", "1.98", "Max distance delta (inches) to count as consistent.", _, true, 0.1);
-	g_hCvarBan = SMAC_CreateConVar("smac_aimorigin_ban", "2", "Detections before ban. (0 = Never ban)", _, true, 0.0);
+	g_hCvarBan = SMAC_CreateConVar("smac_aimorigin_ban", "0", "Detections before ban. (0 = Never ban)", _, true, 0.0);
 
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 }

@@ -656,14 +656,16 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 
 	if (sensMin > 0.0 && sens < sensMin)
 	{
-		SMAC_LogAction(client, "was kicked for low sensitivity (%.3f < %.3f).", sens, sensMin);
-		KickClient(client, "%t", "SMAC_SensitivityLowKick", sens, sensMin);
+		SMAC_LogAction(client, "low sensitivity (%.3f < %.3f).", sens, sensMin);
+		if (SMAC_MayEnforce(Detection_SensitivitySpam))
+			KickClient(client, "%t", "SMAC_SensitivityLowKick", sens, sensMin);
 		return;
 	}
 	if (sensMax > 0.0 && sens > sensMax)
 	{
-		SMAC_LogAction(client, "was kicked for high sensitivity (%.3f > %.3f).", sens, sensMax);
-		KickClient(client, "%t", "SMAC_SensitivityHighKick", sens, sensMax);
+		SMAC_LogAction(client, "high sensitivity (%.3f > %.3f).", sens, sensMax);
+		if (SMAC_MayEnforce(Detection_SensitivitySpam))
+			KickClient(client, "%t", "SMAC_SensitivityHighKick", sens, sensMax);
 		return;
 	}
 
@@ -689,8 +691,9 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	g_iSensChanges[client] = 0;
 	if (SMAC_CheatDetected(client, Detection_SensitivitySpam, INVALID_HANDLE) == Plugin_Continue)
 	{
-		SMAC_LogAction(client, "was kicked for sensitivity change spam.");
-		KickClient(client, "%t", "SMAC_SensitivitySpamKick");
+		SMAC_LogAction(client, "sensitivity change spam.");
+		if (SMAC_MayEnforce(Detection_SensitivitySpam))
+			KickClient(client, "%t", "SMAC_SensitivitySpamKick");
 	}
 }
 
@@ -714,8 +717,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	g_iImpulseCnt[client] = 0;
 	if (SMAC_CheatDetected(client, Detection_ImpulseSpam, INVALID_HANDLE) == Plugin_Continue)
 	{
-		SMAC_LogAction(client, "was kicked for impulse spam.");
-		KickClient(client, "%t", "SMAC_ImpulseSpamKick");
+		SMAC_LogAction(client, "impulse command spam.");
+		if (SMAC_MayEnforce(Detection_ImpulseSpam))
+			KickClient(client, "%t", "SMAC_ImpulseSpamKick");
 	}
 	return Plugin_Continue;
 }

@@ -28,6 +28,8 @@ new Handle:g_hCvarBanConsoleMsg = INVALID_HANDLE;
 new Handle:g_hCvarBanDuration = INVALID_HANDLE;
 new Handle:g_hCvarLogVerbose = INVALID_HANDLE;
 new Handle:g_hCvarGameDesc = INVALID_HANDLE;
+new Handle:g_hCvarObserveNew = INVALID_HANDLE;
+new DetectionType:g_LastDetection[MAXPLAYERS+1];
 new String:g_sLogPath[PLATFORM_MAX_PATH];
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
@@ -56,7 +58,8 @@ public OnPluginStart()
 	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Time after display welcome message.", _, true, 1.0, true, 30.0);
 	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Display client info in client console.", _, true, 0.0, true, 1.0);
 	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "The duration in minutes used for automatic bans. (0 = Permanent)", _, true, 0.0);
-	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Include extra information about a client being logged.", _, true, 0.0, true, 1.0);
+	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "1", "Include extra information about a client being logged.", _, true, 0.0, true, 1.0);
+	g_hCvarObserveNew = CreateConVar("smac_observe_new", "1", "Observe mode: new detectors log+notify only; legacy modules still ban/kick. 0=full enforcement.", _, true, 0.0, true, 1.0);
 	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Change GameDescr. to 'Protected by SMAC: v34'", _, true, 0.0, true, 1.0);
 	RegAdminCmd("smac_status", Command_Status, ADMFLAG_GENERIC, "View the server's player status.");	
 }
@@ -83,7 +86,13 @@ public OnVersionChanged(Handle:convar, const String:oldValue[], const String:new
 	if (!StrEqual(newValue, SMAC_VERSION)) {SetConVarString(g_hCvarVersion, SMAC_VERSION);}
 }
 
+public OnClientDisconnect(client)
+{
+	g_LastDetection[client] = Detection_Unknown;
+}
+
 public OnClientPutInServer(client){
+	g_LastDetection[client] = Detection_Unknown;
 	if (GetConVarInt(g_hCvarWelcomeMsg)){
 		CreateTimer(GetConVarFloat(g_hCvarWelcomeMsgTime), Timer_WelcomeMsg, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 	}
@@ -225,12 +234,20 @@ public Native_LogAction(Handle:plugin, numParams)
 // native SMAC_Ban(client, const String:reason[], any:...);
 public Native_Ban(Handle:plugin, numParams)
 {
-	decl String:sVersion[16], String:sReason[256];
+	decl String:sVersion[16], String:sReason[256], String:sFilename[64];
 	new client = GetNativeCell(1);
 	new duration = GetConVarInt(g_hCvarBanDuration);
-	
+
+	GetPluginBasename(plugin, sFilename, sizeof(sFilename));
 	GetPluginInfo(plugin, PlInfo_Version, sVersion, sizeof(sVersion));
 	FormatNativeString(0, 2, 3, sizeof(sReason), _, sReason);
+
+	if (!SMAC_MayEnforce(g_LastDetection[client], sFilename))
+	{
+		LogToFileEx(g_sLogPath, "[smac | observe] %N ban suppressed: %s", client, sReason);
+		return 0;
+	}
+
 	Format(sReason, sizeof(sReason), "SMAC: %s", sReason);
 	decl String:sAuthID[MAX_AUTHID_LENGTH], String:sIP[17], String:sContact[32];
 	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
@@ -266,6 +283,7 @@ public Native_Ban(Handle:plugin, numParams)
 	{
 		KickClient(client, sReason);
 	}
+	return 0;
 }
 
 public Native_PrintAdminNotice(Handle:plugin, numParams)
@@ -320,6 +338,8 @@ public Native_CheatDetected(Handle:plugin, numParams)
 		type = DetectionType:GetNativeCell(2);
 		info = Handle:GetNativeCell(3);
 	}
+
+	g_LastDetection[client] = type;
 	
 	new Action:result = Plugin_Continue;
 	Call_StartForward(g_OnCheatDetected);

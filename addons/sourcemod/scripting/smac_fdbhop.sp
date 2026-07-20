@@ -168,7 +168,7 @@ ReactBhop(client, mode)
 	{
 		SMAC_PrintAdminNotice("%t", "SMAC_FastBhopDetected", client, g_iBhopDet[client]);
 		SMAC_LogAction(client, "bunnyhop fast-detect (Detection #%i)", g_iBhopDet[client]);
-		if (mode == 2)
+		if (mode == 2 && SMAC_MayEnforce(Detection_FastBhop))
 			KickClient(client, "%t", "SMAC_FastBhopKick");
 		else if (mode == 3)
 			SMAC_Ban(client, "BunnyHop Fast Detect");
@@ -185,7 +185,7 @@ ReactRun(client, mode, Float:speed)
 	{
 		SMAC_PrintAdminNotice("%t", "SMAC_FastRunDetected", client, g_iRunDet[client]);
 		SMAC_LogAction(client, "fd fast-run (Detection #%i | speed=%.1f)", g_iRunDet[client], speed);
-		if (mode == 2)
+		if (mode == 2 && SMAC_MayEnforce(Detection_FdFastRun))
 			KickClient(client, "%t", "SMAC_FastRunKick");
 		else if (mode == 3)
 			SMAC_Ban(client, "Fast Run Cheat Detect");

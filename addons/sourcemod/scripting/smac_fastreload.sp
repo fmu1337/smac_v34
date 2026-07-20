@@ -29,6 +29,7 @@ new Handle:g_hCvarShoot = INVALID_HANDLE;
 new Handle:g_hCvarReloadBan = INVALID_HANDLE;
 new Handle:g_hCvarShootBan = INVALID_HANDLE;
 new Handle:g_hReloadMin = INVALID_HANDLE;
+new bool:g_bCssNoReloadProp = false;
 
 new bool:g_bInReload[MAXPLAYERS+1];
 new Float:g_fReloadStart[MAXPLAYERS+1];
@@ -73,6 +74,10 @@ public OnPluginStart()
 	SetTrieValue(g_hReloadMin, "weapon_p90", 3.4);
 	SetTrieValue(g_hReloadMin, "weapon_m249", 5.7);
 	/* Shotguns shell-by-shell — skipped (not in trie). */
+
+	decl String:game[32];
+	GetGameFolderName(game, sizeof(game));
+	g_bCssNoReloadProp = StrEqual(game, "cstrike", false);
 }
 
 public OnClientPutInServer(client)
@@ -109,7 +114,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	if (ent > MaxClients && IsValidEdict(ent))
 	{
 		if (GetConVarBool(g_hCvarReload))
-			CheckReload(client, ent);
+			CheckReload(client, ent, buttons);
 		if (GetConVarBool(g_hCvarShoot))
 			CheckEarlyShoot(client, ent, buttons);
 	}
@@ -118,10 +123,31 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return Plugin_Continue;
 }
 
-CheckReload(client, weapon)
+CheckReload(client, weapon, buttons)
 {
-	new bool:reloading = bool:GetEntProp(weapon, Prop_Send, "m_bInReload");
 	new clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
+
+	if (g_bCssNoReloadProp)
+	{
+		if ((buttons & IN_RELOAD) && !(g_iPrevButtons[client] & IN_RELOAD) && !g_bInReload[client])
+		{
+			g_bInReload[client] = true;
+			g_fReloadStart[client] = GetGameTime();
+			g_iClipAtReload[client] = clip;
+		}
+		else if (g_bInReload[client] && clip > g_iClipAtReload[client])
+		{
+			g_bInReload[client] = false;
+			TryFastReloadDetect(client, weapon, clip);
+		}
+		else if (g_bInReload[client] && GetGameTime() - g_fReloadStart[client] > 12.0)
+		{
+			g_bInReload[client] = false;
+		}
+		return;
+	}
+
+	new bool:reloading = bool:GetEntProp(weapon, Prop_Send, "m_bInReload");
 
 	if (reloading && !g_bInReload[client])
 	{
@@ -134,27 +160,31 @@ CheckReload(client, weapon)
 	if (!reloading && g_bInReload[client])
 	{
 		g_bInReload[client] = false;
-
-		if (clip <= g_iClipAtReload[client] || g_fReloadStart[client] <= 0.0)
-			return;
-
-		decl String:cls[32];
-		if (!GetEdictClassname(weapon, cls, sizeof(cls)))
-			return;
-
-		new Float:stockMin;
-		if (!GetTrieValue(g_hReloadMin, cls, stockMin))
-			return;
-
-		new Float:elapsed = GetGameTime() - g_fReloadStart[client];
-		new Float:limit = stockMin * RELOAD_RATIO;
-		if (elapsed >= limit || elapsed <= 0.05)
-			return;
-
-		g_iReloadDet[client]++;
-		FireDetect(client, Detection_FastReload, g_iReloadDet[client], g_hCvarReloadBan,
-			"SMAC_FastReloadDetected", "fast reload", cls, elapsed, stockMin);
+		TryFastReloadDetect(client, weapon, clip);
 	}
+}
+
+TryFastReloadDetect(client, weapon, clip)
+{
+	if (clip <= g_iClipAtReload[client] || g_fReloadStart[client] <= 0.0)
+		return;
+
+	decl String:cls[32];
+	if (!GetEdictClassname(weapon, cls, sizeof(cls)))
+		return;
+
+	new Float:stockMin;
+	if (!GetTrieValue(g_hReloadMin, cls, stockMin))
+		return;
+
+	new Float:elapsed = GetGameTime() - g_fReloadStart[client];
+	new Float:limit = stockMin * RELOAD_RATIO;
+	if (elapsed >= limit || elapsed <= 0.05)
+		return;
+
+	g_iReloadDet[client]++;
+	FireDetect(client, Detection_FastReload, g_iReloadDet[client], g_hCvarReloadBan,
+		"SMAC_FastReloadDetected", "fast reload", cls, elapsed, stockMin);
 }
 
 CheckEarlyShoot(client, weapon, buttons)

@@ -65,12 +65,12 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarBhopBan = SMAC_CreateConVar("smac_ssac_bhop_ban", "0", "Timed-bhop detections before ban. (0 = Never; surf FP)", _, true, 0.0);
-	g_hCvarAirBan = SMAC_CreateConVar("smac_ssac_airstuck_ban", "2", "Airstuck detections before ban. (0 = Never)", _, true, 0.0);
-	/* Ultr@ 0=off 1=notice 2=kick 3=ban — gates both Airstuck and Fast Detect. Soft default 1. */
+	g_hCvarAirBan = SMAC_CreateConVar("smac_ssac_airstuck_ban", "0", "Airstuck detections before ban. (0 = Never)", _, true, 0.0);
+	/* Ultr@ 0=off 1=notice 2=kick 3=ban — gates both Airstuck and Fast Detect. Soft default 1 (observe). */
 	g_hCvarAirReact = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Ultr@ Airstuck/FD: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarLadderBan = SMAC_CreateConVar("smac_ssac_ladder_ban", "2", "Fast-ladder detections before ban. (0 = Never)", _, true, 0.0);
-	g_hCvarRunBan = SMAC_CreateConVar("smac_ssac_fastrun_ban", "1", "Magic wishspeed detections before ban. (0 = Never)", _, true, 0.0);
-	g_hCvarLagBan = SMAC_CreateConVar("smac_ssac_lag_ban", "1", "Cmdnum lag-exploit detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarLadderBan = SMAC_CreateConVar("smac_ssac_ladder_ban", "0", "Fast-ladder detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarRunBan = SMAC_CreateConVar("smac_ssac_fastrun_ban", "0", "Magic wishspeed detections before ban. (0 = Never)", _, true, 0.0);
+	g_hCvarLagBan = SMAC_CreateConVar("smac_ssac_lag_ban", "0", "Cmdnum lag-exploit detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarAimBan = SMAC_CreateConVar("smac_ssac_aim_ban", "0", "Mouse-less aim detections before ban. (0 = Never; lag FP)", _, true, 0.0);
 }
 

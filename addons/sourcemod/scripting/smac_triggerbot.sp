@@ -34,7 +34,7 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarBan = SMAC_CreateConVar("smac_triggerbot_ban", "2", "Triggerbot detections before ban. (0 = Never ban)", _, true, 0.0);
+	g_hCvarBan = SMAC_CreateConVar("smac_triggerbot_ban", "0", "Triggerbot detections before ban. (0 = Never ban)", _, true, 0.0);
 	g_hCvarThreshold = SMAC_CreateConVar("smac_triggerbot_shots", "8", "Tick-perfect first-contact shots needed for one detection.", _, true, 4.0);
 
 	HookEvent("player_spawn", Event_Spawn, EventHookMode_Post);
