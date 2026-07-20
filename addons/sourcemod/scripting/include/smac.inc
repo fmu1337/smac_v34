@@ -3,8 +3,6 @@
 #endif
 #define _smac_included
 
-#include <smac_stocks>
-
 /* Globals */
 #define SMAC_VERSION	"v34.R2"
 #define SMAC_URL		"https://vk.com/by_danyas"
@@ -132,6 +130,8 @@ native Action:SMAC_CheatDetected(client, DetectionType:type = Detection_Unknown,
 /* Forwards */
 forward Action:SMAC_OnCheatDetected(client, const String:module[], DetectionType:type, Handle:info);
 
+/* Stocks after natives — SM 1.6 compiles referenced stocks immediately and needs SMAC_Ban visible. */
+#include <smac_stocks>
 
 public SharedPlugin:__pl_smac = 
 {

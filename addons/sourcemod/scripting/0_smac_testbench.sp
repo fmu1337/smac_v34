@@ -666,7 +666,6 @@ bool:SimBhop(client, &buttons, Float:vel[3])
 		GetAngleVectors(ang, fwd, NULL_VECTOR, NULL_VECTOR);
 		v[0] = fwd[0] * 280.0;
 		v[1] = fwd[1] * 280.0;
-		v[2] = v[2];
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, v);
 	}
 
