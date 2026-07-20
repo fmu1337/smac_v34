@@ -68,15 +68,15 @@
 8. **`Fast Reload or Shooting`** — точная логика  
    Reload table? `m_flNextPrimaryAttack` streak? Наш `smac_fastreload` — эвристика 55% stock reload.
 
-### P1 — средний
+### P1 — средний — **ported** (see `docs/ULTRA_P1_MINING.md`)
 
-9. **`smac_NoSpamWeapon_MaxW`** — окно, счётчик, kick/ban семантика `-N` vs `+N` (Ultr@ kick/ban encoding).  
-10. **`smac_NoS_NoR` / `smac_NoR_Ban`** — связь с NoRecoil / NoSpread.  
-11. **`Airstuck: Fast Detect`** vs обычный airstuck (`smac_Airstuck_reaction`) — отличие от нашего SSAC airstuck.  
-12. **`smac_Voice_Ctrl` / `smac_DDoS_Ctrl` / `smac_FL_Ctrl`** — точные пороги loss/choke/voice.  
-13. **`smac_eyetest_reaction_Advanced`** — что ещё кроме Backtrack A/B входит в «Advanced» eyetest.  
-14. **Spinhack Ultr@** — если отличается от stock SMAC (у Ultr@ в доках встречалось 900°/s × 5s).  
-15. **`smac_css_CheatCFG`** — список признаков / cvar checks.
+9. **`smac_NoSpamWeapon_MaxW`** — ✅ `smac_nospamweapon`  
+10. **`smac_NoS_NoR` / `smac_NoR_Ban`** — ✅ already in `smac_norecoil` (P0)  
+11. **`Airstuck: Fast Detect`** — ✅ `smac_ssac` + `smac_Airstuck_reaction`  
+12. **`smac_Voice_Ctrl` / `smac_DDoS_Ctrl` / `smac_FL_Ctrl`** — ✅ `smac_fakelag`  
+13. **`smac_eyetest_reaction_Advanced`** — ✅ alias on `smac_backtrack` (Backtrack A/B only per cfg)  
+14. **Spinhack Ultr@** — ✅ tunable `smac_spinhack_angle` / `_seconds` (900/5 optional)  
+15. **`smac_css_CheatCFG`** — ✅ `smac_cheatcfg` jumpthrow + fast-switch  
 
 ### P2 — низкий / опционально
 

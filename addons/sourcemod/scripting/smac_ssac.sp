@@ -25,6 +25,7 @@ public Plugin:myinfo =
 
 #define MAX_JUMPS_ROW		30
 #define MAX_AIR_ROW			4
+#define MAX_AIR_ROW_FAST	2
 #define BHOP_WINDOW			0.18
 #define BHOP_MIN_SPEED		280.0
 #define LAG_CMD_JUMP		200
@@ -32,6 +33,7 @@ public Plugin:myinfo =
 
 new Handle:g_hCvarBhopBan = INVALID_HANDLE;
 new Handle:g_hCvarAirBan = INVALID_HANDLE;
+new Handle:g_hCvarAirReact = INVALID_HANDLE;
 new Handle:g_hCvarLadderBan = INVALID_HANDLE;
 new Handle:g_hCvarRunBan = INVALID_HANDLE;
 new Handle:g_hCvarLagBan = INVALID_HANDLE;
@@ -52,6 +54,7 @@ new g_iLastCmdNum[MAXPLAYERS+1];
 
 new g_iBhopDet[MAXPLAYERS+1];
 new g_iAirDet[MAXPLAYERS+1];
+new g_iAirFastDet[MAXPLAYERS+1];
 new g_iLadderDet[MAXPLAYERS+1];
 new g_iRunDet[MAXPLAYERS+1];
 new g_iLagDet[MAXPLAYERS+1];
@@ -63,6 +66,8 @@ public OnPluginStart()
 
 	g_hCvarBhopBan = SMAC_CreateConVar("smac_ssac_bhop_ban", "0", "Timed-bhop detections before ban. (0 = Never; surf FP)", _, true, 0.0);
 	g_hCvarAirBan = SMAC_CreateConVar("smac_ssac_airstuck_ban", "2", "Airstuck detections before ban. (0 = Never)", _, true, 0.0);
+	/* Ultr@ 0=off 1=notice 2=kick 3=ban — gates both Airstuck and Fast Detect. Soft default 1. */
+	g_hCvarAirReact = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Ultr@ Airstuck/FD: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarLadderBan = SMAC_CreateConVar("smac_ssac_ladder_ban", "2", "Fast-ladder detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarRunBan = SMAC_CreateConVar("smac_ssac_fastrun_ban", "1", "Magic wishspeed detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarLagBan = SMAC_CreateConVar("smac_ssac_lag_ban", "1", "Cmdnum lag-exploit detections before ban. (0 = Never)", _, true, 0.0);
@@ -95,6 +100,7 @@ ResetClient(client)
 	g_iLastCmdNum[client] = 0;
 	g_iBhopDet[client] = 0;
 	g_iAirDet[client] = 0;
+	g_iAirFastDet[client] = 0;
 	g_iLadderDet[client] = 0;
 	g_iRunDet[client] = 0;
 	g_iLagDet[client] = 0;
@@ -166,14 +172,31 @@ CheckTimedBhop(client, buttons)
 
 CheckAirStuck(client, tickcount)
 {
+	new react = GetConVarInt(g_hCvarAirReact);
+	if (react <= 0)
+	{
+		g_iLastTickCount[client] = tickcount;
+		g_iAirRow[client] = 0;
+		return;
+	}
+
 	if (tickcount == g_iLastTickCount[client] && tickcount > 0)
 	{
 		g_iAirRow[client]++;
+
+		/* Fast Detect: shorter reuse streak. */
+		if (g_iAirRow[client] == MAX_AIR_ROW_FAST)
+		{
+			g_iAirFastDet[client]++;
+			FireAirReact(client, Detection_AirStuckFast, g_iAirFastDet[client], react,
+				"SMAC_AirStuckFastDetected", "airstuck fast-detect (tick reuse)");
+		}
+
 		if (g_iAirRow[client] > MAX_AIR_ROW)
 		{
 			g_iAirRow[client] = 0;
 			g_iAirDet[client]++;
-			FireDetect(client, Detection_AirStuck, g_iAirDet[client], g_hCvarAirBan,
+			FireAirReact(client, Detection_AirStuck, g_iAirDet[client], react,
 				"SMAC_AirStuckDetected", "airstuck (repeated tickcount)");
 		}
 	}
@@ -181,8 +204,25 @@ CheckAirStuck(client, tickcount)
 	{
 		g_iAirRow[client] = 0;
 	}
-
 	g_iLastTickCount[client] = tickcount;
+}
+
+FireAirReact(client, DetectionType:type, detects, react, const String:phrase[], const String:logTag[])
+{
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "detection", detects);
+	if (SMAC_CheatDetected(client, type, info) == Plugin_Continue)
+	{
+		if (react >= 1)
+			SMAC_PrintAdminNotice("%t", phrase, client, detects);
+		SMAC_LogAction(client, "%s (Detection #%i)", logTag, detects);
+		if (react == 2)
+			KickClient(client, "%t", "SMAC_AirStuckKick");
+		else if (react == 3)
+			SMAC_Ban(client, "Airstuck Detection");
+		/* react==1: notice/log only */
+	}
+	CloseHandle(info);
 }
 
 CheckFastLadder(client, buttons, const Float:angles[3])

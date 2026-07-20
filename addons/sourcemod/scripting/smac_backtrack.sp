@@ -55,6 +55,8 @@ public OnPluginStart()
 	g_hCvarBan = SMAC_CreateConVar("smac_backtrack_ban", "0", "Mode-A detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarSpike = SMAC_CreateConVar("smac_cmdspike_delta", "32", "Abs cmdnum jump to flag (StAC-style). 0=off.", _, true, 0.0);
 	g_hCvarSpikeBan = SMAC_CreateConVar("smac_cmdspike_ban", "0", "Cmdnum-spike detections before ban. (0 = Never)", _, true, 0.0);
+	/* Ultr@ alias: Advanced eyetest reaction maps to Mode-A ban threshold soft gate. */
+	SMAC_CreateConVar("smac_eyetest_reaction_Advanced", "0", "Ultr@ alias (Backtrack A/B). 0=off soft, 1=notice-oriented, 2=kick-ish, 3=use ban cvar", _, true, 0.0, true, 3.0);
 
 	g_iBacktrackTicks = RoundToNearest(UNLAG_WINDOW / GetTickInterval());
 	if (g_iBacktrackTicks < 1)

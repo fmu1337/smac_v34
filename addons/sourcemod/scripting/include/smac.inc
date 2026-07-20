@@ -98,6 +98,13 @@ enum DetectionType {
 	Detection_NoRecoilB = 6300,		/* No Recoil Active Mode:B */
 	Detection_AimKill = 6400,		/* kill escalate after aim snap */
 	Detection_SoundESP = 6500,		/* sound-through-wall hear react */
+
+	/* Ultr@ P1 — rewritten, Danyas. */
+	Detection_WeaponSpam = 6600,		/* smac_NoSpamWeapon_MaxW */
+	Detection_AirStuckFast = 6700,		/* Airstuck: Fast Detect */
+	Detection_DDoS = 6800,			/* smac_DDoS_Ctrl packet flood */
+	Detection_CheatCFG = 6900,		/* smac_css_CheatCFG jumpthrow/switch */
+	Detection_VoiceAbuse = 7000,		/* smac_Voice_Ctrl */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

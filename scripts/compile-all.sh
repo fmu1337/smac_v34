@@ -74,6 +74,8 @@ PLUGINS=(
 	smac_aimkill.sp
 	smac_soundesp.sp
 	smac_ultratools.sp
+	smac_nospamweapon.sp
+	smac_cheatcfg.sp
 	smac_wallhack.sp
 	0_smac_testbench.sp
 )

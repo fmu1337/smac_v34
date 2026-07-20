@@ -33,6 +33,8 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarMode = SMAC_CreateConVar("smac_entity_mode", "1", "0=off, 1=limit creation, 2=delete spam ents, 3=both", _, true, 0.0, true, 3.0);
+	/* Ultr@ alias for entity_mode. */
+	SMAC_CreateConVar("smac_Control_Entity", "1", "Ultr@ alias of smac_entity_mode (0-3).", _, true, 0.0, true, 3.0);
 	g_hCvarMax = SMAC_CreateConVar("smac_entity_max", "40", "Max tracked ents created per client per 2s window.", _, true, 5.0);
 	g_hCvarBan = SMAC_CreateConVar("smac_entity_ban", "0", "Detections before ban. (0 = Never — kick only)", _, true, 0.0);
 }
