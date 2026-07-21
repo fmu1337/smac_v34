@@ -6,7 +6,7 @@
 #include <smac_stocks>
 
 /* Globals */
-#define SMAC_VERSION	"v34.R2"
+#define SMAC_VERSION	"v34.R3"
 #define SMAC_URL		"https://vk.com/by_danyas"
 #define SMAC_AUTHOR		"Danyas"
 
@@ -23,6 +23,7 @@ enum DetectionType {
 	Detection_UserCmdTamperingTickcount,
 	Detection_UserCmdTamperingButtons,
 	Detection_Eyeangles,
+	Detection_SeedSkip,
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
 	

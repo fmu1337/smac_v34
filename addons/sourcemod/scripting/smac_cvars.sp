@@ -32,6 +32,7 @@ new g_iRequeryCount[MAXPLAYERS+1];
 
 new g_iADTIndex[MAXPLAYERS+1] = {-1, ...};
 new Handle:g_hCurDataTrie[MAXPLAYERS+1];
+new Float:g_fSettingsRestartTime[MAXPLAYERS+1];
 
 // plugin state
 new bool:g_bLateLoad;
@@ -99,10 +100,17 @@ public OnPluginStart()
 	AddCvar(Order_First, "aaa123_steam_set_random_id",	Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "steam_set_id",					Comp_NonExist, Action_Ban);
 	
-	 
-	 
-	 
-	 
+	// Ultr@Hook fingerprint cvars (hlmod.net/threads/cs-s-v34-obnaruzhenie-chita-ultr-hook.66608)
+	// Ban if the client answers (cvar exists). Kick-on-no-reply below covers net_blockmsg.
+	AddCvar(Order_First, "bMbALa4DHPBTv8b",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "y6JgxqVrY7a7eSE",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "gngHLy34Gg69S65",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "Ha9dkVwbyLz8v7g",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "ExB468YsMxArJjA",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "5bzeYeLgN8r3tzX",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "ct7B6m2Sdxvdfu9",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "fGuJwz4EmA5GbBB",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "sxwL9anTUbfkxbc",				Comp_NonExist, Action_Ban);
 	
 	if(GetConVarBool(g_hCvarHldj))
 	{
@@ -194,6 +202,22 @@ public OnClientPostAdminCheck(client)
 	}
 }
 
+// Re-scan when client settings change so mid-session inject (Ultr@Hook etc.) is not missed.
+public OnClientSettingsChanged(client)
+{
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsClientAuthorized(client))
+		return;
+	
+	new Float:fNow = GetGameTime();
+	if (fNow - g_fSettingsRestartTime[client] < 3.0)
+		return;
+	
+	g_fSettingsRestartTime[client] = fNow;
+	g_hCurDataTrie[client] = INVALID_HANDLE;
+	g_iRequeryCount[client] = 0;
+	SetTimer(g_hTimer[client], CreateTimer(0.5, Timer_QueryNextCvar, client, TIMER_REPEAT));
+}
+
 public OnClientDisconnect(client)
 {
 	if (!IsFakeClient(client))
@@ -201,6 +225,7 @@ public OnClientDisconnect(client)
 		g_hCurDataTrie[client] = INVALID_HANDLE;
 		g_iADTIndex[client] = -1;
 		g_iRequeryCount[client] = 0;
+		g_fSettingsRestartTime[client] = 0.0;
 		SetTimer(g_hTimer[client], INVALID_HANDLE);
 	}
 }

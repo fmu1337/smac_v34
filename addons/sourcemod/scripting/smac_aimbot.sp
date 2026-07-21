@@ -12,7 +12,11 @@ public Plugin:myinfo =
 };
 
 
-#define AIM_ANGLE_CHANGE	45.0	// Max angle change that a player should snap
+// Informant AntiSMAC caps per-tick snaps around 40° and strips IN_ATTACK on larger ones.
+// Insomnia SnapLimiter is configurable under that. 45° let those evade; 38° catches them.
+#define AIM_ANGLE_CHANGE	38.0	// Max angle change that a player should snap
+#define AIM_STEP_MIN		28.0	// Min per-tick step for AntiSMAC staircase detection
+#define AIM_STEP_COUNT		2		// Consecutive near-threshold steps before a kill
 #define AIM_BAN_MIN			3		// Minimum number of detections before an auto-ban is allowed
 #define AIM_MIN_DISTANCE	200.0	// Minimum distance acceptable for a detection.
 
@@ -155,6 +159,7 @@ Aimbot_AnalyzeAngles(client)
 	/* Analyze the client to see if their angles snapped. */
 	decl Float:vLastAngles[3], Float:vAngles[3], Float:fAngleDiff;
 	new idx = g_iEyeIndex[client];
+	new iStepStreak;
 	
 	for (new i = 0; i < g_iMaxAngleHistory; i++)
 	{
@@ -177,23 +182,47 @@ Aimbot_AnalyzeAngles(client)
 		}
 		
 		vAngles = g_fEyeAngles[client][idx];
-		fAngleDiff = GetVectorDistance(vLastAngles, vAngles);
-		
-		// If the difference is being reported higher than 180, get the 'real' value.
-		if (fAngleDiff > 180)
-		{
-			fAngleDiff = FloatAbs(fAngleDiff - 360);
-		}
+		fAngleDiff = Aimbot_AngleDelta(vLastAngles, vAngles);
 
+		// Hard snap (classic aimbot / silent without AntiSMAC).
 		if (fAngleDiff > AIM_ANGLE_CHANGE)
 		{
 			Aimbot_Detected(client, fAngleDiff);
 			break;
 		}
 		
+		// Stepped snaps just under the old 45° threshold (Informant AntiSMAC / SnapLimiter).
+		if (fAngleDiff >= AIM_STEP_MIN)
+		{
+			if (++iStepStreak >= AIM_STEP_COUNT)
+			{
+				Aimbot_Detected(client, fAngleDiff);
+				break;
+			}
+		}
+		else
+		{
+			iStepStreak = 0;
+		}
+		
 		vLastAngles = vAngles;
 		idx++;
 	}
+}
+
+Float:Aimbot_AngleDelta(const Float:vFrom[3], const Float:vTo[3])
+{
+	decl Float:dx, Float:dy;
+	dx = FloatAbs(vTo[0] - vFrom[0]);
+	dy = FloatAbs(vTo[1] - vFrom[1]);
+	
+	if (dx > 180.0)
+		dx = 360.0 - dx;
+	if (dy > 180.0)
+		dy = 360.0 - dy;
+	
+	// Prefer yaw-dominant delta; combine so pitch+yaw softaim still registers.
+	return SquareRoot(dx * dx + dy * dy);
 }
 
 Aimbot_Detected(client, const Float:deviation)
