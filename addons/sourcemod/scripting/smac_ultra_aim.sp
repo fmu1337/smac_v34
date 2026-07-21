@@ -94,6 +94,7 @@ new Float:g_fFireAng[MAXPLAYERS+1][3];
 new Float:g_fFireEye[MAXPLAYERS+1][3];
 new g_iSnapLeft[MAXPLAYERS+1];
 new Float:g_fAmsafAccum[MAXPLAYERS+1];
+new bool:g_bAmsafMouseDirty[MAXPLAYERS+1];
 
 new g_iPrgDet[MAXPLAYERS+1];
 new g_iAgtDet[MAXPLAYERS+1];
@@ -165,6 +166,7 @@ ResetClient(client)
 	g_iSnapLeft[client] = 0;
 	g_fLastFire[client] = 0.0;
 	g_fAmsafAccum[client] = 0.0;
+	g_bAmsafMouseDirty[client] = false;
 	g_iPrgDet[client] = 0;
 	g_iAgtDet[client] = 0;
 	g_iAgtwsDet[client] = 0;
@@ -208,6 +210,7 @@ public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 	GetClientEyePosition(client, g_fFireEye[client]);
 	g_iSnapLeft[client] = SNAP_TICKS;
 	g_fAmsafAccum[client] = 0.0;
+	g_bAmsafMouseDirty[client] = false;
 }
 
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
@@ -268,6 +271,19 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	if (GetGameTime() < g_fIgnoreUntil[client])
 	{
 		g_bHaveAng[client] = false;
+		g_iPrevButtons[client] = buttons;
+		return Plugin_Continue;
+	}
+	/* Choked/replayed cmds carry concatenated angle jumps — poison for every
+	   delta-based mode here. Reset and skip while the connection is bad. */
+	if (SMAC_IsClientLagging(client))
+	{
+		g_bHaveAng[client] = false;
+		g_iPrgStreak[client] = 0;
+		g_iAgtStreak[client] = 0;
+		g_iAgtwsStreak[client] = 0;
+		g_fAmsafAccum[client] = 0.0;
+		g_bAmsafMouseDirty[client] = true;
 		g_iPrevButtons[client] = buttons;
 		return Plugin_Continue;
 	}
@@ -363,6 +379,12 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_iSnapLeft[client]--;
 		g_fAmsafAccum[client] += delta;
 
+		/* AMSAF must only count view rotation NOT explained by mouse input.
+		   A human violently jerking the mouse produces huge deltas WITH huge
+		   mouse[] values — that is legit play, poison the window. */
+		if (!mouseStill)
+			g_bAmsafMouseDirty[client] = true;
+
 		if (mouseStill && delta >= BAND_HI && delta <= MODE_AGTAF_HI && bestTarget > 0 && bestFov < 15.0)
 		{
 			if (IsAimToward(client, angles, g_fFireAng[client], bestTarget))
@@ -374,13 +396,20 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			}
 		}
 
-		/* AMSAF Mode:101 — Analysis Module Shooting After Firing */
-		if (g_iSnapLeft[client] == 0 && g_fAmsafAccum[client] >= MODE_AGTWS)
+		/* AMSAF Mode:101 — Analysis Module Shooting After Firing.
+		   Fire only when the accumulated post-fire rotation happened with a
+		   CLEAN mouse (silent-aim / angle writer). Any real mouse movement in
+		   the window means the player did it himself. */
+		if (g_iSnapLeft[client] == 0)
 		{
-			g_iAmsafDet[client]++;
-			FireDetect(client, Detection_UltraAMSAF, g_iAmsafDet[client], g_hCvarAmsafBan,
-				"SMAC_UltraAMSAFDetected", "AMSAF Mode:101", g_fAmsafAccum[client], MODE_AMSAF);
+			if (!g_bAmsafMouseDirty[client] && g_fAmsafAccum[client] >= MODE_AGTWS)
+			{
+				g_iAmsafDet[client]++;
+				FireDetect(client, Detection_UltraAMSAF, g_iAmsafDet[client], g_hCvarAmsafBan,
+					"SMAC_UltraAMSAFDetected", "AMSAF Mode:101", g_fAmsafAccum[client], MODE_AMSAF);
+			}
 			g_fAmsafAccum[client] = 0.0;
+			g_bAmsafMouseDirty[client] = false;
 		}
 	}
 
