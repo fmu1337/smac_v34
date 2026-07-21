@@ -116,7 +116,8 @@ public OnPluginStart()
 	// HOTGUARD / CA-ClientProtect client sanity (CSS-safe subset).
 	AddCvar(Order_Last, "cl_pitchup",			Comp_Equal, Action_Ban, "89.0");
 	AddCvar(Order_Last, "cl_pitchdown",		Comp_Equal, Action_Ban, "89.0");
-	AddCvar(Order_Last, "cl_bobcycle",			Comp_Equal, Action_Ban, "0.98");
+	// cl_bobcycle check removed: the HOTGUARD value 0.98 is the CS 1.6 default,
+	// CS:S defaults to 0.8 — every stock client was a false positive (banned owner on 2026-07-21).
 	AddCvar(Order_Last, "net_fakelag",			Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "net_fakeloss",			Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "net_fakejitter",		Comp_Equal, Action_Ban, "0.0");
