@@ -146,6 +146,11 @@ public OnAllPluginsLoaded()
 	g_bWhNative = (GetFeatureStatus(FeatureType_Native, "SMAC_IsClientVisible") == FeatureStatus_Available);
 }
 
+public OnGameFrame()
+{
+	SMAC_ServerLagSample();
+}
+
 public OnClientPutInServer(client)
 {
 	ResetClient(client);

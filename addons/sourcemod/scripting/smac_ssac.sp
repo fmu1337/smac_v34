@@ -122,6 +122,11 @@ ResetClient(client)
 	g_iAimDet[client] = 0;
 }
 
+public OnGameFrame()
+{
+	SMAC_ServerLagSample();
+}
+
 public OnClientPreThink(client)
 {
 	if (IsClientInGame(client) && IsPlayerAlive(client))

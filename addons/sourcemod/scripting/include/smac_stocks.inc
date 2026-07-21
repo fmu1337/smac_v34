@@ -70,14 +70,48 @@ stock GetPluginBasename(Handle:plugin, String:buffer[], maxlength)
 }
 
 /**
+ * Server-side hitch detector. When the SERVER misses ticks (overloaded VM,
+ * bot spikes, disk stalls) every client's usercmds get processed in bursts
+ * with repeated/rolled-back tickcounts while their OWN net stats look clean
+ * (loss 0 / choke 0) — a fake-detect storm. Call SMAC_ServerLagSample() from
+ * public OnGameFrame(), then check SMAC_IsServerLagging().
+ */
+new Float:g_fSmacPrevFrameEngTime;
+new Float:g_fSmacServerLagUntil;
+
+stock SMAC_ServerLagSample()
+{
+	new Float:now = GetEngineTime();
+	if (g_fSmacPrevFrameEngTime > 0.0)
+	{
+		new Float:dt = now - g_fSmacPrevFrameEngTime;
+		/* A healthy frame is one tick interval; 2x+ means the server hitched.
+		   Hold the flag briefly — queued cmds drain over the next ticks. */
+		if (dt > GetTickInterval() * 2.0)
+			g_fSmacServerLagUntil = GetGameTime() + 0.5;
+	}
+	g_fSmacPrevFrameEngTime = now;
+}
+
+stock bool:SMAC_IsServerLagging()
+{
+	return (g_fSmacServerLagUntil > 0.0 && GetGameTime() < g_fSmacServerLagUntil);
+}
+
+/**
  * Returns true while the client's connection is degraded (packet loss, heavy
- * choke, ping spike or timeout). Movement/angle based detectors should skip
- * sampling during these windows — batched/replayed usercmds look like cheats
- * (frozen pitch => norecoil B, repeated tickcount => airstuck, tick rollback
- * => backtrack, angle jumps => fast-aim).
+ * choke, ping spike or timeout) OR the server itself is hitching. Movement /
+ * angle / tick based detectors should skip sampling during these windows —
+ * batched/replayed usercmds look like cheats (frozen pitch => norecoil B,
+ * repeated tickcount => airstuck, tick rollback => backtrack, angle jumps
+ * => fast-aim). Server-side sampling requires SMAC_ServerLagSample() in
+ * OnGameFrame; without it only client metrics are used.
  */
 stock bool:SMAC_IsClientLagging(client, Float:maxLoss=0.05, Float:maxChoke=0.30, Float:maxPingSpike=0.10)
 {
+	if (SMAC_IsServerLagging())
+		return true;
+
 	if (!IsClientInGame(client) || IsFakeClient(client))
 		return false;
 

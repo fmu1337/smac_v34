@@ -74,6 +74,11 @@ public OnMapStart()
 		g_iBacktrackTicks = 1;
 }
 
+public OnGameFrame()
+{
+	SMAC_ServerLagSample();
+}
+
 public OnClientPutInServer(client)
 {
 	ResetClient(client);

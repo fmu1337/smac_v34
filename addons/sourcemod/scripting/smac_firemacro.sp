@@ -73,6 +73,11 @@ public OnPluginStart()
 	SetTrieValue(g_hZoomWeapons, "weapon_c4", 1);
 }
 
+public OnGameFrame()
+{
+	SMAC_ServerLagSample();
+}
+
 public OnClientPutInServer(client)
 {
 	ResetClient(client);

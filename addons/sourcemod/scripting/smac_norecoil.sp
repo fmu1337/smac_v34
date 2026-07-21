@@ -70,6 +70,11 @@ public OnPluginStart()
 	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
 }
 
+public OnGameFrame()
+{
+	SMAC_ServerLagSample();
+}
+
 public OnClientPutInServer(client)
 {
 	g_bPending[client] = false;
