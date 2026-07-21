@@ -92,7 +92,7 @@ echo
 failed=0
 for plugin in "${PLUGINS[@]}"; do
 	src="$SCRIPTING/$plugin"
-	if [[ "$plugin" == "0_smac_testbench.sp" ]]; then
+	if [[ "$plugin" == "0_smac_testbench.sp" || "$plugin" == "smac_immunity.sp" ]]; then
 		mkdir -p "$OUT_DIR/disabled"
 		out="$OUT_DIR/disabled/${plugin%.sp}.smx"
 	else

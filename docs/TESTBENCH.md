@@ -3,6 +3,8 @@
 Admin-only cheat-pattern injector for live CSS34 QA. Source: `addons/sourcemod/scripting/0_smac_testbench.sp`.
 
 **Do not leave enabled on production.** Prefer `plugins/disabled/0_smac_testbench.smx`.
+`smac_immunity.smx` is also optional and must stay in `plugins/disabled/`
+unless an operator explicitly wants flag-`o` admins excluded from detections.
 
 ## Why `0_` prefix?
 
