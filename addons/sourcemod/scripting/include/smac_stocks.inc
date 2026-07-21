@@ -78,6 +78,7 @@ stock GetPluginBasename(Handle:plugin, String:buffer[], maxlength)
  */
 new Float:g_fSmacPrevFrameEngTime;
 new Float:g_fSmacServerLagUntil;
+new Float:g_fSmacFrameEma;
 
 stock SMAC_ServerLagSample()
 {
@@ -85,10 +86,25 @@ stock SMAC_ServerLagSample()
 	if (g_fSmacPrevFrameEngTime > 0.0)
 	{
 		new Float:dt = now - g_fSmacPrevFrameEngTime;
-		/* A healthy frame is one tick interval; 2x+ means the server hitched.
-		   Hold the flag briefly — queued cmds drain over the next ticks. */
-		if (dt > GetTickInterval() * 2.0)
+
+		/* Seed the rolling average on the first real sample. */
+		if (g_fSmacFrameEma <= 0.0)
+			g_fSmacFrameEma = dt;
+
+		/* Only a SPIKE relative to the recent frame time means a hitch that
+		   batches/replays usercmds (the fake-detect trigger). A server that is
+		   merely running at a low but STEADY framerate has dt ~ ema and must
+		   NOT be flagged — otherwise detection is disabled for the whole match
+		   on any busy box. Require both a real relative jump and an absolute
+		   floor so fast servers don't trip on sub-ms noise. */
+		if (dt > 0.050 && dt > g_fSmacFrameEma * 3.0)
 			g_fSmacServerLagUntil = GetGameTime() + 0.5;
+
+		/* EMA (~1/16 weight) of frame time, clamped so a single huge stall
+		   doesn't poison the baseline for long. */
+		if (dt > g_fSmacFrameEma * 4.0)
+			dt = g_fSmacFrameEma * 4.0;
+		g_fSmacFrameEma += (dt - g_fSmacFrameEma) * 0.0625;
 	}
 	g_fSmacPrevFrameEngTime = now;
 }
