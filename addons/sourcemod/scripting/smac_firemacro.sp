@@ -22,8 +22,14 @@ public Plugin:myinfo =
 };
 
 #define ATK2_NEED		24
-#define SNAP_DEG		40.0
-#define SNAP_TICKS		4
+/* Fast-AIM = aimbot snap-to-fire. Distinguished from a human flick by:
+   1) the turn is a single-tick teleport (>= SNAP_DEG in ONE usercmd),
+   2) the tick before it was calm (< SNAP_CALM) — no human ramp-up,
+   3) the view lands on an enemy and fires within SNAP_TICKS,
+   4) it settles instantly (next tick < SNAP_CALM) — no human overshoot. */
+#define SNAP_DEG		55.0
+#define SNAP_CALM		8.0
+#define SNAP_TICKS		2
 
 new Handle:g_hCvarAtk2Ban = INVALID_HANDLE;
 new Handle:g_hCvarFastBan = INVALID_HANDLE;
@@ -36,7 +42,9 @@ new g_iAtk2Det[MAXPLAYERS+1];
 
 new Float:g_fPrevAng[MAXPLAYERS+1][3];
 new bool:g_bHaveAng[MAXPLAYERS+1];
+new Float:g_fPrevDelta[MAXPLAYERS+1];
 new g_iSnapLeft[MAXPLAYERS+1];
+new bool:g_bSnapPending[MAXPLAYERS+1];
 new g_iFastDet[MAXPLAYERS+1];
 new g_iPrevButtons[MAXPLAYERS+1];
 
@@ -81,7 +89,9 @@ ResetClient(client)
 	g_fAtk2Window[client] = 0.0;
 	g_iAtk2Det[client] = 0;
 	g_bHaveAng[client] = false;
+	g_fPrevDelta[client] = 0.0;
 	g_iSnapLeft[client] = 0;
+	g_bSnapPending[client] = false;
 	g_iFastDet[client] = 0;
 	g_iPrevButtons[client] = 0;
 }
@@ -156,24 +166,75 @@ CheckFastAim(client, buttons, const Float:angles[3])
 	new Float:dyaw = FloatAbs(angles[1] - g_fPrevAng[client][1]);
 	if (dyaw > 180.0)
 		dyaw = 360.0 - dyaw;
+	new Float:delta = (dyaw > dpitch) ? dyaw : dpitch;
 
+	new Float:prevDelta = g_fPrevDelta[client];
+	g_fPrevDelta[client] = delta;
 	g_fPrevAng[client][0] = angles[0];
 	g_fPrevAng[client][1] = angles[1];
 
-	if (dyaw >= SNAP_DEG || dpitch >= SNAP_DEG)
+	/* An aimbot snap is one isolated tick: huge jump preceded by a calm
+	   tick (no human ramp-up). A human flick ramps across several ticks,
+	   so the tick before its peak is NOT calm. */
+	new bool:isolatedSnap = (delta >= SNAP_DEG && prevDelta < SNAP_CALM);
+
+	if (isolatedSnap)
+	{
 		g_iSnapLeft[client] = SNAP_TICKS;
+		g_bSnapPending[client] = true;
+	}
 	else if (g_iSnapLeft[client] > 0)
+	{
 		g_iSnapLeft[client]--;
 
-	if (g_iSnapLeft[client] <= 0)
+		/* Human overshoot: the ticks after a flick keep moving/correcting.
+		   A cheat lands dead-on and stops — require the settle to be calm. */
+		if (delta >= SNAP_CALM)
+		{
+			g_iSnapLeft[client] = 0;
+			g_bSnapPending[client] = false;
+		}
+	}
+
+	if (g_iSnapLeft[client] <= 0 || !g_bSnapPending[client])
 		return;
 	if (!((buttons & IN_ATTACK) && !(g_iPrevButtons[client] & IN_ATTACK)))
 		return;
 
+	/* The snap must land on an enemy — a flick into empty space then a shot
+	   is just spray, not an aimbot lock. */
+	if (!IsAimOnEnemy(client, angles))
+		return;
+
 	g_iSnapLeft[client] = 0;
+	g_bSnapPending[client] = false;
 	g_iFastDet[client]++;
 	FireDetect(client, Detection_FastAim, g_iFastDet[client], g_hCvarFastBan,
 		"SMAC_FastAimDetected", "fast aim snap-to-fire");
+}
+
+bool:IsAimOnEnemy(client, const Float:angles[3])
+{
+	decl Float:eyePos[3];
+	GetClientEyePosition(client, eyePos);
+	new Handle:trace = TR_TraceRayFilterEx(eyePos, angles, MASK_SHOT, RayType_Infinite, TraceFilter_NotSelf, client);
+	new bool:onEnemy = false;
+	if (TR_DidHit(trace))
+	{
+		new target = TR_GetEntityIndex(trace);
+		if (IS_CLIENT(target) && IsClientInGame(target) && IsPlayerAlive(target)
+			&& GetClientTeam(client) > 1 && GetClientTeam(target) != GetClientTeam(client))
+		{
+			onEnemy = true;
+		}
+	}
+	CloseHandle(trace);
+	return onEnemy;
+}
+
+public bool:TraceFilter_NotSelf(entity, contentsMask, any:client)
+{
+	return entity != client;
 }
 
 FireDetect(client, DetectionType:type, detects, Handle:hBanCvar, const String:phrase[], const String:logTag[])

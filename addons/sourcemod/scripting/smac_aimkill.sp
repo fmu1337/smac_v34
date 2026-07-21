@@ -20,6 +20,11 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
+/* Minimum view turn (deg) in the ticks right before the shot for it to count
+   as an aimbot SNAP kill. A pre-aimed human wantap has ~0 pre-fire movement
+   because the crosshair is already on the corner — that must not be flagged. */
+#define AIMKILL_SNAP_DEG	18.0
+
 new Handle:g_hCvarBan = INVALID_HANDLE;
 
 new Float:g_fFirstSee[MAXPLAYERS+1];
@@ -27,6 +32,9 @@ new Float:g_fLastAimSnap[MAXPLAYERS+1];
 new g_iDetects[MAXPLAYERS+1];
 new g_iPrevButtons[MAXPLAYERS+1];
 new g_iTicksOnTarget[MAXPLAYERS+1];
+new Float:g_fPrevAng[MAXPLAYERS+1][2];
+new bool:g_bHaveAng[MAXPLAYERS+1];
+new Float:g_fLastTurn[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -44,6 +52,8 @@ public OnClientPutInServer(client)
 	g_iDetects[client] = 0;
 	g_iPrevButtons[client] = 0;
 	g_iTicksOnTarget[client] = 0;
+	g_bHaveAng[client] = false;
+	g_fLastTurn[client] = 0.0;
 }
 
 public Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
@@ -60,6 +70,20 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 {
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsPlayerAlive(client))
 		return Plugin_Continue;
+
+	/* View turn this tick (max of pitch/yaw), used to require a real snap. */
+	new Float:turn = 0.0;
+	if (g_bHaveAng[client])
+	{
+		new Float:dp = FloatAbs(angles[0] - g_fPrevAng[client][0]);
+		new Float:dy = FloatAbs(angles[1] - g_fPrevAng[client][1]);
+		if (dy > 180.0)
+			dy = 360.0 - dy;
+		turn = (dy > dp) ? dy : dp;
+	}
+	g_fPrevAng[client][0] = angles[0];
+	g_fPrevAng[client][1] = angles[1];
+	g_bHaveAng[client] = true;
 
 	decl Float:eyePos[3];
 	GetClientEyePosition(client, eyePos);
@@ -83,7 +107,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_iTicksOnTarget[client]++;
 
 		new bool:edge = (buttons & IN_ATTACK) && !(g_iPrevButtons[client] & IN_ATTACK);
-		if (edge && g_iTicksOnTarget[client] <= 2)
+		/* Snap kill only if the view actually whipped onto the target this
+		   tick or last tick. Pre-aimed taps (turn ~ 0) are legit and skipped. */
+		new Float:snapTurn = (turn > g_fLastTurn[client]) ? turn : g_fLastTurn[client];
+		if (edge && g_iTicksOnTarget[client] <= 2 && snapTurn >= AIMKILL_SNAP_DEG)
 			g_fLastAimSnap[client] = GetGameTime();
 	}
 	else
@@ -92,6 +119,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_fFirstSee[client] = 0.0;
 	}
 
+	g_fLastTurn[client] = turn;
 	g_iPrevButtons[client] = buttons;
 	return Plugin_Continue;
 }
