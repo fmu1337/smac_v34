@@ -65,6 +65,7 @@ new g_iAimTarget[MAXPLAYERS+1];
 new g_iCycleIdx[MAXPLAYERS+1];
 new bool:g_bSoftApplied;
 new Float:g_fPrevPunchPitch[MAXPLAYERS+1];
+new Float:g_fPlantGrace[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -80,6 +81,20 @@ public OnPluginStart()
 public OnClientDisconnect(client)
 {
 	ClearMode(client);
+	g_fPlantGrace[client] = 0.0;
+}
+
+/* Swallow teleport detections caused by our own plant teleport. Intentional
+   teleport scenarios (Mode_Teleport/TpFast) use DoTeleportJump which does not
+   arm the grace, so they still register. */
+public Action:SMAC_OnCheatDetected(client, const String:module[], DetectionType:type, Handle:info)
+{
+	if ((type == Detection_TeleportHack || type == Detection_TeleportFast)
+		&& IS_CLIENT(client) && GetGameTime() < g_fPlantGrace[client])
+	{
+		return Plugin_Handled;
+	}
+	return Plugin_Continue;
 }
 
 ClearMode(client)
@@ -372,6 +387,8 @@ bool:PlantInFrontOfEnemy(client)
 
 	decl Float:zeroVel[3];
 	zeroVel[0] = 0.0; zeroVel[1] = 0.0; zeroVel[2] = 0.0;
+	/* Our own plant teleport must not read as a teleport hack. */
+	g_fPlantGrace[client] = GetGameTime() + 0.75;
 	TeleportEntity(client, plant, view, zeroVel);
 	g_fBaseAng[client][0] = view[0];
 	g_fBaseAng[client][1] = view[1] + 70.0; /* resting look is off-target for flick tests */

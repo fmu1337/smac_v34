@@ -50,6 +50,7 @@ new g_iJumpsRow[MAXPLAYERS+1];
 new g_iLastTickCount[MAXPLAYERS+1];
 new g_iAirRow[MAXPLAYERS+1];
 new g_iAimTicks[MAXPLAYERS+1];
+new Float:g_fAimNextDetect[MAXPLAYERS+1];
 new g_iLastButtons[MAXPLAYERS+1];
 new g_iLastCmdNum[MAXPLAYERS+1];
 
@@ -343,6 +344,13 @@ CheckMouselessAim(client, buttons, const Float:angles[3], mouse[2])
 		if (g_iAimTicks[client] > AIM_CHECK_NEED)
 		{
 			g_iAimTicks[client] = 0;
+
+			/* Continuous mouse-less aim retriggers every few ticks — throttle
+			   the detection/notice stream to one per 3s per client. */
+			if (GetGameTime() < g_fAimNextDetect[client])
+				return;
+			g_fAimNextDetect[client] = GetGameTime() + 3.0;
+
 			g_iAimDet[client]++;
 			FireDetect(client, Detection_MouselessAim, g_iAimDet[client], g_hCvarAimBan,
 				"SMAC_MouselessAimDetected", "mouse-less aim (PreThink vs cmd)");
