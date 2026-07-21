@@ -19,8 +19,14 @@ enum ResetStatus {
 	State_Reset
 };
 
+// ForceSeed / SeedHelp (insomnia, informant, 420hook): skip command_number until
+// (MD5_PseudoRandom(cmdnum) & 255) matches a desired seed. Average skip ~128.
+// Small gaps can be choke/lag; large gaps on IN_ATTACK are nospread seed hunting.
+#define SEED_SKIP_MIN_DELTA		16
+#define SEED_SKIP_DETECT_BAN	3
 
 new Handle:g_hCvarBan = INVALID_HANDLE;
+new Handle:g_hCvarSeedBan = INVALID_HANDLE;
 new Float:g_fDetectedTime[MAXPLAYERS+1];
 
 new bool:g_bPrevAlive[MAXPLAYERS+1];
@@ -28,6 +34,7 @@ new g_iPrevButtons[MAXPLAYERS+1] = {-1, ...};
 new g_iPrevCmdNum[MAXPLAYERS+1] = {-1, ...};
 new g_iPrevTickCount[MAXPLAYERS+1] = {-1, ...};
 new g_iCmdNumOffset[MAXPLAYERS+1] = {1, ...};
+new g_iSeedSkipDetections[MAXPLAYERS+1];
 
 new ResetStatus:g_TickStatus[MAXPLAYERS+1];
 
@@ -37,6 +44,7 @@ public OnPluginStart()
 	
 	// Convars.
 	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Automatically ban players on eye test detections.", _, true, 0.0, true, 1.0);
+	g_hCvarSeedBan = SMAC_CreateConVar("smac_eyetest_seed_ban", "1", "Automatically ban players for nospread seed hunting (command_number skips on attack).", _, true, 0.0, true, 1.0);
 	// FEATURECAP_PLAYERRUNCMD_11PARAMS shipped in SourceMod 1.5.0 (not 1.7).
 	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires SourceMod 1.5.0 or newer (FEATURECAP_PLAYERRUNCMD_11PARAMS).");
 	
@@ -51,6 +59,7 @@ public OnClientDisconnect(client)
 	g_iPrevTickCount[client] = -1;
 	g_iCmdNumOffset[client] = 1;
 	g_TickStatus[client] = State_Okay;
+	g_iSeedSkipDetections[client] = 0;
 }
 
 public OnClientDisconnect_Post(client)
@@ -196,10 +205,19 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 	else
 	{
-		// Passively block cheats from skipping to desired seeds.
-		if ((buttons & IN_ATTACK) && g_iPrevCmdNum[client] + g_iCmdNumOffset[client] != cmdnum && g_iPrevCmdNum[client] > 0)
+		new iExpected = g_iPrevCmdNum[client] + g_iCmdNumOffset[client];
+		new iSkipDelta = cmdnum - iExpected;
+		
+		// Passively block cheats from skipping to desired seeds (ForceSeed / SeedHelp).
+		if ((buttons & IN_ATTACK) && iSkipDelta != 0 && g_iPrevCmdNum[client] > 0)
 		{
 			seed = GetURandomInt();
+			
+			// Large skips while firing = nospread seed search (avg ~128 for &255 match).
+			if (iSkipDelta >= SEED_SKIP_MIN_DELTA)
+			{
+				EyeTest_SeedSkipDetected(client, cmdnum, iExpected, iSkipDelta, seed);
+			}
 		}
 		
 		g_iCmdNumOffset[client] = 1;
@@ -214,26 +232,20 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_TickStatus[client] = State_Okay;
 	}
 		
-	// ep1 SMAC CODE
+	// Normalize one turn, then reject residual out-of-range pitch/roll.
+	// Lisp AA (insomnia ~697049 / ~696871) fails residual check; also clamp so AA gains nothing.
 	decl Float:vTemp[3];
 	vTemp = angles;
-	if (vTemp[0] > 180.0)	vTemp[0] -= 360.0;
-	if (vTemp[2] > 180.0)	vTemp[2] -= 360.0;
+	if (vTemp[0] > 180.0)
+		vTemp[0] -= 360.0;
+	if (vTemp[2] > 180.0)
+		vTemp[2] -= 360.0;
 	if (vTemp[0] >= -90.0 && vTemp[0] <= 90.0 && vTemp[2] >= -90.0 && vTemp[2] <= 90.0)
 		return Plugin_Continue;
 	
-	/*
-	// ep2 SMAC CODE
-	if (angles[0] > -135.0 && angles[0] < 135.0 && angles[1] > -270.0 && angles[1] < 270.0)
-		return Plugin_Continue;
-	
-	*/
-	//return Plugin_Continue; //disable angle-check
-
-	
 	new flags = GetEntityFlags(client);
 	if (flags & FL_FROZEN || flags & FL_ATCONTROLS)
-	return Plugin_Continue;
+		return Plugin_Continue;
 	
 	// The client failed all checks.
 	g_fDetectedTime[client] = GetGameTime() + 30.0;
@@ -263,5 +275,53 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 	
 	CloseHandle(info);
-	return Plugin_Continue;
+	
+	// Neutralize illegal AA / lisp even when ban is off or forward blocked the ban.
+	if (angles[0] > 89.0)
+		angles[0] = 89.0;
+	else if (angles[0] < -89.0)
+		angles[0] = -89.0;
+	angles[2] = 0.0;
+	
+	return Plugin_Changed;
+}
+
+EyeTest_SeedSkipDetected(client, cmdnum, expected, skipDelta, seed)
+{
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "cmdnum", cmdnum);
+	KvSetNum(info, "expected", expected);
+	KvSetNum(info, "skip", skipDelta);
+	KvSetNum(info, "seed", seed);
+	KvSetNum(info, "detection", g_iSeedSkipDetections[client] + 1);
+	
+	if (SMAC_CheatDetected(client, Detection_SeedSkip, info) != Plugin_Continue)
+	{
+		CloseHandle(info);
+		return;
+	}
+	
+	CloseHandle(info);
+	
+	g_iSeedSkipDetections[client]++;
+	CreateTimer(600.0, Timer_DecreaseSeedSkip, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+	
+	SMAC_PrintAdminNotice("%t", "SMAC_SeedSkipDetected", client, g_iSeedSkipDetections[client], skipDelta);
+	SMAC_LogAction(client, "is suspected of nospread seed hunting. (Detection #%i | CmdNum skip: %d | expected %d got %d)", g_iSeedSkipDetections[client], skipDelta, expected, cmdnum);
+	
+	if (GetConVarBool(g_hCvarSeedBan) && g_iSeedSkipDetections[client] >= SEED_SKIP_DETECT_BAN)
+	{
+		SMAC_LogAction(client, "was banned for nospread seed hunting.");
+		SMAC_Ban(client, "Eye Test Violation => SeedSkip");
+	}
+}
+
+public Action:Timer_DecreaseSeedSkip(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	if (IS_CLIENT(client) && g_iSeedSkipDetections[client] > 0)
+	{
+		g_iSeedSkipDetections[client]--;
+	}
+	return Plugin_Stop;
 }
