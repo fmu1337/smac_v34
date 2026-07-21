@@ -105,6 +105,17 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 
 	g_bPending[client] = false;
+
+	/* Choked/replayed usercmds carry frozen angles — a legit player looks
+	   like he never absorbs recoil. Skip the sample and drop streaks. */
+	if (SMAC_IsClientLagging(client))
+	{
+		g_iZeroPunch[client] = 0;
+		g_iNoAbsorb[client] = 0;
+		g_fPrevPitch[client] = angles[0];
+		return Plugin_Continue;
+	}
+
 	new reaction = GetConVarInt(g_hCvarBan);
 
 	decl Float:punch[3];

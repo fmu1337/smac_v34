@@ -63,6 +63,7 @@ public OnPluginStart()
 		g_iBacktrackTicks = 1;
 
 	HookEvent("player_spawn", Event_SpawnGrace, EventHookMode_Post);
+	HookEvent("player_death", Event_SpawnGrace, EventHookMode_Post);
 	HookEntityOutput("trigger_teleport", "OnEndTouch", Teleport_OnEndTouch);
 }
 
@@ -131,7 +132,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		EnterTimeout(client);
 
-		if (mode == 1 || mode == 3)
+		/* Tick rollback is normal during loss/choke — keep the Mode-B patch
+		   active but don't count it as a Mode-A detection. */
+		if ((mode == 1 || mode == 3) && !SMAC_IsClientLagging(client))
 			FireBacktrack(client, tickcount);
 	}
 

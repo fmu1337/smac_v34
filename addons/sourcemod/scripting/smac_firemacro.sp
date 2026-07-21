@@ -142,6 +142,16 @@ CheckFastAim(client, buttons, const Float:angles[3])
 		return;
 	}
 
+	/* Dropped usercmds concatenate view movement into one big delta —
+	   legit flick during a rate dip reads as a snap. Skip while lagging. */
+	if (SMAC_IsClientLagging(client))
+	{
+		g_fPrevAng[client][0] = angles[0];
+		g_fPrevAng[client][1] = angles[1];
+		g_iSnapLeft[client] = 0;
+		return;
+	}
+
 	new Float:dpitch = FloatAbs(angles[0] - g_fPrevAng[client][0]);
 	new Float:dyaw = FloatAbs(angles[1] - g_fPrevAng[client][1]);
 	if (dyaw > 180.0)

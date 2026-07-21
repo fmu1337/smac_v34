@@ -69,6 +69,34 @@ stock GetPluginBasename(Handle:plugin, String:buffer[], maxlength)
 	}
 }
 
+/**
+ * Returns true while the client's connection is degraded (packet loss, heavy
+ * choke, ping spike or timeout). Movement/angle based detectors should skip
+ * sampling during these windows — batched/replayed usercmds look like cheats
+ * (frozen pitch => norecoil B, repeated tickcount => airstuck, tick rollback
+ * => backtrack, angle jumps => fast-aim).
+ */
+stock bool:SMAC_IsClientLagging(client, Float:maxLoss=0.05, Float:maxChoke=0.30, Float:maxPingSpike=0.10)
+{
+	if (!IsClientInGame(client) || IsFakeClient(client))
+		return false;
+
+	if (IsClientTimingOut(client))
+		return true;
+
+	if (GetClientAvgLoss(client, NetFlow_Both) > maxLoss)
+		return true;
+
+	if (GetClientAvgChoke(client, NetFlow_Both) > maxChoke)
+		return true;
+
+	/* Current ping far above session average = momentary lag spike. */
+	if (GetClientLatency(client, NetFlow_Outgoing) - GetClientAvgLatency(client, NetFlow_Outgoing) > maxPingSpike)
+		return true;
+
+	return false;
+}
+
 stock bool:IsConVarDefault(Handle:convar)
 {
 	decl String:sDefaultVal[16], String:sCurrentVal[16];

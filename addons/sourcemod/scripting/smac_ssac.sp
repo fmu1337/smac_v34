@@ -40,6 +40,7 @@ new Handle:g_hCvarLagBan = INVALID_HANDLE;
 new Handle:g_hCvarAimBan = INVALID_HANDLE;
 
 new Float:g_fLastJumpTime[MAXPLAYERS+1];
+new Float:g_fSpawnGraceUntil[MAXPLAYERS+1];
 new Float:g_fThinkAngles[MAXPLAYERS+1][3];
 new bool:g_bHaveThinkAng[MAXPLAYERS+1];
 new bool:g_bAliveAim[MAXPLAYERS+1];
@@ -72,6 +73,19 @@ public OnPluginStart()
 	g_hCvarRunBan = SMAC_CreateConVar("smac_ssac_fastrun_ban", "0", "Magic wishspeed detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarLagBan = SMAC_CreateConVar("smac_ssac_lag_ban", "0", "Cmdnum lag-exploit detections before ban. (0 = Never)", _, true, 0.0);
 	g_hCvarAimBan = SMAC_CreateConVar("smac_ssac_aim_ban", "0", "Mouse-less aim detections before ban. (0 = Never; lag FP)", _, true, 0.0);
+
+	HookEvent("player_spawn", Event_SpawnGrace, EventHookMode_Post);
+	HookEvent("player_death", Event_SpawnGrace, EventHookMode_Post);
+}
+
+public Event_SpawnGrace(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if (IS_CLIENT(client))
+	{
+		g_fSpawnGraceUntil[client] = GetGameTime() + 2.0;
+		g_iAirRow[client] = 0;
+	}
 }
 
 public OnClientPutInServer(client)
@@ -89,6 +103,7 @@ public OnClientDisconnect(client)
 ResetClient(client)
 {
 	g_fLastJumpTime[client] = 0.0;
+	g_fSpawnGraceUntil[client] = 0.0;
 	g_bHaveThinkAng[client] = false;
 	g_bAliveAim[client] = false;
 	g_bLadderWarned[client] = false;
@@ -174,6 +189,15 @@ CheckAirStuck(client, tickcount)
 {
 	new react = GetConVarInt(g_hCvarAirReact);
 	if (react <= 0)
+	{
+		g_iLastTickCount[client] = tickcount;
+		g_iAirRow[client] = 0;
+		return;
+	}
+
+	/* Repeated tickcount is exactly what a lag burst / respawn produces.
+	   Only count tick reuse on a clean connection outside spawn grace. */
+	if (GetGameTime() < g_fSpawnGraceUntil[client] || SMAC_IsClientLagging(client))
 	{
 		g_iLastTickCount[client] = tickcount;
 		g_iAirRow[client] = 0;
