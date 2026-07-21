@@ -26,6 +26,13 @@ new Handle:g_hCvarTrigBan = INVALID_HANDLE;
 new Handle:g_hCvarFireWarn = INVALID_HANDLE;
 new Handle:g_hCvarFireBan = INVALID_HANDLE;
 
+/* Auto-Fire lock quality gates: the target must actually traverse the view
+   (angular path) while the crosshair tracks it with low average error.
+   Spraying into the back of a target running straight away produces a near
+   zero path and must never count — that is normal chase spray. */
+#define LOCK_MIN_PATH	12.0
+#define LOCK_MAX_AVGERR	2.0
+
 new g_iTicksOnTarget[MAXPLAYERS+1];
 new g_iPrevButtons[MAXPLAYERS+1];
 new bool:g_bWasOnEnemy[MAXPLAYERS+1];
@@ -35,6 +42,11 @@ new g_iPrefireHold[MAXPLAYERS+1];
 new g_iFireHits[MAXPLAYERS+1];
 new g_iFireDet[MAXPLAYERS+1];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
+
+new g_iLockTarget[MAXPLAYERS+1];
+new Float:g_fLockPath[MAXPLAYERS+1];
+new Float:g_fLockErrSum[MAXPLAYERS+1];
+new Float:g_fLockPrevDir[MAXPLAYERS+1][2];
 
 public OnPluginStart()
 {
@@ -71,6 +83,9 @@ ResetClient(client)
 	g_iFireHits[client] = 0;
 	g_iFireDet[client] = 0;
 	g_fIgnoreUntil[client] = 0.0;
+	g_iLockTarget[client] = 0;
+	g_fLockPath[client] = 0.0;
+	g_fLockErrSum[client] = 0.0;
 }
 
 public Event_Spawn(Handle:event, const String:name[], bool:dontBroadcast)
@@ -96,9 +111,10 @@ public Teleport_OnEndTouch(const String:output[], caller, activator, Float:delay
 	}
 }
 
-bool:IsEnemyUnderCrosshair(client, const Float:angles[3], String:weapon[], maxlen)
+bool:IsEnemyUnderCrosshair(client, const Float:angles[3], String:weapon[], maxlen, &enemy)
 {
 	weapon[0] = '\0';
+	enemy = 0;
 	decl Float:eyePos[3];
 	GetClientEyePosition(client, eyePos);
 
@@ -111,6 +127,7 @@ bool:IsEnemyUnderCrosshair(client, const Float:angles[3], String:weapon[], maxle
 			&& GetClientTeam(target) != GetClientTeam(client) && GetClientTeam(client) > 1)
 		{
 			hit = true;
+			enemy = target;
 		}
 	}
 	CloseHandle(trace);
@@ -142,7 +159,8 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 
 	decl String:wpn[64];
-	new bool:onEnemy = IsEnemyUnderCrosshair(client, angles, wpn, sizeof(wpn));
+	new enemy;
+	new bool:onEnemy = IsEnemyUnderCrosshair(client, angles, wpn, sizeof(wpn), enemy);
 
 	/* Skip knives / nades — Ultr@ tags weapon on gun triggers. */
 	if (wpn[0] && (StrContains(wpn, "knife") != -1 || StrContains(wpn, "grenade") != -1
@@ -189,30 +207,99 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		/* Prefire into acquire — start candidate window. */
 		g_iPrefireHold[client] = 1;
+		BeginLockTrack(client, enemy, angles);
 	}
-	else if (g_iPrefireHold[client] > 0 && atk && onEnemy)
+	else if (g_iPrefireHold[client] > 0 && atk && onEnemy && enemy == g_iLockTarget[client])
 	{
 		g_iPrefireHold[client]++;
+		TrackLock(client, enemy, angles);
+
 		if (g_iPrefireHold[client] >= holdNeed)
 		{
+			/* Only an aimbot LOCK counts: the target visibly traversed the
+			   view (angular path) while the crosshair tracked it with tiny
+			   average error. Chase-spraying a straight-running back gives a
+			   near-zero path and legit tracking gives a bigger error. */
+			new Float:avgErr = g_fLockErrSum[client] / float(g_iPrefireHold[client]);
 			g_iPrefireHold[client] = 0;
-			g_iFireHits[client]++;
-			if (g_iFireHits[client] >= 3)
+
+			if (g_fLockPath[client] >= LOCK_MIN_PATH && avgErr <= LOCK_MAX_AVGERR)
 			{
-				g_iFireHits[client] = 0;
-				g_iFireDet[client]++;
-				MaybeReactFire(client, wpn);
+				g_iFireHits[client]++;
+				if (g_iFireHits[client] >= 3)
+				{
+					g_iFireHits[client] = 0;
+					g_iFireDet[client]++;
+					MaybeReactFire(client, wpn);
+				}
 			}
 		}
 	}
 	else
 	{
 		g_iPrefireHold[client] = 0;
+		g_iLockTarget[client] = 0;
 	}
 
 	g_bWasOnEnemy[client] = onEnemy;
 	g_iPrevButtons[client] = buttons;
 	return Plugin_Continue;
+}
+
+BeginLockTrack(client, enemy, const Float:angles[3])
+{
+	g_iLockTarget[client] = enemy;
+	g_fLockPath[client] = 0.0;
+	g_fLockErrSum[client] = 0.0;
+	if (IS_CLIENT(enemy))
+	{
+		decl Float:dir[2];
+		DirToTarget(client, enemy, dir);
+		g_fLockPrevDir[client][0] = dir[0];
+		g_fLockPrevDir[client][1] = dir[1];
+		g_fLockErrSum[client] = AimError(angles, dir);
+	}
+}
+
+TrackLock(client, enemy, const Float:angles[3])
+{
+	if (!IS_CLIENT(enemy) || !IsClientInGame(enemy))
+		return;
+
+	decl Float:dir[2];
+	DirToTarget(client, enemy, dir);
+
+	/* Angular path of the target across the shooter's view. */
+	g_fLockPath[client] += FloatAbs(AngleDiff(dir[0], g_fLockPrevDir[client][0]))
+		+ FloatAbs(AngleDiff(dir[1], g_fLockPrevDir[client][1]));
+	g_fLockPrevDir[client][0] = dir[0];
+	g_fLockPrevDir[client][1] = dir[1];
+
+	g_fLockErrSum[client] += AimError(angles, dir);
+}
+
+DirToTarget(client, target, Float:dir[2])
+{
+	decl Float:eye[3], Float:tgt[3], Float:v[3];
+	GetClientEyePosition(client, eye);
+	GetClientEyePosition(target, tgt);
+	MakeVectorFromPoints(eye, tgt, v);
+	GetVectorAngles(v, v);
+	dir[0] = v[0];
+	dir[1] = v[1];
+}
+
+Float:AimError(const Float:angles[3], const Float:dir[2])
+{
+	return FloatAbs(AngleDiff(angles[0], dir[0])) + FloatAbs(AngleDiff(angles[1], dir[1]));
+}
+
+Float:AngleDiff(Float:a, Float:b)
+{
+	new Float:d = a - b;
+	while (d > 180.0) d -= 360.0;
+	while (d < -180.0) d += 360.0;
+	return d;
 }
 
 MaybeReactTrigger(client, const String:wpn[])
