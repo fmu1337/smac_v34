@@ -35,6 +35,9 @@ public Plugin:myinfo =
 #define STREAK_NEED_B	16
 #define COMP_EPS		0.05
 #define PUNCH_ACTIVE	0.5
+/* Mode B requires the view to actually MOVE against the punch this tick;
+   a player holding still (pitchDelta ~ 0) is not compensating anything. */
+#define MIN_PITCH_MOVE	0.15
 
 new Handle:g_hCvarEnabled = INVALID_HANDLE;
 new Handle:g_hCvarBan = INVALID_HANDLE;
@@ -47,6 +50,7 @@ new g_iDetectsB[MAXPLAYERS+1];
 new Float:g_fPrevPitch[MAXPLAYERS+1];
 new Float:g_fPrevPunchPitch[MAXPLAYERS+1];
 new bool:g_bHavePrev[MAXPLAYERS+1];
+new g_iLastClip[MAXPLAYERS+1];
 new Handle:g_hIgnoreWeapons = INVALID_HANDLE;
 
 public OnPluginStart()
@@ -74,6 +78,7 @@ public OnClientPutInServer(client)
 	g_iDetectsA[client] = 0;
 	g_iDetectsB[client] = 0;
 	g_bHavePrev[client] = false;
+	g_iLastClip[client] = -1;
 }
 
 public OnClientDisconnect(client)
@@ -138,12 +143,24 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	new reaction = GetConVarInt(g_hCvarBan);
 
-	/* Mode A: shot fired but no punch at all (server-side punch removal). */
+	/* Confirm a real shot by ammo consumption. CS:S spams weapon_fire while
+	   the button is held even when the semi-auto weapon does not actually
+	   fire (deagle) — those phantom events carry no punch and previously
+	   triggered Mode A. Only a clip decrease counts as a genuine shot. */
+	new clip = GetActiveClip(client);
+	new bool:realShot = (g_bPending[client] && clip >= 0 && g_iLastClip[client] >= 0 && clip < g_iLastClip[client]);
+	g_iLastClip[client] = clip;
+
+	/* Mode A: real shot fired but no punch at all (server-side punch removal). */
 	if (g_bPending[client])
 	{
 		g_bPending[client] = false;
 
-		if (mag < PUNCH_EPS)
+		if (!realShot)
+		{
+			/* Phantom weapon_fire or weapon switch — ignore, keep streak. */
+		}
+		else if (mag < PUNCH_EPS)
 		{
 			g_iZeroPunch[client]++;
 			if (g_iZeroPunch[client] >= STREAK_NEED_A)
@@ -177,7 +194,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		new Float:punchDelta = punch[0] - g_fPrevPunchPitch[client];
 		new Float:pitchDelta = NormalizeAngleDelta(angles[0] - g_fPrevPitch[client]);
 
-		if (FloatAbs(punchDelta) > 0.01)
+		/* Require a real recoil kick this tick AND a real counter-move by the
+		   view. Holding the mouse still (pitchDelta ~ 0) is NOT compensation
+		   and must never match — that was the AK-hold false positive. */
+		if (FloatAbs(punchDelta) > MIN_PITCH_MOVE && FloatAbs(pitchDelta) > MIN_PITCH_MOVE)
 		{
 			if (FloatAbs(pitchDelta + punchDelta) < COMP_EPS
 				|| FloatAbs(pitchDelta + (punchDelta * 2.0)) < COMP_EPS)
@@ -220,4 +240,14 @@ StorePrev(client, Float:pitch, Float:punchPitch)
 	g_fPrevPitch[client] = pitch;
 	g_fPrevPunchPitch[client] = punchPitch;
 	g_bHavePrev[client] = true;
+}
+
+GetActiveClip(client)
+{
+	new wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if (wep <= MaxClients || !IsValidEdict(wep))
+		return -1;
+	if (!HasEntProp(wep, Prop_Send, "m_iClip1"))
+		return -1;
+	return GetEntProp(wep, Prop_Send, "m_iClip1");
 }
