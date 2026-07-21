@@ -9,7 +9,14 @@
  * Original module by Danyas for SMAC v34.
  * Ultr@ smac_NoS_NoR / smac_NoR_Ban:
  *   Mode A — sustained near-zero view punch while firing
- *   Mode B — punch present but eye pitch never absorbs recoil (no RCS)
+ *   Mode B — eye pitch counter-tracks punch decay tick-perfect (RCS bot).
+ *
+ * Mode B rewritten 2026-07-21: the old check flagged players who did NOT
+ * pull down while spraying — that is normal human play, it false-positived
+ * on the server owner within minutes. A real norecoil/RCS cheat writes
+ * viewangles that cancel m_vecPunchAngle every tick (typically angle -=
+ * punch*2 in CS:S), so the usercmd pitch delta exactly mirrors the punch
+ * delta for the whole kick+decay curve. Humans cannot track that curve.
  */
 
 public Plugin:myinfo =
@@ -23,7 +30,11 @@ public Plugin:myinfo =
 
 #define PUNCH_EPS		0.08
 #define STREAK_NEED_A	10
-#define STREAK_NEED_B	12
+/* Consecutive ticks of exact punch-mirroring before a Mode B detection.
+   Punch decay in CS:S lasts ~0.3-0.5s => 16 ticks @66tick is ~0.24s. */
+#define STREAK_NEED_B	16
+#define COMP_EPS		0.05
+#define PUNCH_ACTIVE	0.5
 
 new Handle:g_hCvarEnabled = INVALID_HANDLE;
 new Handle:g_hCvarBan = INVALID_HANDLE;
@@ -34,7 +45,8 @@ new g_iNoAbsorb[MAXPLAYERS+1];
 new g_iDetectsA[MAXPLAYERS+1];
 new g_iDetectsB[MAXPLAYERS+1];
 new Float:g_fPrevPitch[MAXPLAYERS+1];
-new bool:g_bHavePitch[MAXPLAYERS+1];
+new Float:g_fPrevPunchPitch[MAXPLAYERS+1];
+new bool:g_bHavePrev[MAXPLAYERS+1];
 new Handle:g_hIgnoreWeapons = INVALID_HANDLE;
 
 public OnPluginStart()
@@ -61,13 +73,13 @@ public OnClientPutInServer(client)
 	g_iNoAbsorb[client] = 0;
 	g_iDetectsA[client] = 0;
 	g_iDetectsB[client] = 0;
-	g_bHavePitch[client] = false;
+	g_bHavePrev[client] = false;
 }
 
 public OnClientDisconnect(client)
 {
 	g_bPending[client] = false;
-	g_bHavePitch[client] = false;
+	g_bHavePrev[client] = false;
 }
 
 public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
@@ -90,71 +102,85 @@ public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 	g_bPending[client] = true;
 }
 
+static Float:NormalizeAngleDelta(Float:delta)
+{
+	while (delta > 180.0)
+		delta -= 360.0;
+	while (delta < -180.0)
+		delta += 360.0;
+	return delta;
+}
+
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
-	if (!g_bPending[client])
-	{
-		g_fPrevPitch[client] = angles[0];
-		g_bHavePitch[client] = true;
-		return Plugin_Continue;
-	}
-	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsPlayerAlive(client))
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsPlayerAlive(client)
+		|| !GetConVarBool(g_hCvarEnabled))
 	{
 		g_bPending[client] = false;
+		g_bHavePrev[client] = false;
 		return Plugin_Continue;
 	}
-
-	g_bPending[client] = false;
-
-	/* Choked/replayed usercmds carry frozen angles — a legit player looks
-	   like he never absorbs recoil. Skip the sample and drop streaks. */
-	if (SMAC_IsClientLagging(client))
-	{
-		g_iZeroPunch[client] = 0;
-		g_iNoAbsorb[client] = 0;
-		g_fPrevPitch[client] = angles[0];
-		return Plugin_Continue;
-	}
-
-	new reaction = GetConVarInt(g_hCvarBan);
 
 	decl Float:punch[3];
 	GetEntPropVector(client, Prop_Send, "m_vecPunchAngle", punch);
 	new Float:mag = SquareRoot((punch[0] * punch[0]) + (punch[1] * punch[1]) + (punch[2] * punch[2]));
 
-	/* Mode A: missing punch entirely. */
-	if (mag < PUNCH_EPS)
+	/* Choked/replayed usercmds carry frozen or concatenated angles — skip
+	   sampling and drop streaks while the connection is degraded. */
+	if (SMAC_IsClientLagging(client))
 	{
-		g_iZeroPunch[client]++;
+		g_bPending[client] = false;
+		g_iZeroPunch[client] = 0;
 		g_iNoAbsorb[client] = 0;
-		if (g_iZeroPunch[client] >= STREAK_NEED_A)
+		StorePrev(client, angles[0], punch[0]);
+		return Plugin_Continue;
+	}
+
+	new reaction = GetConVarInt(g_hCvarBan);
+
+	/* Mode A: shot fired but no punch at all (server-side punch removal). */
+	if (g_bPending[client])
+	{
+		g_bPending[client] = false;
+
+		if (mag < PUNCH_EPS)
+		{
+			g_iZeroPunch[client]++;
+			if (g_iZeroPunch[client] >= STREAK_NEED_A)
+			{
+				g_iZeroPunch[client] = 0;
+				g_iDetectsA[client]++;
+				new Handle:info = CreateKeyValues("");
+				KvSetNum(info, "detection", g_iDetectsA[client]);
+				KvSetFloat(info, "punch", mag);
+				KvSetString(info, "mode", "A");
+				if (SMAC_CheatDetected(client, Detection_NoRecoil, info) == Plugin_Continue)
+				{
+					SMAC_PrintAdminNotice("%t", "SMAC_NoRecoilDetected", client, g_iDetectsA[client]);
+					SMAC_LogAction(client, "norecoil Mode:A (Detection #%i | punch=%.3f)", g_iDetectsA[client], mag);
+					SMAC_UltraReact(client, g_iDetectsA[client], reaction, "NoRecoil Mode A", "SMAC_NoRecoilKick");
+				}
+				CloseHandle(info);
+			}
+		}
+		else
 		{
 			g_iZeroPunch[client] = 0;
-			g_iDetectsA[client]++;
-			new Handle:info = CreateKeyValues("");
-			KvSetNum(info, "detection", g_iDetectsA[client]);
-			KvSetFloat(info, "punch", mag);
-			KvSetString(info, "mode", "A");
-			if (SMAC_CheatDetected(client, Detection_NoRecoil, info) == Plugin_Continue)
-			{
-				SMAC_PrintAdminNotice("%t", "SMAC_NoRecoilDetected", client, g_iDetectsA[client]);
-				SMAC_LogAction(client, "norecoil Mode:A (Detection #%i | punch=%.3f)", g_iDetectsA[client], mag);
-				SMAC_UltraReact(client, g_iDetectsA[client], reaction, "NoRecoil Mode A", "SMAC_NoRecoilKick");
-			}
-			CloseHandle(info);
 		}
 	}
-	else
-	{
-		g_iZeroPunch[client] = 0;
 
-		/* Mode B: punch exists but pitch never moves into recoil (no absorb). */
-		if (g_bHavePitch[client] && punch[0] < -0.5)
+	/* Mode B: usercmd pitch mirrors punch pitch change tick-perfect while
+	   the punch curve is active — the signature of angle-writing RCS bots
+	   (viewangles -= punch or punch*2). Humans cannot track the decay. */
+	if (g_bHavePrev[client] && mag > PUNCH_ACTIVE)
+	{
+		new Float:punchDelta = punch[0] - g_fPrevPunchPitch[client];
+		new Float:pitchDelta = NormalizeAngleDelta(angles[0] - g_fPrevPitch[client]);
+
+		if (FloatAbs(punchDelta) > 0.01)
 		{
-			new Float:pitchDelta = angles[0] - g_fPrevPitch[client];
-			/* Expected: eye pitch increases (look down) or stays when compensating.
-			   Flag when pitch moves opposite to punch for sustained shots. */
-			if (pitchDelta > -0.05)
+			if (FloatAbs(pitchDelta + punchDelta) < COMP_EPS
+				|| FloatAbs(pitchDelta + (punchDelta * 2.0)) < COMP_EPS)
 			{
 				g_iNoAbsorb[client]++;
 				if (g_iNoAbsorb[client] >= STREAK_NEED_B)
@@ -168,7 +194,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 					if (SMAC_CheatDetected(client, Detection_NoRecoilB, info) == Plugin_Continue)
 					{
 						SMAC_PrintAdminNotice("%t", "SMAC_NoRecoilBDetected", client, g_iDetectsB[client]);
-						SMAC_LogAction(client, "norecoil Mode:B (Detection #%i | punch=%.3f)", g_iDetectsB[client], mag);
+						SMAC_LogAction(client, "norecoil Mode:B perfect-RCS (Detection #%i | punch=%.3f)", g_iDetectsB[client], mag);
 						SMAC_UltraReact(client, g_iDetectsB[client], reaction, "NoRecoil Mode B", "SMAC_NoRecoilKick");
 					}
 					CloseHandle(info);
@@ -180,8 +206,18 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			}
 		}
 	}
+	else
+	{
+		g_iNoAbsorb[client] = 0;
+	}
 
-	g_fPrevPitch[client] = angles[0];
-	g_bHavePitch[client] = true;
+	StorePrev(client, angles[0], punch[0]);
 	return Plugin_Continue;
+}
+
+StorePrev(client, Float:pitch, Float:punchPitch)
+{
+	g_fPrevPitch[client] = pitch;
+	g_fPrevPunchPitch[client] = punchPitch;
+	g_bHavePrev[client] = true;
 }
