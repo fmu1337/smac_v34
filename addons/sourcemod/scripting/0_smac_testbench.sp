@@ -9,16 +9,12 @@
  * Filename starts with 0_ so SourceMod loads it BEFORE smac_* detectors;
  * OnPlayerRunCmd angle/button/tick edits are then visible to them.
  *
- * Bots are ignored by detectors (IsFakeClient) — use them as targets only.
- * YOU (admin) are the subject under test.
+ * Aim scenarios plant you in front of a live enemy, freeze movement, and
+ * snap/lock onto their head — not "walk sideways shooting nowhere".
  *
  * Usage:
- *   sm_smactest soft          — notice-only cvars (no kick/ban)
- *   sm_smactest bots          — fill bot_quota + bot_stop
- *   sm_smactest <scenario>    — run injector on yourself
- *   sm_smactest stop          — stop
- *   sm_smactest fire <name>   — fire SMAC_CheatDetected pipeline only
- *   sm_smactest help
+ *   sm_smactest soft | bots | setup | stop | status | fire <name>
+ *   sm_smactest flick | lock | silent | trigger | autofire | ...
  *
  * Remove/disable this plugin on production.
  */
@@ -39,6 +35,9 @@ enum
 	Mode_AutoFire,
 	Mode_PSilent,
 	Mode_AimSnap,
+	Mode_Flick,
+	Mode_Lock,
+	Mode_Silent,
 	Mode_Bhop,
 	Mode_FastRun,
 	Mode_Teleport,
@@ -62,8 +61,10 @@ new g_iReps[MAXPLAYERS+1];
 new Float:g_fUntil[MAXPLAYERS+1];
 new Float:g_fBaseAng[MAXPLAYERS+1][2];
 new Float:g_fAimAng[MAXPLAYERS+1][2];
+new g_iAimTarget[MAXPLAYERS+1];
 new g_iCycleIdx[MAXPLAYERS+1];
 new bool:g_bSoftApplied;
+new Float:g_fPrevPunchPitch[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -89,6 +90,7 @@ ClearMode(client)
 	g_iReps[client] = 0;
 	g_fUntil[client] = 0.0;
 	g_iCycleIdx[client] = 0;
+	g_iAimTarget[client] = 0;
 }
 
 bool:IsTester(client)
@@ -142,8 +144,8 @@ public Action:Command_Test(client, args)
 	}
 	if (StrEqual(arg, "status", false))
 	{
-		ReplyToCommand(client, "[SMAC Test] mode=%d phase=%d reps=%d soft=%d",
-			g_iMode[client], g_iPhase[client], g_iReps[client], g_bSoftApplied);
+		ReplyToCommand(client, "[SMAC Test] mode=%d phase=%d reps=%d target=%d soft=%d",
+			g_iMode[client], g_iPhase[client], g_iReps[client], g_iAimTarget[client], g_bSoftApplied);
 		return Plugin_Handled;
 	}
 	if (StrEqual(arg, "soft", false))
@@ -153,13 +155,22 @@ public Action:Command_Test(client, args)
 	}
 	if (StrEqual(arg, "bots", false))
 	{
-		ServerCommand("bot_quota 4");
-		ServerCommand("bot_quota_mode fill");
-		ServerCommand("bot_stop 1");
-		ServerCommand("bot_zombie 1");
-		ServerCommand("mp_limitteams 0");
-		ServerCommand("mp_autoteambalance 0");
-		ReplyToCommand(client, "[SMAC Test] bots filled + stopped. Join opposite team.");
+		SetupBots(client);
+		return Plugin_Handled;
+	}
+	if (StrEqual(arg, "setup", false))
+	{
+		ApplySoftCvars(client);
+		SetupBots(client);
+		if (!IsPlayerAlive(client))
+		{
+			ReplyToCommand(client, "[SMAC Test] setup done — spawn first, then run a scenario.");
+			return Plugin_Handled;
+		}
+		if (!PlantInFrontOfEnemy(client))
+			ReplyToCommand(client, "[SMAC Test] setup done — no enemy yet; wait for bots then try again.");
+		else
+			ReplyToCommand(client, "[SMAC Test] setup done — planted on enemy. Try: sm_smactest flick");
 		return Plugin_Handled;
 	}
 	if (StrEqual(arg, "fire", false))
@@ -189,7 +200,7 @@ public Action:Command_Test(client, args)
 	}
 
 	if (!g_bSoftApplied)
-		ReplyToCommand(client, "[SMAC Test] tip: run sm_smactest soft first (notice-only).");
+		ReplyToCommand(client, "[SMAC Test] tip: run sm_smactest soft (or setup) first.");
 
 	StartMode(client, mode);
 	return Plugin_Handled;
@@ -197,12 +208,11 @@ public Action:Command_Test(client, args)
 
 PrintHelp(client)
 {
-	ReplyToCommand(client, "[SMAC Test] scenarios (you = subject, bots = targets):");
-	ReplyToCommand(client, "  soft | bots | stop | status | fire <name>");
-	ReplyToCommand(client, "  trigger autofire psilent aimsnap bhop fastrun");
-	ReplyToCommand(client, "  teleport tpfast norecoila norecoilb wish");
+	ReplyToCommand(client, "[SMAC Test] realistic aim = flick | lock | silent (plant on enemy head)");
+	ReplyToCommand(client, "  setup | soft | bots | stop | status | fire <name>");
+	ReplyToCommand(client, "  flick lock silent trigger autofire psilent aimsnap");
+	ReplyToCommand(client, "  bhop fastrun teleport tpfast norecoila norecoilb wish");
 	ReplyToCommand(client, "  backtrack cmdspike fastshoot cycle");
-	ReplyToCommand(client, "Load order: keep 0_smac_testbench.smx so it loads before smac_*.");
 }
 
 ModeFromName(const String:arg[])
@@ -211,6 +221,9 @@ ModeFromName(const String:arg[])
 	if (StrEqual(arg, "autofire", false)) return Mode_AutoFire;
 	if (StrEqual(arg, "psilent", false)) return Mode_PSilent;
 	if (StrEqual(arg, "aimsnap", false)) return Mode_AimSnap;
+	if (StrEqual(arg, "flick", false)) return Mode_Flick;
+	if (StrEqual(arg, "lock", false) || StrEqual(arg, "aimlock", false)) return Mode_Lock;
+	if (StrEqual(arg, "silent", false)) return Mode_Silent;
 	if (StrEqual(arg, "bhop", false)) return Mode_Bhop;
 	if (StrEqual(arg, "fastrun", false)) return Mode_FastRun;
 	if (StrEqual(arg, "teleport", false)) return Mode_Teleport;
@@ -225,23 +238,46 @@ ModeFromName(const String:arg[])
 	return Mode_None;
 }
 
+bool:IsAimMode(mode)
+{
+	return (mode == Mode_Trigger || mode == Mode_AutoFire || mode == Mode_PSilent
+		|| mode == Mode_AimSnap || mode == Mode_Flick || mode == Mode_Lock
+		|| mode == Mode_Silent || mode == Mode_NoRecoilA || mode == Mode_NoRecoilB);
+}
+
 StartMode(client, mode)
 {
 	ClearMode(client);
 	g_iMode[client] = mode;
+	g_fPrevPunchPitch[client] = 0.0;
 
 	decl Float:ang[3];
 	GetClientEyeAngles(client, ang);
 	g_fBaseAng[client][0] = ang[0];
 	g_fBaseAng[client][1] = ang[1];
 
-	RefreshAim(client);
+	if (IsAimMode(mode) || mode == Mode_Cycle)
+	{
+		if (!PlantInFrontOfEnemy(client))
+		{
+			PrintToChat(client, "[SMAC Test] no live enemy — run sm_smactest bots / setup first.");
+			ClearMode(client);
+			return;
+		}
+		RefreshAim(client);
+		/* Face the target so the first snap is a real whip, not a random angle. */
+		FaceAim(client, false);
+	}
+	else
+	{
+		RefreshAim(client);
+	}
 
 	if (mode == Mode_Cycle)
 	{
-		g_iPhase[client] = Mode_PSilent;
-		g_fUntil[client] = GetGameTime() + 4.0;
-		PrintToChat(client, "[SMAC Test] cycle start → psilent (4s each). Watch notices / SMAC.log");
+		g_iPhase[client] = Mode_Flick;
+		g_fUntil[client] = GetGameTime() + 5.0;
+		PrintToChat(client, "[SMAC Test] cycle → flick (5s each). Stand still, watch bots.");
 		SMAC_LogAction(client, "testbench start mode=cycle");
 		return;
 	}
@@ -250,11 +286,14 @@ StartMode(client, mode)
 
 	decl String:label[32];
 	ModeLabel(mode, label, sizeof(label));
-	PrintToChat(client, "[SMAC Test] running \x04%s\x01 for %.0fs — watch admin notices / SMAC.log",
-		label, GetConVarFloat(g_hCvarMaxTime));
+	if (g_iAimTarget[client] > 0)
+		PrintToChat(client, "[SMAC Test] \x04%s\x01 → target %N for %.0fs",
+			label, g_iAimTarget[client], GetConVarFloat(g_hCvarMaxTime));
+	else
+		PrintToChat(client, "[SMAC Test] running \x04%s\x01 for %.0fs",
+			label, GetConVarFloat(g_hCvarMaxTime));
 	SMAC_LogAction(client, "testbench start mode=%s", label);
 
-	/* Instant one-shots. */
 	if (mode == Mode_Teleport)
 	{
 		DoTeleportJump(client, 1600.0);
@@ -274,6 +313,9 @@ ModeLabel(mode, String:out[], maxlen)
 		case Mode_AutoFire: strcopy(out, maxlen, "autofire");
 		case Mode_PSilent: strcopy(out, maxlen, "psilent");
 		case Mode_AimSnap: strcopy(out, maxlen, "aimsnap");
+		case Mode_Flick: strcopy(out, maxlen, "flick");
+		case Mode_Lock: strcopy(out, maxlen, "lock");
+		case Mode_Silent: strcopy(out, maxlen, "silent");
 		case Mode_Bhop: strcopy(out, maxlen, "bhop");
 		case Mode_FastRun: strcopy(out, maxlen, "fastrun");
 		case Mode_Teleport: strcopy(out, maxlen, "teleport");
@@ -289,20 +331,105 @@ ModeLabel(mode, String:out[], maxlen)
 	}
 }
 
-RefreshAim(client)
+SetupBots(client)
+{
+	ServerCommand("bot_quota 6");
+	ServerCommand("bot_quota_mode fill");
+	ServerCommand("bot_stop 1");
+	ServerCommand("bot_zombie 1");
+	ServerCommand("bot_mimic 0");
+	ServerCommand("mp_limitteams 0");
+	ServerCommand("mp_autoteambalance 0");
+	ReplyToCommand(client, "[SMAC Test] bots filled + stopped. Join opposite team, then: sm_smactest setup");
+}
+
+bool:PlantInFrontOfEnemy(client)
 {
 	new tgt = FindNearestEnemy(client);
 	if (tgt <= 0)
+		return false;
+
+	g_iAimTarget[client] = tgt;
+
+	decl Float:tOrigin[3], Float:tAng[3], Float:fwd[3], Float:plant[3], Float:look[3], Float:dir[3], Float:view[3];
+	GetClientAbsOrigin(tgt, tOrigin);
+	GetClientEyeAngles(tgt, tAng);
+	tAng[0] = 0.0;
+	GetAngleVectors(tAng, fwd, NULL_VECTOR, NULL_VECTOR);
+
+	/* Stand ~200u in front of the bot, facing their chest/head. */
+	plant[0] = tOrigin[0] + fwd[0] * 200.0;
+	plant[1] = tOrigin[1] + fwd[1] * 200.0;
+	plant[2] = tOrigin[2] + 8.0;
+
+	GetClientEyePosition(tgt, look);
+	look[2] -= 8.0; /* upper chest / head */
+	GetClientEyePosition(client, dir);
+	/* After teleport eye moves — compute from plant approx. */
+	dir[0] = plant[0]; dir[1] = plant[1]; dir[2] = plant[2] + 64.0;
+	MakeVectorFromPoints(dir, look, dir);
+	GetVectorAngles(dir, view);
+
+	decl Float:zeroVel[3];
+	zeroVel[0] = 0.0; zeroVel[1] = 0.0; zeroVel[2] = 0.0;
+	TeleportEntity(client, plant, view, zeroVel);
+	g_fBaseAng[client][0] = view[0];
+	g_fBaseAng[client][1] = view[1] + 70.0; /* resting look is off-target for flick tests */
+	NormalizeYaw(g_fBaseAng[client][1]);
+
+	/* Freeze the target bot so the lock is on a real body, not a moving ghost. */
+	if (IsFakeClient(tgt))
+	{
+		SetEntityMoveType(tgt, MOVETYPE_NONE);
+		TeleportEntity(tgt, NULL_VECTOR, NULL_VECTOR, zeroVel);
+	}
+	return true;
+}
+
+FaceAim(client, bool:offTarget)
+{
+	decl Float:view[3], Float:zeroVel[3];
+	if (offTarget)
+	{
+		view[0] = g_fBaseAng[client][0];
+		view[1] = g_fBaseAng[client][1];
+	}
+	else
+	{
+		view[0] = g_fAimAng[client][0];
+		view[1] = g_fAimAng[client][1];
+	}
+	view[2] = 0.0;
+	zeroVel[0] = 0.0; zeroVel[1] = 0.0; zeroVel[2] = 0.0;
+	TeleportEntity(client, NULL_VECTOR, view, zeroVel);
+}
+
+NormalizeYaw(&Float:yaw)
+{
+	while (yaw > 180.0) yaw -= 360.0;
+	while (yaw < -180.0) yaw += 360.0;
+}
+
+RefreshAim(client)
+{
+	new tgt = g_iAimTarget[client];
+	if (tgt <= 0 || !IsClientInGame(tgt) || !IsPlayerAlive(tgt)
+		|| GetClientTeam(tgt) == GetClientTeam(client))
+	{
+		tgt = FindNearestEnemy(client);
+		g_iAimTarget[client] = tgt;
+	}
+	if (tgt <= 0)
 	{
 		g_fAimAng[client][0] = g_fBaseAng[client][0];
-		g_fAimAng[client][1] = g_fBaseAng[client][1] + 45.0;
+		g_fAimAng[client][1] = g_fBaseAng[client][1];
 		return;
 	}
 
 	decl Float:eye[3], Float:tgtPos[3], Float:dir[3], Float:ang[3];
 	GetClientEyePosition(client, eye);
-	GetClientAbsOrigin(tgt, tgtPos);
-	tgtPos[2] += 48.0;
+	GetClientEyePosition(tgt, tgtPos);
+	/* Aim at head (eye pos), not feet. */
 	MakeVectorFromPoints(eye, tgtPos, dir);
 	GetVectorAngles(dir, ang);
 	g_fAimAng[client][0] = ang[0];
@@ -333,9 +460,17 @@ FindNearestEnemy(client)
 	return best;
 }
 
+/* Zero movement so aim tests don't look like strafing into the void. */
+FreezeMove(&buttons, Float:vel[3])
+{
+	buttons &= ~(IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT | IN_JUMP | IN_DUCK);
+	vel[0] = 0.0;
+	vel[1] = 0.0;
+	vel[2] = 0.0;
+}
+
 ApplySoftCvars(client)
 {
-	/* Notice / soft punish — avoid kicking yourself mid-test. */
 	ServerCommand("smac_observe_new 1");
 	ServerCommand("smac_log_verbose 1");
 	ServerCommand("smac_AdvancedTrigger_Warning 1");
@@ -344,7 +479,7 @@ ApplySoftCvars(client)
 	ServerCommand("smac_AdvancedAutoFire_Ban 0");
 	ServerCommand("smac_FD_BHOP 1");
 	ServerCommand("smac_SpeedTeleport -2000");
-	ServerCommand("smac_SpeedTeleport_fast 0");
+	ServerCommand("smac_SpeedTeleport_fast 4");
 	ServerCommand("smac_SpeedLimitDetect 0");
 	ServerCommand("smac_NoS_NoR 1");
 	ServerCommand("smac_NoR_Ban 0");
@@ -360,7 +495,8 @@ ApplySoftCvars(client)
 	ServerCommand("smac_SoundESP 0");
 	ServerCommand("smac_triggerbot_ban 0");
 	ServerCommand("smac_move_wish_ban 0");
-	ServerCommand("smac_log_verbose 1");
+	ServerCommand("smac_aimbot_Advanced_Ban_AMSAF 0");
+	ServerCommand("smac_ultra_aim 1");
 	g_bSoftApplied = true;
 	ReplyToCommand(client, "[SMAC Test] soft cvars applied (notice-first, verbose log).");
 }
@@ -442,10 +578,6 @@ public Action:Timer_TpFastPulse(Handle:timer, any:userid)
 	return Plugin_Continue;
 }
 
-/* ------------------------------------------------------------------ */
-/* Injector — must run before detector plugins (0_ filename).          */
-/* ------------------------------------------------------------------ */
-
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon,
 	&subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
@@ -466,7 +598,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		}
 		else
 		{
-			PrintToChat(client, "[SMAC Test] auto-stop.");
+			PrintToChat(client, "[SMAC Test] auto-stop (%d reps).", g_iReps[client]);
 			ClearMode(client);
 			return Plugin_Continue;
 		}
@@ -478,26 +610,29 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	switch (mode)
 	{
 		case Mode_Cycle:
-		{
-			/* Active child mode stored in phase high bits? Use cycle runner. */
-			changed = RunCycleChild(client, buttons, vel, angles, cmdnum, tickcount);
-		}
+			changed = RunCycleChild(client, buttons, vel, angles, cmdnum, tickcount, mouse);
 		case Mode_Trigger:
-			changed = SimTrigger(client, buttons, angles);
+			changed = SimTrigger(client, buttons, vel, angles, mouse);
 		case Mode_AutoFire:
-			changed = SimAutoFire(client, buttons, angles);
+			changed = SimAutoFire(client, buttons, vel, angles, mouse);
 		case Mode_PSilent:
-			changed = SimPSilent(client, buttons, angles);
+			changed = SimPSilent(client, buttons, vel, angles, mouse);
 		case Mode_AimSnap:
-			changed = SimAimSnap(client, buttons, angles);
+			changed = SimAimSnap(client, buttons, vel, angles, mouse);
+		case Mode_Flick:
+			changed = SimFlick(client, buttons, vel, angles, mouse);
+		case Mode_Lock:
+			changed = SimLock(client, buttons, vel, angles, mouse);
+		case Mode_Silent:
+			changed = SimSilent(client, buttons, vel, angles, mouse);
 		case Mode_Bhop:
 			changed = SimBhop(client, buttons, vel);
 		case Mode_FastRun:
 			changed = SimFastRun(client, vel);
 		case Mode_NoRecoilA:
-			changed = SimNoRecoilA(client, buttons, angles);
+			changed = SimNoRecoilA(client, buttons, vel, angles);
 		case Mode_NoRecoilB:
-			changed = SimNoRecoilB(client, buttons, angles);
+			changed = SimNoRecoilB(client, buttons, vel, angles);
 		case Mode_Wish:
 			changed = SimWish(client, buttons, vel);
 		case Mode_Backtrack:
@@ -514,19 +649,20 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return changed ? Plugin_Changed : Plugin_Continue;
 }
 
-bool:RunCycleChild(client, &buttons, Float:vel[3], Float:angles[3], &cmdnum, &tickcount)
+bool:RunCycleChild(client, &buttons, Float:vel[3], Float:angles[3], &cmdnum, &tickcount, mouse[2])
 {
 	new sub = g_iPhase[client];
 	new bool:ch = false;
 	switch (sub)
 	{
-		case Mode_PSilent: ch = SimPSilent(client, buttons, angles);
-		case Mode_AimSnap: ch = SimAimSnap(client, buttons, angles);
-		case Mode_Trigger: ch = SimTrigger(client, buttons, angles);
+		case Mode_Flick: ch = SimFlick(client, buttons, vel, angles, mouse);
+		case Mode_Lock: ch = SimLock(client, buttons, vel, angles, mouse);
+		case Mode_Silent: ch = SimSilent(client, buttons, vel, angles, mouse);
+		case Mode_Trigger: ch = SimTrigger(client, buttons, vel, angles, mouse);
+		case Mode_AimSnap: ch = SimAimSnap(client, buttons, vel, angles, mouse);
 		case Mode_Wish: ch = SimWish(client, buttons, vel);
 		case Mode_Backtrack: ch = SimBacktrack(client, tickcount);
 		case Mode_CmdSpike: ch = SimCmdSpike(client, cmdnum);
-		case Mode_FastRun: ch = SimFastRun(client, vel);
 	}
 	return ch;
 }
@@ -535,13 +671,11 @@ AdvanceCycle(client)
 {
 	new cur = g_iPhase[client];
 	new next = Mode_None;
-	if (cur == Mode_PSilent) next = Mode_AimSnap;
-	else if (cur == Mode_AimSnap) next = Mode_Trigger;
-	else if (cur == Mode_Trigger) next = Mode_Wish;
-	else if (cur == Mode_Wish) next = Mode_Backtrack;
-	else if (cur == Mode_Backtrack) next = Mode_CmdSpike;
-	else if (cur == Mode_CmdSpike) next = Mode_FastRun;
-	else if (cur == Mode_FastRun) next = Mode_None;
+	if (cur == Mode_Flick) next = Mode_Lock;
+	else if (cur == Mode_Lock) next = Mode_Silent;
+	else if (cur == Mode_Silent) next = Mode_Trigger;
+	else if (cur == Mode_Trigger) next = Mode_AimSnap;
+	else if (cur == Mode_AimSnap) next = Mode_None;
 
 	if (next == Mode_None)
 	{
@@ -553,7 +687,8 @@ AdvanceCycle(client)
 	g_iPhase[client] = next;
 	g_iTick[client] = 0;
 	g_iReps[client] = 0;
-	g_fUntil[client] = GetGameTime() + 4.0;
+	g_fUntil[client] = GetGameTime() + 5.0;
+	PlantInFrontOfEnemy(client);
 	RefreshAim(client);
 
 	decl String:label[32];
@@ -561,18 +696,102 @@ AdvanceCycle(client)
 	PrintToChat(client, "[SMAC Test] cycle → %s", label);
 }
 
-bool:SimTrigger(client, &buttons, Float:angles[3])
+/* ------------------------------------------------------------------ */
+/* Realistic aim injectors — plant on enemy, freeze move, hit the head */
+/* ------------------------------------------------------------------ */
+
+bool:SimFlick(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
 {
-	/* Off-target, then acquire+attack edge same tick. Repeat. */
+	/*
+	 * Real aimbot flick: look 70° off target → calm ticks → one-tick snap
+	 * onto head → fire → settle still on target → look away again.
+	 */
+	FreezeMove(buttons, vel);
 	RefreshAim(client);
-	new step = g_iTick[client] % 8;
-	if (step < 5)
+	new step = g_iTick[client] % 14;
+
+	if (step < 6)
 	{
-		angles[0] = g_fAimAng[client][0];
-		angles[1] = g_fAimAng[client][1] + 35.0;
+		/* Resting off-target (client sees this via TeleportEntity). */
+		angles[0] = g_fBaseAng[client][0];
+		angles[1] = g_fBaseAng[client][1];
 		buttons &= ~IN_ATTACK;
+		mouse[0] = 0; mouse[1] = 0;
+		if (step == 0)
+			FaceAim(client, true);
 	}
-	else if (step == 5)
+	else if (step == 6)
+	{
+		/* Isolated snap onto head — previous tick was calm. */
+		angles[0] = g_fAimAng[client][0];
+		angles[1] = g_fAimAng[client][1];
+		buttons |= IN_ATTACK;
+		mouse[0] = 0; mouse[1] = 0; /* silent snap */
+		g_iReps[client]++;
+		FaceAim(client, false);
+	}
+	else if (step < 11)
+	{
+		/* Settle on head (no overshoot). */
+		angles[0] = g_fAimAng[client][0];
+		angles[1] = g_fAimAng[client][1];
+		buttons &= ~IN_ATTACK;
+		mouse[0] = 0; mouse[1] = 0;
+	}
+	else
+	{
+		angles[0] = g_fBaseAng[client][0];
+		angles[1] = g_fBaseAng[client][1];
+		buttons &= ~IN_ATTACK;
+		mouse[0] = 0; mouse[1] = 0;
+		if (step == 13)
+			FaceAim(client, true);
+	}
+	return true;
+}
+
+bool:SimLock(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
+{
+	/*
+	 * Soft aimlock: view glued to enemy head every tick while firing.
+	 * Target is nudged sideways so angular path is non-zero (autofire/lock).
+	 */
+	FreezeMove(buttons, vel);
+	RefreshAim(client);
+
+	new tgt = g_iAimTarget[client];
+	if (IS_CLIENT(tgt) && IsClientInGame(tgt) && IsPlayerAlive(tgt) && IsFakeClient(tgt))
+	{
+		decl Float:o[3];
+		GetClientAbsOrigin(tgt, o);
+		o[0] += (g_iTick[client] % 2 == 0) ? 2.5 : -2.5;
+		TeleportEntity(tgt, o, NULL_VECTOR, NULL_VECTOR);
+		RefreshAim(client);
+	}
+
+	angles[0] = g_fAimAng[client][0];
+	angles[1] = g_fAimAng[client][1];
+	buttons |= IN_ATTACK;
+	mouse[0] = 0;
+	mouse[1] = 0;
+	if ((g_iTick[client] % 5) == 0)
+		FaceAim(client, false);
+	g_iReps[client]++;
+	return true;
+}
+
+bool:SimSilent(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
+{
+	/*
+	 * pSilent / silent-aim: client view stays off-target (base), but the
+	 * usercmd for the shot tick aims at the head with clean mouse[].
+	 * Visually you keep looking aside while shots go into the bot.
+	 */
+	FreezeMove(buttons, vel);
+	RefreshAim(client);
+	new step = g_iTick[client] % 3;
+
+	if (step == 1)
 	{
 		angles[0] = g_fAimAng[client][0];
 		angles[1] = g_fAimAng[client][1];
@@ -581,82 +800,128 @@ bool:SimTrigger(client, &buttons, Float:angles[3])
 	}
 	else
 	{
-		angles[0] = g_fAimAng[client][0];
-		angles[1] = g_fAimAng[client][1];
+		angles[0] = g_fBaseAng[client][0];
+		angles[1] = g_fBaseAng[client][1];
 		buttons &= ~IN_ATTACK;
+		if (step == 0)
+			FaceAim(client, true); /* keep client view off-target */
 	}
+	mouse[0] = 0;
+	mouse[1] = 0;
 	return true;
 }
 
-bool:SimAutoFire(client, &buttons, Float:angles[3])
+bool:SimTrigger(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
 {
-	/* Hold fire while off-target, then swing onto enemy still holding. */
+	/* Off head → acquire+attack same tick (tick-perfect trigger). */
+	FreezeMove(buttons, vel);
 	RefreshAim(client);
-	new step = g_iTick[client] % 40;
-	buttons |= IN_ATTACK;
-	if (step < 10)
+	new step = g_iTick[client] % 10;
+	if (step < 6)
 	{
 		angles[0] = g_fAimAng[client][0];
 		angles[1] = g_fAimAng[client][1] + 40.0;
+		buttons &= ~IN_ATTACK;
+		if (step == 0)
+			FaceAim(client, true);
+	}
+	else if (step == 6)
+	{
+		angles[0] = g_fAimAng[client][0];
+		angles[1] = g_fAimAng[client][1];
+		buttons |= IN_ATTACK;
+		g_iReps[client]++;
+		FaceAim(client, false);
 	}
 	else
 	{
 		angles[0] = g_fAimAng[client][0];
 		angles[1] = g_fAimAng[client][1];
-		if (step == 39)
+		buttons &= ~IN_ATTACK;
+	}
+	mouse[0] = 0; mouse[1] = 0;
+	return true;
+}
+
+bool:SimAutoFire(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
+{
+	/* Hold fire off-target, then lock onto moving head while still holding. */
+	FreezeMove(buttons, vel);
+	RefreshAim(client);
+	new step = g_iTick[client] % 50;
+	buttons |= IN_ATTACK;
+	mouse[0] = 0; mouse[1] = 0;
+
+	if (step < 12)
+	{
+		angles[0] = g_fAimAng[client][0];
+		angles[1] = g_fAimAng[client][1] + 45.0;
+		if (step == 0)
+			FaceAim(client, true);
+	}
+	else
+	{
+		new tgt = g_iAimTarget[client];
+		if (IS_CLIENT(tgt) && IsClientInGame(tgt) && IsPlayerAlive(tgt) && IsFakeClient(tgt))
+		{
+			decl Float:o[3];
+			GetClientAbsOrigin(tgt, o);
+			o[1] += (step % 2 == 0) ? 3.0 : -3.0;
+			TeleportEntity(tgt, o, NULL_VECTOR, NULL_VECTOR);
+			RefreshAim(client);
+		}
+		angles[0] = g_fAimAng[client][0];
+		angles[1] = g_fAimAng[client][1];
+		if (step == 12)
+			FaceAim(client, false);
+		if (step == 49)
 			g_iReps[client]++;
 	}
 	return true;
 }
 
-bool:SimPSilent(client, &buttons, Float:angles[3])
+bool:SimPSilent(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
 {
-	/* A-B-A: base, aim+attack, base. */
+	return SimSilent(client, buttons, vel, angles, mouse);
+}
+
+bool:SimAimSnap(client, &buttons, Float:vel[3], Float:angles[3], mouse[2])
+{
+	/* Quiet → big snap onto head → quiet settle. */
+	FreezeMove(buttons, vel);
 	RefreshAim(client);
-	new step = g_iTick[client] % 3;
-	if (step == 0 || step == 2)
+	new step = g_iTick[client] % 8;
+	buttons |= IN_ATTACK;
+	mouse[0] = 0; mouse[1] = 0;
+
+	new Float:y = g_fBaseAng[client][1];
+	new Float:p = g_fBaseAng[client][0];
+	if (step <= 1)
 	{
-		angles[0] = g_fBaseAng[client][0];
-		angles[1] = g_fBaseAng[client][1];
+		angles[0] = p + (step * 0.05);
+		angles[1] = y + (step * 0.05);
 		if (step == 0)
-			buttons &= ~IN_ATTACK;
+			FaceAim(client, true);
 	}
-	else
+	else if (step == 2)
 	{
 		angles[0] = g_fAimAng[client][0];
 		angles[1] = g_fAimAng[client][1];
-		buttons |= IN_ATTACK;
 		g_iReps[client]++;
+		FaceAim(client, false);
 	}
-	/* Keep base drifting slightly so equality checks stay valid after many loops. */
-	if (step == 0 && (g_iTick[client] % 30) == 0)
-		g_fBaseAng[client][1] += 0.05;
-	return true;
-}
-
-bool:SimAimSnap(client, &buttons, Float:angles[3])
-{
-	/* Quiet noise → big snap → quiet. Need tiny non-zero deltas. */
-	RefreshAim(client);
-	new step = g_iTick[client] % 6;
-	buttons |= IN_ATTACK;
-	new Float:y = g_fBaseAng[client][1];
-	new Float:p = g_fBaseAng[client][0];
-	if (step == 0) { angles[0] = p; angles[1] = y; }
-	else if (step == 1) { angles[0] = p + 0.05; angles[1] = y + 0.05; }
-	else if (step == 2) { angles[0] = g_fAimAng[client][0]; angles[1] = g_fAimAng[client][1]; g_iReps[client]++; }
-	else if (step == 3) { angles[0] = g_fAimAng[client][0] + 0.05; angles[1] = g_fAimAng[client][1] + 0.05; }
-	else if (step == 4) { angles[0] = g_fAimAng[client][0] + 0.10; angles[1] = g_fAimAng[client][1] + 0.08; }
-	else { angles[0] = g_fAimAng[client][0] + 0.12; angles[1] = g_fAimAng[client][1] + 0.10; g_fBaseAng[client][0] = angles[0]; g_fBaseAng[client][1] = angles[1]; }
+	else
+	{
+		angles[0] = g_fAimAng[client][0] + float(step - 2) * 0.04;
+		angles[1] = g_fAimAng[client][1] + float(step - 2) * 0.03;
+		g_fBaseAng[client][0] = angles[0];
+		g_fBaseAng[client][1] = angles[1];
+	}
 	return true;
 }
 
 bool:SimBhop(client, &buttons, Float:vel[3])
 {
-	/*
-	 * Force short ground contact then leave: set FL_ONGROUND for 1 tick
-	 * with speed, then clear + IN_JUMP. Detectors read entity flags.
-	 */
 	decl Float:v[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", v);
 	new Float:speed = SquareRoot((v[0] * v[0]) + (v[1] * v[1]));
@@ -707,27 +972,50 @@ bool:SimFastRun(client, Float:vel[3])
 	return true;
 }
 
-bool:SimNoRecoilA(client, &buttons, Float:angles[3])
+bool:SimNoRecoilA(client, &buttons, Float:vel[3], Float:angles[3])
 {
+	FreezeMove(buttons, vel);
+	RefreshAim(client);
 	buttons |= IN_ATTACK;
 	decl Float:zero[3];
 	zero[0] = 0.0; zero[1] = 0.0; zero[2] = 0.0;
 	SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", zero);
-	angles[0] = g_fBaseAng[client][0];
-	angles[1] = g_fBaseAng[client][1];
+	angles[0] = g_fAimAng[client][0];
+	angles[1] = g_fAimAng[client][1];
 	g_iReps[client]++;
 	return true;
 }
 
-bool:SimNoRecoilB(client, &buttons, Float:angles[3])
+bool:SimNoRecoilB(client, &buttons, Float:vel[3], Float:angles[3])
 {
+	/*
+	 * Perfect RCS: view pitch mirrors punch pitch * 2 every tick while
+	 * spraying at the target head — matches the rewritten Mode B detector.
+	 */
+	FreezeMove(buttons, vel);
+	RefreshAim(client);
 	buttons |= IN_ATTACK;
+
 	decl Float:punch[3];
-	punch[0] = -2.0; punch[1] = 0.5; punch[2] = 0.0;
+	punch[0] = -1.8 - (float(g_iTick[client] % 8) * 0.35);
+	punch[1] = 0.4;
+	punch[2] = 0.0;
 	SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", punch);
-	/* Do not absorb — keep pitch flat. */
-	angles[0] = g_fBaseAng[client][0];
-	angles[1] = g_fBaseAng[client][1];
+
+	new Float:punchDelta = punch[0] - g_fPrevPunchPitch[client];
+	if (g_iTick[client] == 0)
+	{
+		angles[0] = g_fAimAng[client][0];
+		angles[1] = g_fAimAng[client][1];
+	}
+	else
+	{
+		/* angle -= punchDelta * 2  (CS:S classic norecoil) */
+		angles[0] = g_fAimAng[client][0] - (punchDelta * 2.0);
+		angles[1] = g_fAimAng[client][1];
+		g_fAimAng[client][0] = angles[0];
+	}
+	g_fPrevPunchPitch[client] = punch[0];
 	g_iReps[client]++;
 	return true;
 }
@@ -743,7 +1031,6 @@ bool:SimWish(client, &buttons, Float:vel[3])
 
 bool:SimBacktrack(client, &tickcount)
 {
-	/* Large illegal rewind vs prev+1. */
 	tickcount = GetGameTickCount() - 64;
 	g_iReps[client]++;
 	return true;
@@ -771,7 +1058,6 @@ bool:SimFastShoot(client, &buttons)
 		new Float:next = GetGameTime() + 1.0;
 		SetEntPropFloat(wep, Prop_Send, "m_flNextPrimaryAttack", next);
 	}
-	/* Attack edges. */
 	if ((g_iTick[client] % 2) == 0)
 		buttons |= IN_ATTACK;
 	else

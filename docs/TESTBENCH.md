@@ -12,48 +12,46 @@ SourceMod loads plugins alphabetically. The testbench must run `OnPlayerRunCmd` 
 
 ## Setup
 
-1. Compile (`scripts/compile-all.sh`) and move `0_smac_testbench.smx` into `plugins/` (or `sm plugins load`).
-2. You need `ADMFLAG_ROOT` (`sm_smactest`).
-3. Bots are **targets only** — detectors skip `IsFakeClient`.
-
 ```
-sm_smactest soft
-sm_smactest bots
-# join opposite team, stay alive, look roughly at bots
-sm_smactest psilent
+sm_smactest setup
+# soft cvars + bots + plant you in front of a frozen enemy
+sm_smactest flick
 ```
 
-Watch admin chat notices and `addons/sourcemod/logs/SMAC.log`.
+Or step by step: `soft` → `bots` → join opposite team → `setup` → scenario.
+
+Aim scenarios **freeze your movement**, plant you ~200u in front of a bot, and aim at their **head**. You should see snaps onto the bot, not sideways walking into empty space.
 
 ## Commands
 
 | Command | Effect |
 |---------|--------|
-| `sm_smactest soft` | Notice-only detector cvars (no kick/ban) |
-| `sm_smactest bots` | `bot_quota 4`, `bot_stop 1`, … |
+| `sm_smactest setup` | soft + bots + plant on enemy |
+| `sm_smactest soft` | Notice-only detector cvars |
+| `sm_smactest bots` | Fill bots, stop them |
 | `sm_smactest <scenario>` | Inject pattern on **you** |
-| `sm_smactest cycle` | Short sequence of several sims |
-| `sm_smactest fire <name>` | Call `SMAC_CheatDetected` only (pipeline/immunity) |
+| `sm_smactest cycle` | flick → lock → silent → trigger → aimsnap |
+| `sm_smactest fire <name>` | Call `SMAC_CheatDetected` only |
 | `sm_smactest stop` | Stop |
-| `sm_smactest status` | Active mode |
 
-## Scenarios
+## Realistic aim scenarios (preferred)
+
+| Name | What you see | Hits |
+|------|----------------|------|
+| `flick` | Look away → one-tick snap to head → fire → settle | Fast-AIM, aimsnap, aimkill, AGTAF |
+| `lock` | Glue to head while bot is nudged sideways + spray | Aimlock, AutoFire, AGT |
+| `silent` | Client view stays off-target; shots go into head (A-B-A) | pSilent, AMSAF |
+
+## Other scenarios
 
 | Name | Hits |
 |------|------|
-| `trigger` | Advanced Trigger |
-| `autofire` | Advanced AutoFire |
-| `psilent` | pSilent A-B-A + attack |
-| `aimsnap` | StAC-style quiet/snap/quiet |
-| `bhop` | FD_BHOP land→leave (flag spoof; may be flaky) |
-| `fastrun` | FD Fast Run overspeed |
-| `teleport` / `tpfast` | SpeedTeleport / Fast Detect |
-| `norecoila` / `norecoilb` | NoRecoil Mode A/B |
-| `wish` | Magic wishspeed (movesanity/SSAC) |
-| `backtrack` / `cmdspike` | tickcount / cmdnum abuse |
-| `fastshoot` | Early `m_flNextPrimaryAttack` edges |
-
-Not auto-simulated: **SpeedLimit** (needs real cmd flood), **SoundESP react**, **AimKill** (use `fire aimkill` for pipeline).
+| `trigger` / `autofire` | Advanced Trigger / AutoFire (planted) |
+| `psilent` / `aimsnap` | Same family as silent / flick |
+| `bhop` / `fastrun` | FD bhop / overspeed |
+| `teleport` / `tpfast` | SpeedTeleport |
+| `norecoila` / `norecoilb` | Mode A (zero punch) / Mode B (perfect RCS mirror) |
+| `wish` / `backtrack` / `cmdspike` / `fastshoot` | Movement / tick abuse |
 
 ## Cvars
 
