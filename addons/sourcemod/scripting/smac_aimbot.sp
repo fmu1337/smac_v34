@@ -19,10 +19,11 @@ public Plugin:myinfo =
 new Handle:g_hCvarAimbotBan = INVALID_HANDLE;
 new Handle:g_IgnoreWeapons = INVALID_HANDLE;
 
-new Float:g_fEyeAngles[MAXPLAYERS][64][3];
-new g_iEyeIndex[MAXPLAYERS];
+/* Array sizing aligned with xMaZax/SMAC 0.8.7.3 (MAXPLAYERS+1). */
+new Float:g_fEyeAngles[MAXPLAYERS+1][64][3];
+new g_iEyeIndex[MAXPLAYERS+1];
 
-new g_iAimDetections[MAXPLAYERS];
+new g_iAimDetections[MAXPLAYERS+1];
 new g_iAimbotBan = 0;
 new g_iMaxAngleHistory;
 
@@ -105,7 +106,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		GetClientAbsOrigin(victim, vVictim);
 		GetClientAbsOrigin(attacker, vAttacker);
 		
-		if (GetVectorDistance(vVictim, vAttacker) >= AIM_MIN_DISTANCE)
+		if (!SMAC_IsClientLagging(attacker) && GetVectorDistance(vVictim, vAttacker) >= AIM_MIN_DISTANCE)
 		{
 			Aimbot_AnalyzeAngles(attacker);
 		}
@@ -138,8 +139,21 @@ public Action:Timer_DecreaseCount(Handle:timer, any:userid)
 	return Plugin_Stop;
 }
 
+public OnGameFrame()
+{
+	SMAC_ServerLagSample();
+}
+
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
+	/* Server hitch / client lag drops usercmds, so consecutive history
+	   entries jump >45° and look like snaps. Wipe and re-arm. */
+	if (SMAC_IsClientLagging(client))
+	{
+		Aimbot_ClearAngles(client);
+		return Plugin_Continue;
+	}
+
 	g_fEyeAngles[client][g_iEyeIndex[client]] = angles;
 
 	if (++g_iEyeIndex[client] == g_iMaxAngleHistory)

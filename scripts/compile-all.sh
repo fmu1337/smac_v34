@@ -34,6 +34,8 @@ fi
 PLUGINS=(
 	smac.sp
 	smac_aimbot.sp
+	smac_aimlock.sp
+	smac_aimorigin.sp
 	smac_antiaim.sp
 	smac_autotrigger.sp
 	smac_client.sp
@@ -43,11 +45,39 @@ PLUGINS=(
 	smac_css_fixes.sp
 	smac_cvars.sp
 	smac_eyetest.sp
+	smac_immunity.sp
+	smac_psilent.sp
 	smac_rcon.sp
+	smac_serverlock.sp
 	smac_speedhack.sp
 	smac_spinhack.sp
 	smac_status.sp
+	smac_strafe.sp
+	smac_strafesync.sp
+	smac_triggerbot.sp
+	smac_turncheck.sp
+	smac_movesanity.sp
+	smac_strikeback.sp
+	smac_teleport.sp
+	smac_entityspam.sp
+	smac_ssac.sp
+	smac_norecoil.sp
+	smac_fakelag.sp
+	smac_firemacro.sp
+	smac_ultra_aim.sp
+	smac_backtrack.sp
+	smac_fastreload.sp
+	smac_aimsnap.sp
+	smac_advtrigger.sp
+	smac_fdbhop.sp
+	smac_speedlimit.sp
+	smac_aimkill.sp
+	smac_soundesp.sp
+	smac_ultratools.sp
+	smac_nospamweapon.sp
+	smac_cheatcfg.sp
 	smac_wallhack.sp
+	0_smac_testbench.sp
 )
 
 mkdir -p "$OUT_DIR"
@@ -62,7 +92,12 @@ echo
 failed=0
 for plugin in "${PLUGINS[@]}"; do
 	src="$SCRIPTING/$plugin"
-	out="$OUT_DIR/${plugin%.sp}.smx"
+	if [[ "$plugin" == "0_smac_testbench.sp" || "$plugin" == "smac_immunity.sp" ]]; then
+		mkdir -p "$OUT_DIR/disabled"
+		out="$OUT_DIR/disabled/${plugin%.sp}.smx"
+	else
+		out="$OUT_DIR/${plugin%.sp}.smx"
+	fi
 	echo "Compiling $plugin ..."
 	if ! "$SPCOMP" \
 		"-i$PROJECT_INCLUDE" \

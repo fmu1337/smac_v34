@@ -83,6 +83,8 @@ public OnPluginStart()
 	AddCvar(Order_Last, "cl_overdraw_test",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "cl_phys_timescale",	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "cl_showevents",		Comp_Equal, Action_Ban, "0.0");
+	/* From StAC / LilAC via Cheat-Acid — blocks NoLerp cheats that disable interpolation. */
+	AddCvar(Order_Last, "cl_interpolate",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "fog_enable",		Comp_Equal, Action_Ban, "1.0");
 	
 	
@@ -111,6 +113,14 @@ public OnPluginStart()
 	
 	
 	AddCvar(Order_Last, "host_timescale",		Comp_Replicated, Action_Ban);
+	// HOTGUARD / CA-ClientProtect client sanity (CSS-safe subset).
+	AddCvar(Order_Last, "cl_pitchup",			Comp_Equal, Action_Ban, "89.0");
+	AddCvar(Order_Last, "cl_pitchdown",		Comp_Equal, Action_Ban, "89.0");
+	// cl_bobcycle check removed: the HOTGUARD value 0.98 is the CS 1.6 default,
+	// CS:S defaults to 0.8 — every stock client was a false positive (banned owner on 2026-07-21).
+	AddCvar(Order_Last, "net_fakelag",			Comp_Equal, Action_Ban, "0.0");
+	AddCvar(Order_Last, "net_fakeloss",			Comp_Equal, Action_Ban, "0.0");
+	AddCvar(Order_Last, "net_fakejitter",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_dxlevel",			Comp_Greater, Action_Kick, "80.0");
 	AddCvar(Order_Last, "mat_fillrate",			Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_measurefillrate",	Comp_Equal, Action_Ban, "0.0");

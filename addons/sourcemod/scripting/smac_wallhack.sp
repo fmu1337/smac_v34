@@ -23,8 +23,21 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
+/*
+ * Sound/TE jitter ideas rewritten from SauRay SP layer
+ * (https://github.com/toomuchvoltage/SauRay) — without HighOmega GPU IPC.
+ * GPU raytracing core is Windows-only + map pipeline; not used here.
+ */
+
 new bool:g_bFarEspEnabled;
 new g_iMaxTraces; //ty for crashfix to alex smirnov (aka Ultr@)
+
+new Handle:g_hCvarSoundJitter = INVALID_HANDLE;
+new Handle:g_hCvarTeJitter = INVALID_HANDLE;
+new Handle:g_hCvarWeaponTip = INVALID_HANDLE;
+new bool:g_bSoundJitter = true;
+new bool:g_bTeJitter = true;
+new Float:g_fWeaponTip = 50.0;
 
 new g_iDownloadTable = INVALID_STRING_TABLE;
 new Handle:g_hIgnoreSounds = INVALID_HANDLE;
@@ -51,8 +64,21 @@ new g_iTickCount, g_iCmdTickCount[MAXPLAYERS], g_iTickRate;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
+	CreateNative("SMAC_IsClientVisible", Native_IsClientVisible);
 	RegPluginLibrary("smac_wallhack");
 	return APLRes_Success;
+}
+
+/* Expose visibility cache for Strike Back modules (SMAC Ultra idea). */
+public Native_IsClientVisible(Handle:plugin, numParams)
+{
+	new viewer = GetNativeCell(1);
+	new subject = GetNativeCell(2);
+	if (!IS_CLIENT(viewer) || !IS_CLIENT(subject))
+		return true;
+	if (viewer >= MAXPLAYERS || subject >= MAXPLAYERS)
+		return true;
+	return g_bIsVisible[subject][viewer];
 }
 
 public OnPluginStart()
@@ -65,6 +91,17 @@ public OnPluginStart()
 	hCvar = CreateConVar("smac_wallhack_ticktime", "0.75", "Scan speed of players are behind the wall.", _, true, 0.1, true, 2.0);
 	WallHack_TickOnSettingsChanged(hCvar, "", "");
 	HookConVarChange(hCvar, WallHack_TickOnSettingsChanged);
+
+	/* SauRay-inspired SP mitigations (no GPU daemon). */
+	g_hCvarSoundJitter = CreateConVar("smac_wallhack_sound_jitter", "1", "Randomize sound origins for listeners who cannot see the emitter.", _, true, 0.0, true, 1.0);
+	g_hCvarTeJitter = CreateConVar("smac_wallhack_te_jitter", "1", "Jitter FireBullets TE origin (reduces WH shot ESP).", _, true, 0.0, true, 1.0);
+	g_hCvarWeaponTip = CreateConVar("smac_wallhack_weapon_tip", "56.0", "Eye-forward weapon tip length for visibility traces (SauRay uses ~32-64).", _, true, 32.0, true, 80.0);
+	OnSoundJitterChanged(g_hCvarSoundJitter, "", "");
+	OnTeJitterChanged(g_hCvarTeJitter, "", "");
+	OnWeaponTipChanged(g_hCvarWeaponTip, "", "");
+	HookConVarChange(g_hCvarSoundJitter, OnSoundJitterChanged);
+	HookConVarChange(g_hCvarTeJitter, OnTeJitterChanged);
+	HookConVarChange(g_hCvarWeaponTip, OnWeaponTipChanged);
 	
 	g_iTickRate = RoundToFloor(1.0 / GetTickInterval());
 	
@@ -92,6 +129,7 @@ public OnPluginStart()
 	}
 	
 	AddNormalSoundHook(Hook_NormalSound);
+	Wallhack_InitBulletTEHook();
 	
 	HookEvent("player_spawn", Event_PlayerStateChanged, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerStateChanged, EventHookMode_Post);
@@ -315,10 +353,100 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 	{
 		decl Float:vOrigin[3];
 		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vOrigin);
-		EmitSound(newClients, newTotal, sample, SOUND_FROM_WORLD, channel, level, flags, volume, pitch, _, vOrigin);
+
+		if (!g_bSoundJitter)
+		{
+			EmitSound(newClients, newTotal, sample, SOUND_FROM_WORLD, channel, level, flags, volume, pitch, _, vOrigin);
+		}
+		else
+		{
+			/* Per-listener jitter when the emitter is not visible (SauRay SoundHook idea). */
+			for (new n = 0; n < newTotal; n++)
+			{
+				new client = newClients[n];
+				decl Float:vEmit[3];
+				vEmit[0] = vOrigin[0];
+				vEmit[1] = vOrigin[1];
+				vEmit[2] = vOrigin[2];
+
+				if (IS_CLIENT(client) && IS_CLIENT(iOwner) && !g_bIsVisible[iOwner][client] && client != iOwner)
+				{
+					decl Float:vListener[3], Float:vDiff[3];
+					GetClientAbsOrigin(client, vListener);
+					SubtractVectors(vListener, vOrigin, vDiff);
+					new Float:diffLen = GetVectorLength(vDiff) * 0.5;
+					if (diffLen < 100.0)
+						diffLen = 100.0;
+					new span = RoundToNearest(diffLen);
+					if (span < 1) span = 1;
+					vEmit[0] += float(GetRandomInt(0, span) - span / 2);
+					vEmit[1] += float(GetRandomInt(0, span) - span / 2);
+					vEmit[2] += float(GetRandomInt(0, span) - span / 2);
+				}
+
+				EmitSoundToClient(client, sample, SOUND_FROM_WORLD, channel, level, flags, volume, pitch, _, vEmit);
+			}
+		}
 	}
 	
 	return Plugin_Stop;
+}
+
+public OnSoundJitterChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_bSoundJitter = GetConVarBool(convar);
+}
+
+public OnTeJitterChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_bTeJitter = GetConVarBool(convar);
+}
+
+public OnWeaponTipChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_fWeaponTip = GetConVarFloat(convar);
+}
+
+/**
+ * Bullet TE names:
+ *   CS:S / CSS34 — "Shotgun Shot" (space!) — see FrozDark custom_weapons
+ *   DoD / some engines — "FireBullets"
+ * Wrong name throws Invalid TempEntity and aborts OnPluginStart.
+ */
+Wallhack_InitBulletTEHook()
+{
+	if (!g_bTeJitter)
+		return;
+
+	decl String:game[32];
+	GetGameFolderName(game, sizeof(game));
+
+	if (StrEqual(game, "cstrike", false))
+	{
+		AddTempEntHook("Shotgun Shot", TE_OnFireBullets);
+		LogMessage("[SMAC] wallhack: hooked temp ent \"Shotgun Shot\" (CS:S).");
+	}
+	else
+	{
+		AddTempEntHook("FireBullets", TE_OnFireBullets);
+		LogMessage("[SMAC] wallhack: hooked temp ent \"FireBullets\".");
+	}
+}
+
+public Action:TE_OnFireBullets(const String:te_name[], const Players[], numClients, Float:delay)
+{
+	if (!g_bTeJitter)
+		return Plugin_Continue;
+
+	/* Jitter shot TE origin so WH clients cannot pinpoint hidden shooters.
+	 * CSS TE fields (custom_weapons): m_vecOrigin, m_vecAngles[0/1], m_iPlayer. */
+	decl Float:vOrigin[3];
+	TE_ReadVector("m_vecOrigin", vOrigin);
+	vOrigin[0] += float(GetRandomInt(0, 200) - 100);
+	vOrigin[1] += float(GetRandomInt(0, 200) - 100);
+	vOrigin[2] += float(GetRandomInt(0, 200) - 100);
+	TE_WriteVector("m_vecOrigin", vOrigin);
+	return Plugin_Continue;
 }
 
 /**
@@ -625,7 +753,7 @@ bool:IsFwdVecVisible(const Float:start[3], const Float:angles[3], const Float:en
 	decl Float:fwd[3];
 	
 	GetAngleVectors(angles, fwd, NULL_VECTOR, NULL_VECTOR);
-	ScaleVector(fwd, 50.0);
+	ScaleVector(fwd, g_fWeaponTip);
 	AddVectors(end, fwd, fwd);
 
 	return IsPointVisible(start, fwd);

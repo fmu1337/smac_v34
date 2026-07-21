@@ -69,6 +69,84 @@ stock GetPluginBasename(Handle:plugin, String:buffer[], maxlength)
 	}
 }
 
+/**
+ * Server-side hitch detector. When the SERVER misses ticks (overloaded VM,
+ * bot spikes, disk stalls) every client's usercmds get processed in bursts
+ * with repeated/rolled-back tickcounts while their OWN net stats look clean
+ * (loss 0 / choke 0) — a fake-detect storm. Call SMAC_ServerLagSample() from
+ * public OnGameFrame(), then check SMAC_IsServerLagging().
+ */
+new Float:g_fSmacPrevFrameEngTime;
+new Float:g_fSmacServerLagUntil;
+new Float:g_fSmacFrameEma;
+
+stock SMAC_ServerLagSample()
+{
+	new Float:now = GetEngineTime();
+	if (g_fSmacPrevFrameEngTime > 0.0)
+	{
+		new Float:dt = now - g_fSmacPrevFrameEngTime;
+
+		/* Seed the rolling average on the first real sample. */
+		if (g_fSmacFrameEma <= 0.0)
+			g_fSmacFrameEma = dt;
+
+		/* Only a SPIKE relative to the recent frame time means a hitch that
+		   batches/replays usercmds (the fake-detect trigger). A server that is
+		   merely running at a low but STEADY framerate has dt ~ ema and must
+		   NOT be flagged — otherwise detection is disabled for the whole match
+		   on any busy box. Require both a real relative jump and an absolute
+		   floor so fast servers don't trip on sub-ms noise. */
+		if (dt > 0.050 && dt > g_fSmacFrameEma * 3.0)
+			g_fSmacServerLagUntil = GetGameTime() + 0.5;
+
+		/* EMA (~1/16 weight) of frame time, clamped so a single huge stall
+		   doesn't poison the baseline for long. */
+		if (dt > g_fSmacFrameEma * 4.0)
+			dt = g_fSmacFrameEma * 4.0;
+		g_fSmacFrameEma += (dt - g_fSmacFrameEma) * 0.0625;
+	}
+	g_fSmacPrevFrameEngTime = now;
+}
+
+stock bool:SMAC_IsServerLagging()
+{
+	return (g_fSmacServerLagUntil > 0.0 && GetGameTime() < g_fSmacServerLagUntil);
+}
+
+/**
+ * Returns true while the client's connection is degraded (packet loss, heavy
+ * choke, ping spike or timeout) OR the server itself is hitching. Movement /
+ * angle / tick based detectors should skip sampling during these windows —
+ * batched/replayed usercmds look like cheats (frozen pitch => norecoil B,
+ * repeated tickcount => airstuck, tick rollback => backtrack, angle jumps
+ * => fast-aim). Server-side sampling requires SMAC_ServerLagSample() in
+ * OnGameFrame; without it only client metrics are used.
+ */
+stock bool:SMAC_IsClientLagging(client, Float:maxLoss=0.05, Float:maxChoke=0.30, Float:maxPingSpike=0.10)
+{
+	if (SMAC_IsServerLagging())
+		return true;
+
+	if (!IsClientInGame(client) || IsFakeClient(client))
+		return false;
+
+	if (IsClientTimingOut(client))
+		return true;
+
+	if (GetClientAvgLoss(client, NetFlow_Both) > maxLoss)
+		return true;
+
+	if (GetClientAvgChoke(client, NetFlow_Both) > maxChoke)
+		return true;
+
+	/* Current ping far above session average = momentary lag spike. */
+	if (GetClientLatency(client, NetFlow_Outgoing) - GetClientAvgLatency(client, NetFlow_Outgoing) > maxPingSpike)
+		return true;
+
+	return false;
+}
+
 stock bool:IsConVarDefault(Handle:convar)
 {
 	decl String:sDefaultVal[16], String:sCurrentVal[16];
@@ -76,6 +154,87 @@ stock bool:IsConVarDefault(Handle:convar)
 	GetConVarString(convar, sCurrentVal, sizeof(sCurrentVal));
 	
 	return StrEqual(sDefaultVal, sCurrentVal);
+}
+
+/**
+ * Legacy xMaZax SMAC detectors — may ban/kick even when smac_observe_new is on.
+ */
+stock bool:SMAC_IsLegacyDetection(DetectionType:type)
+{
+	return (type == Detection_Aimbot
+		|| type == Detection_AutoTrigger
+		|| type == Detection_NameChangeSpam
+		|| type == Detection_CommandSpamming
+		|| type == Detection_BannedCommand
+		|| type == Detection_CvarViolation
+		|| type == Detection_UserCmdReuse
+		|| type == Detection_UserCmdTamperingTickcount
+		|| type == Detection_UserCmdTamperingButtons
+		|| type == Detection_Eyeangles
+		|| type == Detection_ChatClear
+		|| type == Detection_HardFlood);
+}
+
+stock bool:SMAC_IsLegacyPlugin(const String:basename[])
+{
+	return (StrEqual(basename, "smac_aimbot", false)
+		|| StrEqual(basename, "smac_autotrigger", false)
+		|| StrEqual(basename, "smac_commands", false)
+		|| StrEqual(basename, "smac_cvars", false)
+		|| StrEqual(basename, "smac_eyetest", false)
+		|| StrEqual(basename, "smac_client", false)
+		|| StrEqual(basename, "smac_status", false));
+}
+
+/**
+ * When smac_observe_new=1, only legacy detections/plugins may kick/ban.
+ * New ports stay on log + admin notice for live data collection.
+ */
+stock bool:SMAC_MayEnforce(DetectionType:type, const String:plugin[]="")
+{
+	new Handle:hObserve = FindConVar("smac_observe_new");
+	if (hObserve == INVALID_HANDLE || !GetConVarBool(hObserve))
+		return true;
+
+	if (SMAC_IsLegacyDetection(type))
+		return true;
+
+	if (type == Detection_Unknown && strlen(plugin) > 0 && SMAC_IsLegacyPlugin(plugin))
+		return true;
+
+	return false;
+}
+
+/**
+ * Ultr@-style signed reaction:
+ *   0  = off / notice-only (caller still logs)
+ *  +N  = ban after N detections
+ *  -N  = kick after abs(N) detections
+ * Returns true if a kick/ban was applied.
+ */
+stock bool:SMAC_UltraReact(client, detections, reaction, const String:banReason[], const String:kickPhrase[])
+{
+	if (!SMAC_MayEnforce(Detection_Unknown))
+		return false;
+
+	if (reaction == 0 || detections <= 0)
+		return false;
+
+	new need = reaction;
+	if (need < 0)
+		need = -need;
+
+	if (detections < need)
+		return false;
+
+	if (reaction > 0)
+	{
+		SMAC_Ban(client, banReason);
+		return true;
+	}
+
+	KickClient(client, "%t", kickPhrase);
+	return true;
 }
 
 stock StringToLower(String:input[])

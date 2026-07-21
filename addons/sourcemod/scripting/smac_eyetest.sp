@@ -21,6 +21,7 @@ enum ResetStatus {
 
 
 new Handle:g_hCvarBan = INVALID_HANDLE;
+new Handle:g_hCvarCompat = INVALID_HANDLE;
 new Float:g_fDetectedTime[MAXPLAYERS+1];
 
 new bool:g_bPrevAlive[MAXPLAYERS+1];
@@ -37,6 +38,8 @@ public OnPluginStart()
 	
 	// Convars.
 	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Automatically ban players on eye test detections.", _, true, 0.0, true, 1.0);
+	/* Ported from xMaZax/SMAC 0.8.7.3 (Silenci0/SMAC fork) — reduces FP with third-party plugins. */
+	g_hCvarCompat = SMAC_CreateConVar("smac_eyetest_compat", "1", "Enable compatibility mode with third-party plugins. This will disable some detection methods.", _, true, 0.0, true, 1.0);
 	// FEATURECAP_PLAYERRUNCMD_11PARAMS shipped in SourceMod 1.5.0 (not 1.7).
 	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires SourceMod 1.5.0 or newer (FEATURECAP_PLAYERRUNCMD_11PARAMS).");
 	
@@ -146,8 +149,8 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			return Plugin_Handled;
 		}
 	
-		// The tickcount should be incremented.
-		if (g_iPrevTickCount[client]+1 != tickcount)
+		/* Ported from xMaZax/SMAC 0.8.7.3 — allow same tick, +1, or engine tick (alt-tab / lag FP fix). */
+		if (g_iPrevTickCount[client] != tickcount && g_iPrevTickCount[client]+1 != tickcount && tickcount != GetGameTickCount())
 		{
 			g_fDetectedTime[client] = GetGameTime() + 30.0;
 			new Handle:info = CreateKeyValues("");
@@ -173,9 +176,8 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			return Plugin_Handled;
 		}
 		
-		// Check for specific buttons in order to avoid compatibility issues with server-side plugins.
-		if (((g_iPrevButtons[client] ^ buttons) & (IN_FORWARD|IN_BACK|IN_MOVELEFT|IN_MOVERIGHT|IN_SCORE))) 
-		//if (!GetConVarBool(g_hCvarCompat) && (AbsValue(g_iPrevButtons[client] - buttons) & (IN_FORWARD|IN_BACK|IN_MOVELEFT|IN_MOVERIGHT|IN_SCORE))) - new shit [b3 method]
+		/* Ported from xMaZax/SMAC 0.8.7.3 — button tamper gated by smac_eyetest_compat. */
+		if (!GetConVarBool(g_hCvarCompat) && ((g_iPrevButtons[client] ^ buttons) & (IN_FORWARD|IN_BACK|IN_MOVELEFT|IN_MOVERIGHT|IN_SCORE)))
 		{
 			g_fDetectedTime[client] = GetGameTime() + 30.0;
 			

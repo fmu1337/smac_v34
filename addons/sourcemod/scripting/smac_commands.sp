@@ -24,6 +24,7 @@ new g_iCmdSpamLimit = 35;
 new bool:g_bLogCommands;
 new g_iCmdCount[MAXPLAYERS+1] = {0, ...};
 new Handle:g_hCvarCmdSpam = INVALID_HANDLE;
+new Handle:g_hCvarCmdSpmKick = INVALID_HANDLE;
 new Handle:g_hLogCommands = INVALID_HANDLE;
 
 new String:g_sLogPath[PLATFORM_MAX_PATH];
@@ -34,6 +35,8 @@ public OnPluginStart()
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
 	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "35", "Amount of commands allowed per second. (0 = Disabled)", _, true, 0.0);
+	/* Ported from xMaZax/SMAC 0.8.7.3 (https://github.com/xMaZax/SMAC). */
+	g_hCvarCmdSpmKick = SMAC_CreateConVar("smac_anticmdspam_kick", "1", "Choose to kick or simply notify that commands are being spammed. (0 = Notify  1 = Kick)", _, true, 0.0, true, 1.0);
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 	
@@ -45,6 +48,8 @@ public OnPluginStart()
 	AddCommandListener(Command_Say, "say_team");
 	AddCommandListener(Command_BlockEntExploit, "ent_create");
 	AddCommandListener(Command_BlockEntExploit, "ent_fire");
+	/* Ported from xMaZax/SMAC 0.8.7.3 — block give entity exploit. */
+	AddCommandListener(Command_BlockEntExploit, "give");
 	HookEvent("player_disconnect", Commands_EventDisconnect, EventHookMode_Pre);
 	g_hBlockedCmds = CreateTrie();
 	g_hIgnoredCmds = CreateTrie();
@@ -95,6 +100,42 @@ public OnPluginStart()
 	SetTrieValue(g_hBlockedCmds, "sv_soundemitter_flush", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "sv_soundscape_printdebuginfo", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "wc_update_entity", Action_Block);
+	/* Extra CSS v34 abuse cmds from ProtectCMDS (WeSTManCoder) — SP block list only. */
+	SetTrieValue(g_hBlockedCmds, "q_sndrcn", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "send_me_rcon", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "wc_update_safe_entities", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_create_aimed", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_destroy", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_freeze", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_conditions", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_combat", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_focus", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_enemies", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_bipass", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_tasks", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_teleport", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "npc_go", Action_Block);
+	/* Extra blocks from SMAC Ultra smac_cmd_block.cfg */
+	SetTrieValue(g_hBlockedCmds, "kill", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "noclip", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "bat_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_create", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_fire", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_remove", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_rotate", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "ent_setname", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_install", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_uninstall", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "es_unload", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "est_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "eventscripts_ver", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "lua", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "openscript", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "mani_admin_plugin_version", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "r_showothermodels", Action_Block);
+	SetTrieValue(g_hBlockedCmds, "shutdown", Action_Ban);
+	SetTrieValue(g_hBlockedCmds, "mine", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "changelevel", Action_Ban);
 	SetTrieValue(g_hBlockedCmds, "speed.toggle", Action_Kick);
 	
@@ -355,11 +396,12 @@ public Action:Command_BlockEntExploit(client, const String:command[], args)
 
 public Action:Command_CommandListener(client, const String:command[], argc)
 {
-	if (!IS_CLIENT(client))// || (IsClientConnected(client) && IsFakeClient(client)))
+	/* Restored client gates from xMaZax/SMAC 0.8.7.3. */
+	if (!IS_CLIENT(client) || (IsClientConnected(client) && IsFakeClient(client)))
 		return Plugin_Continue;
 		
-
-//	if (!IsClientInGame(client))	return Plugin_Stop;
+	if (!IsClientInGame(client))
+		return Plugin_Stop;
 
 	// NOTE: InternalDispatch automatically lower cases "command".
 	new ActionType:cAction = Action_Block;
@@ -409,13 +451,20 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 		KvSetString(info, "command", command);
 		KvSetString(info, "argstring", sArgString);
 		
-		PrintToServer("DEBUG: Client %i - Command %s - arg %s", client, command, sArgString);
-		
 		if (SMAC_CheatDetected(client, Detection_CommandSpamming, info) == Plugin_Continue)
 		{
-			SMAC_PrintAdminNotice("%N was kicked for spamming: %s %s", client, command, sArgString);
-			SMAC_LogAction(client, "was kicked for spamming: %s %s", command, sArgString);
-			KickClient(client, "%t", "SMAC_CommandSpamKick");
+			/* Ported from xMaZax/SMAC 0.8.7.3 — optional notify-only mode. */
+			if (GetConVarInt(g_hCvarCmdSpmKick) == 1)
+			{
+				SMAC_PrintAdminNotice("%N was kicked for spamming: %s %s", client, command, sArgString);
+				SMAC_LogAction(client, "was kicked for spamming: %s %s", command, sArgString);
+				KickClient(client, "%t", "SMAC_CommandSpamKick");
+			}
+			else
+			{
+				SMAC_PrintAdminNotice("%N looks to be spamming commands: %s %s", client, command, sArgString);
+				SMAC_LogAction(client, "looks to be spamming commands: %s %s", command, sArgString);
+			}
 		}
 		
 		CloseHandle(info);

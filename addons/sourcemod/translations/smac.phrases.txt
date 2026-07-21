@@ -36,6 +36,406 @@
 		"en"		"Your client has failed to reply to a query in time. Please reconnect or restart your game"
 	}
 	
+	"SMAC_FailedAuth"
+	{
+		"en"		"Your client has failed to authorize in time! Please reconnect or restart your game."
+	}
+
+	"SMAC_AimlockDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of using an aimlock. (Detection #{2})"
+	}
+
+	"SMAC_pSilentDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of using pSilent / NoRecoil. (Detection #{2})"
+	}
+
+	"SMAC_AimOriginDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of consistent aim origin. (Detection #{2})"
+	}
+
+	"SMAC_SilentStrafeDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of silent strafe. (Detection #{2})"
+	}
+
+	"SMAC_PerfectStrafeDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of perfect strafe sync. (Detection #{2})"
+	}
+
+	"SMAC_IllegalSidemoveDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of illegal sidemove. (Detection #{2})"
+	}
+
+	"SMAC_TriggerBotDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of using a triggerbot. (Detection #{2})"
+	}
+
+	"SMAC_MouseAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of mouse-aim desync. (Detection #{2})"
+	}
+
+	"SMAC_AngleDesyncDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of identical yaw-delta desync. (Detection #{2})"
+	}
+
+	"SMAC_WiggleDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of wiggle (+left+right). (Detection #{2})"
+	}
+
+	"SMAC_AntiAimAnglesDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of anti-aim angle snaps. (Detection #{2})"
+	}
+
+	"SMAC_AngleDelayDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of angle delay after strafe. (Detection #{2})"
+	}
+
+	"SMAC_WishVelocityDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of illegal wish velocity. (Detection #{2})"
+	}
+
+	"SMAC_PerfectBhopDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of perfect bunnyhop. (Detection #{2})"
+	}
+
+	"SMAC_AutoShootDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of autoshoot. (Detection #{2})"
+	}
+
+	"SMAC_KeySwitchDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of scripted key switches. (Detection #{2})"
+	}
+
+	"SMAC_StrafeSyncDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of perfect strafe sync. (Detection #{2})"
+	}
+
+	"SMAC_KnifeBotWHDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of knifebot through wallhack. (Detection #{2})"
+	}
+
+	"SMAC_AimThroughWHDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of aiming through wallhack. (Detection #{2})"
+	}
+
+	"SMAC_TeleportDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of teleport hack. (Detection #{2})"
+	}
+
+	"SMAC_TeleportKick"
+	{
+		"en"		"You were kicked for suspicious teleport movement"
+	}
+
+	"SMAC_EntitySpamDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of entity spam. (Detection #{2})"
+	}
+
+	"SMAC_EntitySpamKick"
+	{
+		"en"		"You were kicked for entity spam"
+	}
+
+	"SMAC_SensitivitySpamKick"
+	{
+		"en"		"You were kicked for frequent mouse sensitivity changes"
+	}
+
+	"SMAC_SensitivityLowKick"
+	{
+		"#format"	"{1:.1f},{2:.1f}"
+		"en"		"You were kicked for low mouse sensitivity ({1} < {2})"
+	}
+
+	"SMAC_SensitivityHighKick"
+	{
+		"#format"	"{1:.1f},{2:.1f}"
+		"en"		"You were kicked for high mouse sensitivity ({1} > {2})"
+	}
+
+	"SMAC_ImpulseSpamKick"
+	{
+		"en"		"You were kicked for impulse command spam"
+	}
+
+	"SMAC_TimedBhopDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of timed bhop hack. (Detection #{2})"
+	}
+
+	"SMAC_AirStuckDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of airstuck. (Detection #{2})"
+	}
+
+	"SMAC_FastLadderDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of fast ladder. (Detection #{2})"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of illegal wishspeed. (Detection #{2})"
+	}
+
+	"SMAC_LagExploitDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of cmdnum lag exploit. (Detection #{2})"
+	}
+
+	"SMAC_MouselessAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of mouse-less aim. (Detection #{2})"
+	}
+
+	"SMAC_NoRecoilDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of NoRecoil. (Detection #{2})"
+	}
+
+	"SMAC_FakeLagDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fake Lag. (Detection #{2})"
+	}
+
+	"SMAC_FakeLagKick"
+	{
+		"en"		"You were kicked for suspicious Fake Lag"
+	}
+
+	"SMAC_Attack2MacroDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of +attack2 fire macro. (Detection #{2})"
+	}
+
+	"SMAC_FastAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fast AIM. (Detection #{2})"
+	}
+
+	"SMAC_UltraPRGDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ PRG aim (Pass.Mode 30x). (Detection #{2})"
+	}
+
+	"SMAC_UltraAGTDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AGT aim (Mode 288/299). (Detection #{2})"
+	}
+
+	"SMAC_UltraAGTAFDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AGTAF aim (Mode 88/99). (Detection #{2})"
+	}
+
+	"SMAC_UltraTriggerAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ Trigger aim (Mode 188/199). (Detection #{2})"
+	}
+
+	"SMAC_UltraNullAimDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ Null-Level aim (Mode 200). (Detection #{2})"
+	}
+
+	"SMAC_UltraRCSDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ Recoil Control System. (Detection #{2})"
+	}
+
+	"SMAC_UltraAGTWSDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AGTWS aim (Mode 100). (Detection #{2})"
+	}
+
+	"SMAC_UltraAMSAFDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Ultr@ AMSAF aim (Mode 101). (Detection #{2})"
+	}
+
+	"SMAC_BacktrackDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Backtrack exploit (Mode A). (Detection #{2})"
+	}
+
+	"SMAC_CmdnumSpikeDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of cmdnum spike (nospread). (Detection #{2})"
+	}
+
+	"SMAC_FastReloadDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fast Reload. (Detection #{2})"
+	}
+
+	"SMAC_FastShootDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fast Shoot (rate). (Detection #{2})"
+	}
+
+	"SMAC_AimsnapDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Aimsnap. (Detection #{2})"
+	}
+
+	"SMAC_AdvancedTriggerDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"en"		"{1} is suspected of AimBot (Advanced Trigger). (Detection #{2} | Weapon: {3})"
+	}
+
+	"SMAC_AdvancedTriggerKick"
+	{
+		"en"		"You were kicked for Advanced Trigger suspicion"
+	}
+
+	"SMAC_AdvancedAutoFireDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"en"		"{1} is suspected of AimBot (Trigger, Advanced Auto-Fire). (Detection #{2} | Weapon: {3})"
+	}
+
+	"SMAC_AdvancedAutoFireKick"
+	{
+		"en"		"You were kicked for Advanced Auto-Fire suspicion"
+	}
+
+	"SMAC_FastBhopDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of BunnyHop: Fast Detect. (Detection #{2})"
+	}
+
+	"SMAC_FastBhopKick"
+	{
+		"en"		"You were kicked for BunnyHop Fast Detect"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Fast Run Cheat. (Detection #{2})"
+	}
+
+	"SMAC_FastRunKick"
+	{
+		"en"		"You were kicked for Fast Run suspicion"
+	}
+
+	"SMAC_SpeedLimitDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of packet-rate SpeedLimit. (Detection #{2})"
+	}
+
+	"SMAC_SpeedLimitKick"
+	{
+		"en"		"You were kicked for SpeedLimit anomaly"
+	}
+
+	"SMAC_TeleportFastDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Teleport Hack: Fast Detect. (Detection #{2})"
+	}
+
+	"SMAC_NoRecoilBDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of No Recoil [Mode:B]. (Detection #{2})"
+	}
+
+	"SMAC_NoRecoilKick"
+	{
+		"en"		"You were kicked for NoRecoil suspicion"
+	}
+
+	"SMAC_AimKillDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Aim-Kill. (Detection #{2})"
+	}
+
+	"SMAC_AimKillKick"
+	{
+		"en"		"You were kicked for Aim-Kill suspicion"
+	}
+
+	"SMAC_SoundESPDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of SoundESP react. (Detection #{2})"
+	}
+
+	"SMAC_SoundESPKick"
+	{
+		"en"		"You were kicked for SoundESP suspicion"
+	}
+	
 	"SMAC_Muted"
 	{
 		"#format"	"{1:N}"
@@ -132,5 +532,55 @@
 	{
 		"#format"	"{1:N},{2:s},{3:s},{4:s},{5:i},{6:s}"
 		"en"		"\n\n================================\n -= | SMAC v34: Cheat Detected | =- \n================================\n You are Banned from this server!\n================================\n Name: {1}\n SteamID: {2} \n IP: {3} \n Reason: {4} \n Duration: {5} min. \n Contact: {6}\n ===============================\n\n"
+	}
+
+	"SMAC_WeaponSpamDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of weapon-drop spam. (Detection #{2})"
+	}
+
+	"SMAC_WeaponSpamKick"
+	{
+		"en"		"You were kicked for weapon-drop spam"
+	}
+
+	"SMAC_AirStuckFastDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of Airstuck: Fast Detect. (Detection #{2})"
+	}
+
+	"SMAC_AirStuckKick"
+	{
+		"en"		"You were kicked for airstuck"
+	}
+
+	"SMAC_DDoSDetected"
+	{
+		"#format"	"{1:N},{2:i}"
+		"en"		"{1} is suspected of DDoS packet flood. (Detection #{2})"
+	}
+
+	"SMAC_DDoSKick"
+	{
+		"en"		"You were kicked for DDoS / packet flood"
+	}
+
+	"SMAC_CheatCFGDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"en"		"{1} is suspected of CheatCFG ({3}). (Detection #{2})"
+	}
+
+	"SMAC_CheatCFGKick"
+	{
+		"en"		"You were kicked for CheatCFG"
+	}
+
+	"SMAC_VoiceAbuseDetected"
+	{
+		"#format"	"{1:N},{2:s}"
+		"en"		"{1} triggered Voice abuse protection ({2})"
 	}
 }

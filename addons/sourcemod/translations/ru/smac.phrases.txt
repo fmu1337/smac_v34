@@ -24,6 +24,353 @@
 	{
 		"ru"		"Ваш клиент не отвечает на запросы сервера, попробуйте перезапустить его."
 	}
+	
+	"SMAC_FailedAuth"
+	{
+		"ru"		"Клиент не прошел авторизацию. Попробуйте перезапустить клиента."
+	}
+
+	"SMAC_AimlockDetected"
+	{
+		"ru"		"{1} подозревается в использовании aimlock. (Детект #{2})"
+	}
+
+	"SMAC_pSilentDetected"
+	{
+		"ru"		"{1} подозревается в pSilent / NoRecoil. (Детект #{2})"
+	}
+
+	"SMAC_AimOriginDetected"
+	{
+		"ru"		"{1} подозревается в consistent aim origin. (Детект #{2})"
+	}
+
+	"SMAC_SilentStrafeDetected"
+	{
+		"ru"		"{1} подозревается в silent strafe. (Детект #{2})"
+	}
+
+	"SMAC_PerfectStrafeDetected"
+	{
+		"ru"		"{1} подозревается в perfect strafe sync. (Детект #{2})"
+	}
+
+	"SMAC_IllegalSidemoveDetected"
+	{
+		"ru"		"{1} подозревается в illegal sidemove. (Детект #{2})"
+	}
+
+	"SMAC_TriggerBotDetected"
+	{
+		"ru"		"{1} подозревается в triggerbot. (Детект #{2})"
+	}
+
+	"SMAC_MouseAimDetected"
+	{
+		"ru"		"{1} подозревается в mouse-aim desync. (Детект #{2})"
+	}
+
+	"SMAC_AngleDesyncDetected"
+	{
+		"ru"		"{1} подозревается в identical yaw-delta desync. (Детект #{2})"
+	}
+
+	"SMAC_WiggleDetected"
+	{
+		"ru"		"{1} подозревается в wiggle (+left+right). (Детект #{2})"
+	}
+
+	"SMAC_AntiAimAnglesDetected"
+	{
+		"ru"		"{1} подозревается в anti-aim angle snaps. (Детект #{2})"
+	}
+
+	"SMAC_AngleDelayDetected"
+	{
+		"ru"		"{1} подозревается в angle delay after strafe. (Детект #{2})"
+	}
+
+	"SMAC_WishVelocityDetected"
+	{
+		"ru"		"{1} подозревается в illegal wish velocity. (Детект #{2})"
+	}
+
+	"SMAC_PerfectBhopDetected"
+	{
+		"ru"		"{1} подозревается в perfect bunnyhop. (Детект #{2})"
+	}
+
+	"SMAC_AutoShootDetected"
+	{
+		"ru"		"{1} подозревается в autoshoot. (Детект #{2})"
+	}
+
+	"SMAC_KeySwitchDetected"
+	{
+		"ru"		"{1} подозревается в scripted key switches. (Детект #{2})"
+	}
+
+	"SMAC_StrafeSyncDetected"
+	{
+		"ru"		"{1} подозревается в perfect strafe sync. (Детект #{2})"
+	}
+
+	"SMAC_KnifeBotWHDetected"
+	{
+		"ru"		"{1} подозревается в knifebot через wallhack. (Детект #{2})"
+	}
+
+	"SMAC_AimThroughWHDetected"
+	{
+		"ru"		"{1} подозревается в аиме через wallhack. (Детект #{2})"
+	}
+
+	"SMAC_TeleportDetected"
+	{
+		"ru"		"{1} подозревается в teleport hack. (Детект #{2})"
+	}
+
+	"SMAC_TeleportKick"
+	{
+		"ru"		"Вы кикнуты за подозрительный телепорт"
+	}
+
+	"SMAC_EntitySpamDetected"
+	{
+		"ru"		"{1} подозревается в entity spam. (Детект #{2})"
+	}
+
+	"SMAC_EntitySpamKick"
+	{
+		"ru"		"Вы кикнуты за спам entity"
+	}
+
+	"SMAC_SensitivitySpamKick"
+	{
+		"ru"		"Вы кикнуты за частую смену sensitivity"
+	}
+
+	"SMAC_SensitivityLowKick"
+	{
+		"ru"		"Вы кикнуты за слишком низкую sensitivity ({1} < {2})"
+	}
+
+	"SMAC_SensitivityHighKick"
+	{
+		"ru"		"Вы кикнуты за слишком высокую sensitivity ({1} > {2})"
+	}
+
+	"SMAC_ImpulseSpamKick"
+	{
+		"ru"		"Вы кикнуты за спам impulse"
+	}
+
+	"SMAC_TimedBhopDetected"
+	{
+		"ru"		"{1} подозревается в timed bhop. (Детект #{2})"
+	}
+
+	"SMAC_AirStuckDetected"
+	{
+		"ru"		"{1} подозревается в airstuck. (Детект #{2})"
+	}
+
+	"SMAC_FastLadderDetected"
+	{
+		"ru"		"{1} подозревается в fast ladder. (Детект #{2})"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"ru"		"{1} подозревается в illegal wishspeed. (Детект #{2})"
+	}
+
+	"SMAC_LagExploitDetected"
+	{
+		"ru"		"{1} подозревается в cmdnum lag exploit. (Детект #{2})"
+	}
+
+	"SMAC_MouselessAimDetected"
+	{
+		"ru"		"{1} подозревается в mouse-less aim. (Детект #{2})"
+	}
+
+	"SMAC_NoRecoilDetected"
+	{
+		"ru"		"{1} подозревается в NoRecoil. (Детект #{2})"
+	}
+
+	"SMAC_FakeLagDetected"
+	{
+		"ru"		"{1} подозревается в Fake Lag. (Детект #{2})"
+	}
+
+	"SMAC_FakeLagKick"
+	{
+		"ru"		"Вы кикнуты за подозрение в Fake Lag"
+	}
+
+	"SMAC_Attack2MacroDetected"
+	{
+		"ru"		"{1} подозревается в +attack2 fire macro. (Детект #{2})"
+	}
+
+	"SMAC_FastAimDetected"
+	{
+		"ru"		"{1} подозревается в Fast AIM. (Детект #{2})"
+	}
+
+	"SMAC_UltraPRGDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ PRG aim (Pass.Mode 30x). (Детект #{2})"
+	}
+
+	"SMAC_UltraAGTDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AGT aim (Mode 288/299). (Детект #{2})"
+	}
+
+	"SMAC_UltraAGTAFDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AGTAF aim (Mode 88/99). (Детект #{2})"
+	}
+
+	"SMAC_UltraTriggerAimDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ Trigger aim (Mode 188/199). (Детект #{2})"
+	}
+
+	"SMAC_UltraNullAimDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ Null-Level aim (Mode 200). (Детект #{2})"
+	}
+
+	"SMAC_UltraRCSDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ Recoil Control System. (Детект #{2})"
+	}
+
+	"SMAC_UltraAGTWSDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AGTWS aim (Mode 100). (Детект #{2})"
+	}
+
+	"SMAC_UltraAMSAFDetected"
+	{
+		"ru"		"{1} подозревается в Ultr@ AMSAF aim (Mode 101). (Детект #{2})"
+	}
+
+	"SMAC_BacktrackDetected"
+	{
+		"ru"		"{1} подозревается в Backtrack exploit (Mode A). (Детект #{2})"
+	}
+
+	"SMAC_CmdnumSpikeDetected"
+	{
+		"ru"		"{1} подозревается в cmdnum spike (nospread). (Детект #{2})"
+	}
+
+	"SMAC_FastReloadDetected"
+	{
+		"ru"		"{1} подозревается в Fast Reload. (Детект #{2})"
+	}
+
+	"SMAC_FastShootDetected"
+	{
+		"ru"		"{1} подозревается в Fast Shoot (rate). (Детект #{2})"
+	}
+
+	"SMAC_AimsnapDetected"
+	{
+		"ru"		"{1} подозревается в Aimsnap. (Детект #{2})"
+	}
+
+	"SMAC_AdvancedTriggerDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"ru"		"{1} подозревается в AimBot (Advanced Trigger). (Детект #{2} | Оружие: {3})"
+	}
+
+	"SMAC_AdvancedTriggerKick"
+	{
+		"ru"		"Вы кикнуты по подозрению в Advanced Trigger"
+	}
+
+	"SMAC_AdvancedAutoFireDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:s}"
+		"ru"		"{1} подозревается в AimBot (Trigger, Advanced Auto-Fire). (Детект #{2} | Оружие: {3})"
+	}
+
+	"SMAC_AdvancedAutoFireKick"
+	{
+		"ru"		"Вы кикнуты по подозрению в Advanced Auto-Fire"
+	}
+
+	"SMAC_FastBhopDetected"
+	{
+		"ru"		"{1} подозревается в BunnyHop: Fast Detect. (Детект #{2})"
+	}
+
+	"SMAC_FastBhopKick"
+	{
+		"ru"		"Вы кикнуты за BunnyHop Fast Detect"
+	}
+
+	"SMAC_FastRunDetected"
+	{
+		"ru"		"{1} подозревается в Fast Run Cheat. (Детект #{2})"
+	}
+
+	"SMAC_FastRunKick"
+	{
+		"ru"		"Вы кикнуты за Fast Run"
+	}
+
+	"SMAC_SpeedLimitDetected"
+	{
+		"ru"		"{1} подозревается в SpeedLimit (пакеты). (Детект #{2})"
+	}
+
+	"SMAC_SpeedLimitKick"
+	{
+		"ru"		"Вы кикнуты за SpeedLimit аномалию"
+	}
+
+	"SMAC_TeleportFastDetected"
+	{
+		"ru"		"{1} подозревается в Teleport Hack: Fast Detect. (Детект #{2})"
+	}
+
+	"SMAC_NoRecoilBDetected"
+	{
+		"ru"		"{1} подозревается в No Recoil [Mode:B]. (Детект #{2})"
+	}
+
+	"SMAC_NoRecoilKick"
+	{
+		"ru"		"Вы кикнуты за NoRecoil"
+	}
+
+	"SMAC_AimKillDetected"
+	{
+		"ru"		"{1} подозревается в Aim-Kill. (Детект #{2})"
+	}
+
+	"SMAC_AimKillKick"
+	{
+		"ru"		"Вы кикнуты за Aim-Kill"
+	}
+
+	"SMAC_SoundESPDetected"
+	{
+		"ru"		"{1} подозревается в SoundESP. (Детект #{2})"
+	}
+
+	"SMAC_SoundESPKick"
+	{
+		"ru"		"Вы кикнуты за SoundESP"
+	}
 		
 	"SMAC_Muted"
 	{
@@ -109,5 +456,50 @@
 	{
 		"#format"	"{1:N},{2:s},{3:s},{4:s},{5:i},{6:s}"
 		"ru"		"\n\n================================\n -= | SMAC v34: Обнаружен чит! | =- \n================================\n Вы забанены за читы!\n================================\n Ваш ник: {1}\n SteamID: {2} \n IP: {3} \n Причина: {4} \n Продолжительность: {5} мин. \n Данные администратора: {6}\n ===============================\n\n"
+	}
+
+	"SMAC_WeaponSpamDetected"
+	{
+		"ru"		"{1} подозревается в спаме дропом оружия. (Детект #{2})"
+	}
+
+	"SMAC_WeaponSpamKick"
+	{
+		"ru"		"Вы кикнуты за спам дропом оружия"
+	}
+
+	"SMAC_AirStuckFastDetected"
+	{
+		"ru"		"{1} подозревается в Airstuck: Fast Detect. (Детект #{2})"
+	}
+
+	"SMAC_AirStuckKick"
+	{
+		"ru"		"Вы кикнуты за airstuck"
+	}
+
+	"SMAC_DDoSDetected"
+	{
+		"ru"		"{1} подозревается в DDoS пакетном флуде. (Детект #{2})"
+	}
+
+	"SMAC_DDoSKick"
+	{
+		"ru"		"Вы кикнуты за DDoS / пакетный флуд"
+	}
+
+	"SMAC_CheatCFGDetected"
+	{
+		"ru"		"{1} подозревается в CheatCFG ({3}). (Детект #{2})"
+	}
+
+	"SMAC_CheatCFGKick"
+	{
+		"ru"		"Вы кикнуты за CheatCFG"
+	}
+
+	"SMAC_VoiceAbuseDetected"
+	{
+		"ru"		"{1} сработала защита Voice ({2})"
 	}
 }

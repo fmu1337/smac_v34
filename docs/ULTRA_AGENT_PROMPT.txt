@@ -1,0 +1,18 @@
+Ты агент с доступом к SMAC Ultr@ (исходники и/или распакованные .sp / рабочий сервер). Целевой проект: GitHub fmu1337/smac_v34, ветка cursor/port-xmazax-smac-4b55 (PR #7). CSS v34, SourceMod ~1.6, СТАРЫЙ SourcePawn, автор новых модулей SMAC_AUTHOR=Danyas.
+
+Прочитай в репо docs/ULTRA_HANDOFF.md — там полный контекст, что уже портировано, и приоритеты P0–P2.
+
+Задача:
+1) Из Ultr@ добыть алгоритмы детекторов, которых ещё нет / слабо в v34 (сначала P0):
+   AdvancedTrigger, AdvancedAutoFire, BunnyHop Fast Detect (smac_FD_BHOP),
+   Teleport/SpeedTeleport/SpeedLimitDetect/SpeedUp,
+   NoRecoil Mode A vs B, Ultr@ PSilent Active Mode,
+   smac_AIM_Kill, smac_SoundESP, точная логика Fast Reload/Shooting.
+2) Для каждого — по шаблону из ULTRA_HANDOFF.md: файлы, триггер, условие, FP-фильтры, наказание −N/+N, псевдокод, куда класть в v34, риски FP.
+3) Переписать в новые/существующие smac_*.sp (не 1:1 dump Ultr@). Soft *_ban=0 на high-FP. Phrases EN+RU, DetectionType в smac.inc, compile-all.sh.
+4) НЕ трогать: WH Ignore, UCP, SoftDetector/AntiDLL без C++ ext.
+5) Commit + push на cursor/port-xmazax-smac-4b55, обновить описание PR #7.
+
+Если исходников нет и только .smx: FFPS+zlib unpack, .data strings, runtime dump после OnPluginStart; SmartPawn CF — не жди чистый Lysis.
+
+Итог: код в PR + короткий отчёт «Ultr@ умеет / v34 ещё нет» и что дотестить на живом CSS.
