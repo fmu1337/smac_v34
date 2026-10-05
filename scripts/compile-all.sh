@@ -77,8 +77,34 @@ PLUGINS=(
 	smac_nospamweapon.sp
 	smac_cheatcfg.sp
 	smac_wallhack.sp
+	smac_u_netcode.sp
+	smac_u_movement.sp
+	smac_u_aimbot.sp
+	smac_u_cheatcfg.sp
 	0_smac_testbench.sp
 )
+
+# Built into plugins/disabled/ (not loaded by SourceMod):
+#  - testbench / immunity: manual tools;
+#  - modules replaced by the SMAC Ultr@ R52 ports (smac_u_*). They register the
+#    same Ultr@ cvars (smac_Airstuck_reaction, smac_FD_BHOP, smac_css_CheatCFG,
+#    smac_aimbot_Advanced_*_PRG/AGTNL) and must not run together with them.
+DISABLED=(
+	0_smac_testbench.sp
+	smac_immunity.sp
+	smac_ultra_aim.sp
+	smac_ssac.sp
+	smac_fdbhop.sp
+	smac_cheatcfg.sp
+)
+
+is_disabled() {
+	local p
+	for p in "${DISABLED[@]}"; do
+		[[ "$p" == "$1" ]] && return 0
+	done
+	return 1
+}
 
 mkdir -p "$OUT_DIR"
 
@@ -92,7 +118,7 @@ echo
 failed=0
 for plugin in "${PLUGINS[@]}"; do
 	src="$SCRIPTING/$plugin"
-	if [[ "$plugin" == "0_smac_testbench.sp" || "$plugin" == "smac_immunity.sp" ]]; then
+	if is_disabled "$plugin"; then
 		mkdir -p "$OUT_DIR/disabled"
 		out="$OUT_DIR/disabled/${plugin%.sp}.smx"
 	else

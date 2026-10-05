@@ -105,6 +105,13 @@ enum DetectionType {
 	Detection_DDoS = 6800,			/* smac_DDoS_Ctrl packet flood */
 	Detection_CheatCFG = 6900,		/* smac_css_CheatCFG jumpthrow/switch */
 	Detection_VoiceAbuse = 7000,		/* smac_Voice_Ctrl */
+
+	/* Ultr@ R52 ports from decoded 001_SMAC_Global.smx (smac_u_*.sp). */
+	Detection_UltraPSilent = 7100,		/* PSilent [Active Mode]: choke on shot */
+	Detection_UltraEyeAngles = 7200,	/* Eye Angles test 04: pitch ±89.9 / roll ±30 */
+	Detection_UltraAdvBhop = 7300,		/* Advanced BunnyHop (perfect jumps at >= 350 u/s) */
+	Detection_UltraStopShoot = 7400,	/* CheatCFG: Stop movement, AIM CFG/Script */
+	Detection_UltraFastSwitch = 7500,	/* CheatCFG: Fast Weapon Switch CFG/Script */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

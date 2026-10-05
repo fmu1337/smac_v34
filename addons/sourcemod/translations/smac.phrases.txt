@@ -583,4 +583,15 @@
 		"#format"	"{1:N},{2:s}"
 		"en"		"{1} triggered Voice abuse protection ({2})"
 	}
+
+	"SMAC_UltraNotice"
+	{
+		"#format"	"{1:N},{2:s},{3:d}"
+		"en"		"{1} detected: {2} (#{3})"
+	}
+
+	"SMAC_UltraKick"
+	{
+		"en"		"You were kicked by the anti-cheat (suspicious usercmds)"
+	}
 }

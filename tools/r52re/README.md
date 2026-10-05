@@ -13,6 +13,7 @@
 | `host.py`, `hybrid.py` | модель SM-хоста (квары из `smac.cfg`, `OnPluginStart/OnConfigsExecuted/OnMapStart/OnClientPutInServer`), классификация глобалов: пул констант / per-client состояние |
 | `directed2.py`, `run_chain.py`, `run_chain_pub.py` | направленный поиск пути к блоку детекта (CFG-reachability + отсечение) |
 | `crep.py`, `svar.py` | отчёты: условия на пути к детекту, кто пишет переменную состояния |
+| `dbgsym.py` | имена и адреса глобалов из `.dbg.symbols` (в R51 часть имён не обфусцирована) |
 
 Пример:
 

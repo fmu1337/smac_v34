@@ -252,7 +252,8 @@ GetActiveClip(client)
 	new wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if (wep <= MaxClients || !IsValidEdict(wep))
 		return -1;
-	if (!HasEntProp(wep, Prop_Send, "m_iClip1"))
+	/* HasEntProp() needs SM 1.7+; GetEntSendPropOffs() works on SM 1.6 (v34). */
+	if (GetEntSendPropOffs(wep, "m_iClip1") == -1)
 		return -1;
 	return GetEntProp(wep, Prop_Send, "m_iClip1");
 }
