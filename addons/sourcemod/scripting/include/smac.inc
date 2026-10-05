@@ -25,7 +25,12 @@ enum DetectionType {
 	Detection_Eyeangles,
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
-	
+
+	/* SMAC Ultr@ R52 ports (smac_ultra_*.sp). */
+	Detection_AirStuck = 3500,
+	Detection_LagExploit = 3800,
+	Detection_Backtrack = 5200,
+	Detection_UltraPSilent = 7100,
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

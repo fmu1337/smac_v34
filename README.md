@@ -32,3 +32,8 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 `smac_wallhack` и `smac_eyetest` вызывают `RequireFeature(..., FEATURECAP_PLAYERRUNCMD_11PARAMS)`. Этот capability появился в **SourceMod 1.5.0** ([API Changes](https://wiki.alliedmods.net/Sourcemod_1.5.0_API_Changes)), не в 1.7. На нормальном SM ≥ 1.5 (включая css34 SM 1.6.4) модули должны загружаться.
 
 Если wallhack не грузится с сообщением про «newer version of SourceMod» — проверьте, что у вас действительно SM ≥ 1.5 с рабочим SDKTools, а не урезанный/битый билд.
+
+## Порты SMAC Ultr@ R52
+
+* `smac_ultra_netcode` — Airstuck, Lag Exploit, Backtrack B, PSilent [Active Mode] по декоду SMAC Ultr@ R52.
+  По умолчанию только уведомления админам. Подробности — в [docs/ULTRA_NETCODE.md](docs/ULTRA_NETCODE.md).

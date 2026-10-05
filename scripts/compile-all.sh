@@ -48,6 +48,7 @@ PLUGINS=(
 	smac_spinhack.sp
 	smac_status.sp
 	smac_wallhack.sp
+	smac_ultra_netcode.sp
 )
 
 mkdir -p "$OUT_DIR"
