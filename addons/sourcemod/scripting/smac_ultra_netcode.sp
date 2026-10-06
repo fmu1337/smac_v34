@@ -6,26 +6,35 @@
 /*
  * SMAC Ultr@ R52 port: usercmd / netcode detectors.
  *
- * Rewritten from the logic recovered from 001_SMAC_Global.smx of SMAC Ultr@ R52
- * (docs/ULTRA_NETCODE.md). No Ultr@ code and no Ultr@Tools extension is used.
+ * Rewritten from 001_SMAC_Global.smx of SMAC Ultr@ R52 as decompiled with
+ * tools/r52re/decomp.py (docs/R52_SPEC.md, docs/ULTRA_NETCODE.md). No Ultr@ code
+ * and no Ultr@Tools extension is used.
  *
- *   Airstuck        - cmdnum advances by 1 but the client tickcount repeats while the
- *                     player is active (buttons / mouse / angles). 6 in a row = stage,
- *                     2 stages within 5 s = detection.
- *   Lag Exploit     - the server processes one cmd per tick and cmdnum advances
- *                     normally (+1..11), but the client tickcount jumps forward > 11.
- *                     More than 5 jumps (gaps < 5 s) = detection.
- *   Backtrack B     - cmdnum goes backwards (out-of-order / replayed usercmds).
- *                     More than 22 (gaps < 10 s) = detection.
- *   PSilent Active  - the shot usercmd was choked: it is processed in the same server
- *                     frame as the next cmd, while the cmd before it was not.
- *                     3 shots in a row = detection.
+ *   Airstuck        - cmdnum advances by exactly 1 but the client tickcount repeats
+ *                     while the player is active (buttons / mouse / angles). 6 such cmds
+ *                     = stage (a tickcount change resets the streak), 2 stages = detection.
+ *                     Stages decay by 1 every 420 s (R52 delayed check).
+ *   Lag Exploit     - the server processed the last 4 cmds on consecutive ticks, cmdnum
+ *                     advanced normally (+1..11) but the client tickcount jumped > 11.
+ *                     More than 5 jumps (gaps < 5 s) = detection. R52 also counts cmdnum
+ *                     jumps > 11 for the whole map; that is packet loss, so it is left out.
+ *   Backtrack B     - cmdnum goes backwards. 23 rollbacks = stage, 2 stages = detection,
+ *                     stages decay by 1 every 128 s.
+ *   PSilent Active  - at the shot (weapon_fire = R52 FireBullets TE hook):
+ *                       armed = 2 when the last 4 cmds have cmdnum and tickcount growing by
+ *                       exactly 1, server ticks [0..2] consecutive, and the shot cmd arrived
+ *                       after a server-tick gap (> 1) - i.e. it was choked - while the aim
+ *                       moved (|dYaw| > 1.5*thr3 or |mouse| change > 1.5*thr4);
+ *                       armed = 1 when only the aim moved.
+ *                     While +attack is held, every cmd that shares its server tick with the
+ *                     previous one (the two before did not) adds 1; > 2 = detection.
+ *                     thr3 = min(sensitivity * 0.033 * 2.6, 0.7), thr4 = min(sensitivity * 15, 80).
  *
  * Common R52 rules:
  *   - nothing is judged right after spawn / trigger_teleport, while the client has
- *     loss/choke/ping spikes or while the server itself hitches;
- *   - kick/ban only with ping < 150 ms and > 70% of tickrate packets from the client
- *     (R52: 46.2 pkt/s on 66 tick); otherwise the detection is only logged;
+ *     loss/choke/ping spikes or while the server itself hitches (added for safety);
+ *   - kick/ban is lowered by one step when the client ping is >= 150 ms and by one more
+ *     when it sends <= 70% of tickrate packets (R52: 46.2 pkt/s on 66 tick);
  *   - admins with ban/root flag are never punished (still logged).
  *
  * Cvars keep the Ultr@ names. Defaults are admin-notice only.
@@ -42,7 +51,7 @@ public Plugin:myinfo =
 
 #define AIRSTUCK_STREAK		6
 #define AIRSTUCK_STAGES		2
-#define AIRSTUCK_STAGE_TTL	5.0
+#define AIRSTUCK_DECAY		420.0
 
 #define LAG_MAX_CMD_STEP	11
 #define LAG_MIN_TICK_STEP	11
@@ -50,12 +59,16 @@ public Plugin:myinfo =
 #define LAG_EVENT_TTL		5.0
 
 #define BACKTRACK_EVENTS	22
-#define BACKTRACK_EVENT_TTL	10.0
+#define BACKTRACK_STAGES	2
+#define BACKTRACK_DECAY		128.0
 
-#define PSILENT_STREAK		3
-#define BATCH_EMA_ALPHA		0.02
-#define BATCH_EMA_MAX		0.05
-#define BATCH_EMA_START		0.1
+#define PSILENT_ARMED		2
+#define PSILENT_DETECT		2
+#define PSILENT_DECAY		420.0
+
+#define SENS_UNKNOWN_THR3	100.0
+#define SENS_UNKNOWN_THR4	10000.0
+#define QUERY_INTERVAL		60.0
 
 #define SPAWN_GRACE			1.0
 #define TELEPORT_GRACE		0.5
@@ -74,16 +87,20 @@ new Handle:g_hCvarPSilentWarn = INVALID_HANDLE;
 new Handle:g_hCvarPSilentBan = INVALID_HANDLE;
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
 
-/* Previous usercmd. */
-new bool:g_bHasPrev[MAXPLAYERS+1];
-new g_iPrevCmd[MAXPLAYERS+1];
-new g_iPrevTick[MAXPLAYERS+1];
+/* Last 4 cmds: [3] = newest. */
+new g_iHistCmd[MAXPLAYERS+1][4];
+new g_iHistTick[MAXPLAYERS+1][4];
+new g_iHistSrv[MAXPLAYERS+1][4];
+new g_iHistLen[MAXPLAYERS+1];
+new g_iPrevButtons[MAXPLAYERS+1];
 new Float:g_fPrevAng[MAXPLAYERS+1][2];
+new Float:g_fDYaw[MAXPLAYERS+1];
+new g_iMouseSum[MAXPLAYERS+1][2];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 
-/* Server tick at which each of the last three cmds was processed ([0] = newest). */
-new g_iSrvHist[MAXPLAYERS+1][3];
-new Float:g_fBatchEma[MAXPLAYERS+1];
+/* sensitivity-based thresholds (R52 sensThr[3], sensThr[4]). */
+new Float:g_fThr3[MAXPLAYERS+1];
+new Float:g_fThr4[MAXPLAYERS+1];
 
 new g_iAirStreak[MAXPLAYERS+1];
 new g_iAirStage[MAXPLAYERS+1];
@@ -95,12 +112,13 @@ new Float:g_fLagLast[MAXPLAYERS+1];
 new g_iLagDetects[MAXPLAYERS+1];
 
 new g_iBtEvents[MAXPLAYERS+1];
-new Float:g_fBtLast[MAXPLAYERS+1];
+new g_iBtStage[MAXPLAYERS+1];
+new Float:g_fBtStageTime[MAXPLAYERS+1];
 new g_iBtDetects[MAXPLAYERS+1];
 
-new bool:g_bShotArmed[MAXPLAYERS+1];
-new g_iPSilentStreak[MAXPLAYERS+1];
+new g_iPSilentState[MAXPLAYERS+1];
 new g_iPSilentDetects[MAXPLAYERS+1];
+new Float:g_fPSilentTime[MAXPLAYERS+1];
 
 /* Server hitch detector: a stalled server batches/replays everyone's usercmds. */
 new Float:g_fPrevFrameTime;
@@ -123,6 +141,8 @@ public OnPluginStart()
 	HookEntityOutput("trigger_teleport", "OnStartTouch", Output_Teleport);
 	HookEntityOutput("trigger_teleport", "OnEndTouch", Output_Teleport);
 
+	CreateTimer(QUERY_INTERVAL, Timer_QueryAll, _, TIMER_REPEAT);
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i))
@@ -132,14 +152,15 @@ public OnPluginStart()
 
 public OnClientPutInServer(client)
 {
-	g_bHasPrev[client] = false;
-	g_iPrevCmd[client] = 0;
-	g_iPrevTick[client] = 0;
+	g_iHistLen[client] = 0;
+	g_iPrevButtons[client] = 0;
 	g_fPrevAng[client][0] = g_fPrevAng[client][1] = 0.0;
+	g_fDYaw[client] = 0.0;
+	g_iMouseSum[client][0] = g_iMouseSum[client][1] = 0;
 	g_fIgnoreUntil[client] = 0.0;
 
-	g_iSrvHist[client][0] = g_iSrvHist[client][1] = g_iSrvHist[client][2] = 0;
-	g_fBatchEma[client] = BATCH_EMA_START;
+	g_fThr3[client] = SENS_UNKNOWN_THR3;
+	g_fThr4[client] = SENS_UNKNOWN_THR4;
 
 	g_iAirStreak[client] = 0;
 	g_iAirStage[client] = 0;
@@ -151,12 +172,45 @@ public OnClientPutInServer(client)
 	g_iLagDetects[client] = 0;
 
 	g_iBtEvents[client] = 0;
-	g_fBtLast[client] = 0.0;
+	g_iBtStage[client] = 0;
+	g_fBtStageTime[client] = 0.0;
 	g_iBtDetects[client] = 0;
 
-	g_bShotArmed[client] = false;
-	g_iPSilentStreak[client] = 0;
+	g_iPSilentState[client] = 0;
 	g_iPSilentDetects[client] = 0;
+	g_fPSilentTime[client] = 0.0;
+
+	if (!IsFakeClient(client))
+		QueryClientConVar(client, "sensitivity", Query_Sensitivity);
+}
+
+public Action:Timer_QueryAll(Handle:timer)
+{
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && !IsFakeClient(i))
+			QueryClientConVar(i, "sensitivity", Query_Sensitivity);
+	}
+	return Plugin_Continue;
+}
+
+public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
+{
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || result != ConVarQuery_Okay)
+		return;
+
+	new Float:sens = StringToFloat(cvarValue);
+	if (sens < 1.0)
+		sens = 1.0;
+
+	/* R52: thr2 = sens * 0.033; thr3 = min(thr2 * 2.6, 0.7); thr4 = min(sens * 15, 80). */
+	g_fThr3[client] = sens * 0.033 * 2.6;
+	if (g_fThr3[client] > 0.7)
+		g_fThr3[client] = 0.7;
+
+	g_fThr4[client] = sens * 15.0;
+	if (g_fThr4[client] > 80.0)
+		g_fThr4[client] = 80.0;
 }
 
 public OnGameFrame()
@@ -185,7 +239,7 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (IS_CLIENT(client))
 	{
-		g_bHasPrev[client] = false;
+		g_iHistLen[client] = 0;
 		IgnoreClient(client, SPAWN_GRACE);
 	}
 }
@@ -196,14 +250,50 @@ public Output_Teleport(const String:output[], caller, activator, Float:delay)
 		IgnoreClient(activator, TELEPORT_GRACE + delay);
 }
 
+/* R52 arms PSilent in its FireBullets TE hook; weapon_fire fires at the same point,
+   while the shot cmd runs, so the history [3] below is the shot cmd. */
 public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (IS_CLIENT(client) && IsClientInGame(client) && !IsFakeClient(client))
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client))
+		return;
+
+	g_iPSilentState[client] = 0;
+
+	if (g_iHistLen[client] < 4 || GetGameTime() < g_fIgnoreUntil[client] || IsLagging(client))
+		return;
+
+	/* Both older and newer pairs batched: nothing to judge. */
+	if (g_iHistSrv[client][2] == g_iHistSrv[client][3] && g_iHistSrv[client][0] == g_iHistSrv[client][1])
+		return;
+
+	if (!(GetEntityFlags(client) & FL_ONGROUND))
+		return;
+
+	new bool:bAimMoved = AimMoved(client);
+	new step = AbsDiff(g_iHistCmd[client][3], g_iHistCmd[client][2]) + AbsDiff(g_iHistTick[client][3], g_iHistTick[client][2]);
+	new srvGap = g_iHistSrv[client][3] - g_iHistSrv[client][2];
+
+	if (step > 0 && step < 7 && srvGap <= step + 1)
 	{
-		/* weapon_fire is raised while the shot cmd runs, i.e. right after its
-		   OnPlayerRunCmd: g_iSrvHist[client][0] is the shot cmd. */
-		g_bShotArmed[client] = true;
+		if (bAimMoved
+			&& AbsDiff(g_iHistCmd[client][3], g_iHistCmd[client][2]) == 1
+			&& AbsDiff(g_iHistCmd[client][2], g_iHistCmd[client][1]) == 1
+			&& AbsDiff(g_iHistCmd[client][1], g_iHistCmd[client][0]) == 1
+			&& AbsDiff(g_iHistTick[client][3], g_iHistTick[client][2]) == 1
+			&& AbsDiff(g_iHistTick[client][2], g_iHistTick[client][1]) == 1
+			&& AbsDiff(g_iHistTick[client][1], g_iHistTick[client][0]) == 1
+			&& g_iHistSrv[client][1] - g_iHistSrv[client][0] == 1
+			&& g_iHistSrv[client][2] - g_iHistSrv[client][1] >= 0
+			&& g_iHistSrv[client][2] - g_iHistSrv[client][1] <= 1
+			&& srvGap > 1)
+		{
+			g_iPSilentState[client] = PSILENT_ARMED;
+		}
+	}
+	else if (bAimMoved)
+	{
+		g_iPSilentState[client]++;
 	}
 }
 
@@ -211,76 +301,76 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 {
 	if (!IsPlaying(client))
 	{
-		g_bHasPrev[client] = false;
-		g_bShotArmed[client] = false;
+		g_iHistLen[client] = 0;
+		g_iPSilentState[client] = 0;
 		return Plugin_Continue;
 	}
 
-	new srvTick = GetGameTickCount();
-	new bool:bBatched = (g_bHasPrev[client] && srvTick == g_iSrvHist[client][0]);
+	new bool:bHasPrev = (g_iHistLen[client] > 0);
+	new prevCmd = g_iHistCmd[client][3];
+	new prevTick = g_iHistTick[client][3];
 
-	if (g_bHasPrev[client] && GetGameTime() >= g_fIgnoreUntil[client] && !IsLagging(client))
+	/* Shift history, [3] = this cmd. */
+	for (new i = 0; i < 3; i++)
 	{
-		CheckPSilent(client, srvTick, bBatched);
-		CheckAirstuck(client, buttons, angles, cmdnum, tickcount, mouse);
-		CheckLagExploit(client, srvTick, cmdnum, tickcount);
-		CheckBacktrack(client, cmdnum);
+		g_iHistCmd[client][i] = g_iHistCmd[client][i + 1];
+		g_iHistTick[client][i] = g_iHistTick[client][i + 1];
+		g_iHistSrv[client][i] = g_iHistSrv[client][i + 1];
+	}
+	g_iHistCmd[client][3] = cmdnum;
+	g_iHistTick[client][3] = tickcount;
+	g_iHistSrv[client][3] = GetGameTickCount();
+	if (g_iHistLen[client] < 4)
+		g_iHistLen[client]++;
+
+	g_fDYaw[client] = bHasPrev ? FloatAbs(g_fPrevAng[client][1] - angles[1]) : 0.0;
+	g_iMouseSum[client][0] = g_iMouseSum[client][1];
+	g_iMouseSum[client][1] = AbsValue(mouse[0]) + AbsValue(mouse[1]);
+
+	if (bHasPrev && GetGameTime() >= g_fIgnoreUntil[client] && !IsLagging(client))
+	{
+		CheckAirstuck(client, buttons, angles, cmdnum, tickcount, mouse, prevCmd, prevTick);
+		CheckLagExploit(client);
+		CheckBacktrack(client, cmdnum, prevCmd);
+		CheckPSilent(client, buttons);
 	}
 	else
 	{
-		g_bShotArmed[client] = false;
-		g_iAirStreak[client] = 0;
+		g_iPSilentState[client] = 0;
 	}
 
-	/* Baseline: how often this client's cmds share a server frame anyway
-	   (low cl_cmdrate / fps, jitter). */
-	if (g_bHasPrev[client])
-		g_fBatchEma[client] += ((bBatched ? 1.0 : 0.0) - g_fBatchEma[client]) * BATCH_EMA_ALPHA;
-
-	g_iSrvHist[client][2] = g_iSrvHist[client][1];
-	g_iSrvHist[client][1] = g_iSrvHist[client][0];
-	g_iSrvHist[client][0] = srvTick;
-
-	g_iPrevCmd[client] = cmdnum;
-	g_iPrevTick[client] = tickcount;
+	g_iPrevButtons[client] = buttons;
 	g_fPrevAng[client][0] = angles[0];
 	g_fPrevAng[client][1] = angles[1];
-	g_bHasPrev[client] = true;
 
 	return Plugin_Continue;
 }
 
-CheckAirstuck(client, buttons, const Float:angles[3], cmdnum, tickcount, const mouse[2])
+CheckAirstuck(client, buttons, const Float:angles[3], cmdnum, tickcount, const mouse[2], prevCmd, prevTick)
 {
 	new level = GetConVarInt(g_hCvarAirstuck);
-	if (level <= 0)
+	if (level <= 0 || cmdnum - prevCmd != 1)
 		return;
 
-	if (cmdnum != g_iPrevCmd[client] + 1 || tickcount != g_iPrevTick[client])
+	if (tickcount != prevTick)
 	{
 		g_iAirStreak[client] = 0;
 		return;
 	}
 
-	new bool:bActive = (buttons != 0 || mouse[0] != 0 || mouse[1] != 0
-		|| angles[0] != g_fPrevAng[client][0] || angles[1] != g_fPrevAng[client][1]);
-	if (!bActive)
-	{
-		g_iAirStreak[client] = 0;
+	/* A completely idle cmd neither counts nor breaks the streak. */
+	if (buttons == 0 && mouse[0] == 0 && mouse[1] == 0
+		&& angles[0] == g_fPrevAng[client][0] && angles[1] == g_fPrevAng[client][1])
 		return;
-	}
 
 	if (++g_iAirStreak[client] < AIRSTUCK_STREAK)
 		return;
 
 	g_iAirStreak[client] = 0;
+	g_iAirStage[client] = Decay(g_iAirStage[client], g_fAirStageTime[client], AIRSTUCK_DECAY) + 1;
+	g_fAirStageTime[client] = GetGameTime();
 
-	new Float:now = GetGameTime();
-	if (now - g_fAirStageTime[client] > AIRSTUCK_STAGE_TTL)
-		g_iAirStage[client] = 0;
-	g_fAirStageTime[client] = now;
-
-	if (++g_iAirStage[client] < AIRSTUCK_STAGES)
+	if (g_iAirStage[client] < AIRSTUCK_STAGES)
 		return;
 
 	g_iAirStage[client] = 0;
@@ -295,20 +385,20 @@ CheckAirstuck(client, buttons, const Float:angles[3], cmdnum, tickcount, const m
 	CloseHandle(info);
 }
 
-CheckLagExploit(client, srvTick, cmdnum, tickcount)
+CheckLagExploit(client)
 {
 	new level = GetConVarInt(g_hCvarLag);
-	if (level <= 0)
+	if (level <= 0 || g_iHistLen[client] < 4)
 		return;
 
-	/* The server processed this client's cmds one per tick (stable stream). */
-	if (srvTick - g_iSrvHist[client][0] != 1
-		|| g_iSrvHist[client][0] - g_iSrvHist[client][1] != 1
-		|| g_iSrvHist[client][1] - g_iSrvHist[client][2] != 1)
+	/* The server processed the last 4 cmds on consecutive ticks (stable stream). */
+	if (g_iHistSrv[client][3] - g_iHistSrv[client][2] != 1
+		|| g_iHistSrv[client][2] - g_iHistSrv[client][1] != 1
+		|| g_iHistSrv[client][1] - g_iHistSrv[client][0] != 1)
 		return;
 
-	new cmdStep = cmdnum - g_iPrevCmd[client];
-	new tickStep = tickcount - g_iPrevTick[client];
+	new cmdStep = g_iHistCmd[client][3] - g_iHistCmd[client][2];
+	new tickStep = g_iHistTick[client][3] - g_iHistTick[client][2];
 	if (cmdStep < 1 || cmdStep > LAG_MAX_CMD_STEP || tickStep <= LAG_MIN_TICK_STEP)
 		return;
 
@@ -332,71 +422,75 @@ CheckLagExploit(client, srvTick, cmdnum, tickcount)
 	CloseHandle(info);
 }
 
-CheckBacktrack(client, cmdnum)
+CheckBacktrack(client, cmdnum, prevCmd)
 {
 	new level = GetConVarInt(g_hCvarBacktrack);
-	if (level <= 0 || cmdnum >= g_iPrevCmd[client])
+	if (level <= 0 || cmdnum >= prevCmd)
 		return;
 
 	if (GetEntityFlags(client) & (FL_FROZEN | FL_ATCONTROLS))
 		return;
 
-	new Float:now = GetGameTime();
-	if (now - g_fBtLast[client] > BACKTRACK_EVENT_TTL)
-		g_iBtEvents[client] = 0;
-	g_fBtLast[client] = now;
-
 	if (++g_iBtEvents[client] <= BACKTRACK_EVENTS)
 		return;
 
 	g_iBtEvents[client] = 0;
+	g_iBtStage[client] = Decay(g_iBtStage[client], g_fBtStageTime[client], BACKTRACK_DECAY) + 1;
+	g_fBtStageTime[client] = GetGameTime();
+
+	if (g_iBtStage[client] < BACKTRACK_STAGES)
+		return;
+
+	g_iBtStage[client] = 0;
 
 	new Handle:info = CreateKeyValues("");
 	KvSetNum(info, "cmdnum", cmdnum);
-	KvSetNum(info, "prev_cmdnum", g_iPrevCmd[client]);
+	KvSetNum(info, "prev_cmdnum", prevCmd);
 
 	decl String:sDetail[96];
-	FormatEx(sDetail, sizeof(sDetail), "cmdnum %i after %i", cmdnum, g_iPrevCmd[client]);
+	FormatEx(sDetail, sizeof(sDetail), "cmdnum rolled back %i times (last %i after %i)",
+		(BACKTRACK_EVENTS + 1) * BACKTRACK_STAGES, cmdnum, prevCmd);
 	ReportLevel(client, Detection_Backtrack, info, g_iBtDetects[client], level, "Backtrack Exploit-Mode:B", sDetail);
 	CloseHandle(info);
 }
 
-CheckPSilent(client, srvTick, bool:bBatched)
+CheckPSilent(client, buttons)
 {
-	if (!g_bShotArmed[client])
+	if (g_iPSilentState[client] <= 0)
 		return;
 
-	g_bShotArmed[client] = false;
+	/* R52 checks this while +attack is held (previous and current cmd). */
+	if (!(buttons & IN_ATTACK) || !(g_iPrevButtons[client] & IN_ATTACK))
+		return;
 
 	new warn = GetConVarInt(g_hCvarPSilentWarn);
 	new ban = GetConVarInt(g_hCvarPSilentBan);
 	if (warn == 0 && ban == 0)
-		return;
-
-	/* Clients that routinely send several cmds per packet are not judged. */
-	if (g_fBatchEma[client] > BATCH_EMA_MAX)
-		return;
-
-	/* The shot cmd arrived together with this one, while the cmd before the
-	   shot came in its own frame: the shot was choked. */
-	new bool:bChoked = bBatched && g_iSrvHist[client][0] != g_iSrvHist[client][1];
-	if (!bChoked)
 	{
-		g_iPSilentStreak[client] = 0;
+		g_iPSilentState[client] = 0;
 		return;
 	}
 
-	if (++g_iPSilentStreak[client] < PSILENT_STREAK)
+	/* This cmd shares its server tick with the previous one, the two before did not. */
+	if (g_iHistSrv[client][2] != g_iHistSrv[client][3] || g_iHistSrv[client][0] == g_iHistSrv[client][1])
+	{
+		g_iPSilentState[client] = 0;
+		return;
+	}
+
+	if (++g_iPSilentState[client] <= PSILENT_DETECT)
 		return;
 
-	g_iPSilentStreak[client] = 0;
+	g_iPSilentState[client] = -1;
+	g_iPSilentDetects[client] = Decay(g_iPSilentDetects[client], g_fPSilentTime[client], PSILENT_DECAY);
+	g_fPSilentTime[client] = GetGameTime();
 
 	new Handle:info = CreateKeyValues("");
-	KvSetNum(info, "server_tick", srvTick);
-	KvSetFloat(info, "batch_rate", g_fBatchEma[client]);
+	KvSetFloat(info, "dyaw", g_fDYaw[client]);
+	KvSetFloat(info, "thr3", g_fThr3[client]);
 
-	decl String:sDetail[96];
-	FormatEx(sDetail, sizeof(sDetail), "%i choked shots in a row, batch rate %.3f", PSILENT_STREAK, g_fBatchEma[client]);
+	decl String:sDetail[128];
+	FormatEx(sDetail, sizeof(sDetail), "choked shot followed by batched cmds (dYaw %.3f, thr %.3f)", g_fDYaw[client], g_fThr3[client]);
 	Report(client, Detection_UltraPSilent, info, g_iPSilentDetects[client], warn, ban, "PSilent [Active Mode]", sDetail);
 	CloseHandle(info);
 }
@@ -404,6 +498,30 @@ CheckPSilent(client, srvTick, bool:bBatched)
 /**
  * Helpers
  */
+bool:AimMoved(client)
+{
+	if (g_fDYaw[client] > g_fThr3[client] * 1.5)
+		return true;
+
+	return float(g_iMouseSum[client][1] - g_iMouseSum[client][0]) > g_fThr4[client] * 1.5;
+}
+
+AbsDiff(a, b)
+{
+	return AbsValue(a) - AbsValue(b);
+}
+
+/* R52 decays counters by one per delayed check; applied lazily here. */
+Decay(value, Float:lastTime, Float:period)
+{
+	if (value <= 0 || lastTime <= 0.0)
+		return value;
+
+	new steps = RoundToFloor((GetGameTime() - lastTime) / period);
+	value -= steps;
+	return (value < 0) ? 0 : value;
+}
+
 IgnoreClient(client, Float:seconds)
 {
 	new Float:until = GetGameTime() + seconds;
@@ -436,18 +554,21 @@ bool:IsLagging(client)
 	return GetClientLatency(client, NetFlow_Outgoing) - GetClientAvgLatency(client, NetFlow_Outgoing) > LAG_MAX_PING_SPIKE;
 }
 
-/* R52 punishment gate: stable connection only. */
-bool:IsNetOk(client)
-{
-	if (GetClientLatency(client, NetFlow_Outgoing) >= MAX_PING)
-		return false;
-
-	return GetClientAvgPackets(client, NetFlow_Incoming) > MIN_PACKET_FRAC / GetTickInterval();
-}
-
 bool:IsImmune(client)
 {
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
+}
+
+/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
+LowerAction(client, action)
+{
+	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)
+		action--;
+
+	if (action > 1 && GetClientAvgPackets(client, NetFlow_Incoming) <= MIN_PACKET_FRAC / GetTickInterval())
+		action--;
+
+	return action;
 }
 
 /*
@@ -465,22 +586,30 @@ Report(client, DetectionType:type, Handle:info, &count, warn, ban, const String:
 
 	SMAC_LogAction(client, "%s (Detection #%i) %s", name, count, detail);
 
-	if (warn > 0 && count >= warn)
-		SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, name, count);
+	new action = 1;
+	if (ban != 0 && count >= AbsValue(ban) && !IsImmune(client))
+		action = (ban > 0) ? 3 : 2;
 
-	if (ban == 0 || count < AbsValue(ban) || IsImmune(client))
-		return;
-
-	if (!IsNetOk(client))
+	new lowered = LowerAction(client, action);
+	if (lowered != action)
 	{
-		SMAC_LogAction(client, "%s: punishment skipped (connection: ping %.0f ms, %.1f pkt/s).",
-			name,
-			GetClientLatency(client, NetFlow_Outgoing) * 1000.0,
+		SMAC_LogAction(client, "%s: action lowered %i -> %i (avg ping %.0f ms, %.1f pkt/s).",
+			name, action, lowered,
+			GetClientAvgLatency(client, NetFlow_Outgoing) * 1000.0,
 			GetClientAvgPackets(client, NetFlow_Incoming));
+		action = lowered;
+	}
+
+	if (action == 1)
+	{
+		if (warn > 0 && count >= warn)
+			SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, name, count);
 		return;
 	}
 
-	if (ban > 0)
+	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, name, count);
+
+	if (action == 3)
 	{
 		SMAC_LogAction(client, "was banned for %s.", name);
 		SMAC_Ban(client, "%s Detection", name);
