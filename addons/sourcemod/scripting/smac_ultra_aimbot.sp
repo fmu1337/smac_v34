@@ -28,6 +28,12 @@
  *                      one decays every 5 s)
  *   PRG Pass.Mode:303  on ground, steady mouse (|dmouse| <= s on an axis), trace mode 2 hitgroups >= 10
  *   PRG Pass.Mode:304  same streak > 11, hitgroups >= 8, after a 303 was seen
+ * While firing:
+ *   AGTWS Mode:100     +attack pressed with a snap (dYaw >= thr3); within 7 cmds yaw freezes exactly
+ *                      (dYaw == 0) while pitch still changes, on an enemy
+ *   AMSAF Mode:101     shot right after the view moved without mouse input, with a mouse flick of
+ *                      quantized size (multiples of s); two more held cmds are scored by the same
+ *                      quantization plus the target trace; score > 1 at release adds to the counter
  * Accurate Analysis Module (player_hurt with dmg >= 10 / player_death, distance >= 200):
  *   AGT Mode:299/288   weighted hit counter while the aim was still turning without mouse
  *   Trigger 199/188    same, only for hits within 2 cmds after the +attack press
@@ -44,7 +50,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Ultr@: Aimbot",
 	author = SMAC_AUTHOR,
-	description = "AimBot PRG 301-304, AGTNL 200/201 and Accurate Analysis (AGT, Trigger, AGTAF) from SMAC Ultr@ R52",
+	description = "AimBot PRG 301-304, AGTNL 200/201, AGTWS 100, AMSAF 101 and Accurate Analysis (AGT, Trigger, AGTAF) from SMAC Ultr@ R52",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -66,6 +72,9 @@ public Plugin:myinfo =
 #define DECAY_LONG			420.0
 #define DECAY_SHORT			300.0
 
+#define AMS_WINDOW			6
+#define AGTWS_WINDOW		7
+
 /* Counters (R52 cnt[] slots). */
 #define C_TRIGGER	0	/* cnt[1]  Trigger 188/199 */
 #define C_STREAK	1	/* cnt[2]  PRG 301/302 streak */
@@ -79,7 +88,9 @@ public Plugin:myinfo =
 #define C_AGTNL		9	/* cnt[17] */
 #define C_AGTAF2	10	/* cnt[38] AGTAF 108/109 */
 #define C_NL201		11	/* cnt[45] */
-#define C_COUNT		12
+#define C_AMSAF		12	/* cnt[12] AMSAF 101 */
+#define C_AGTWS		13	/* cnt[16] AGTWS 100 */
+#define C_COUNT		14
 
 /* Detector groups (cvar pairs). */
 #define G_PRG		0
@@ -87,7 +98,9 @@ public Plugin:myinfo =
 #define G_TR		2
 #define G_AGTAF		3
 #define G_AGTNL		4
-#define G_COUNT		5
+#define G_AMSAF		5
+#define G_AGTWS		6
+#define G_COUNT		7
 
 new Handle:g_hCvarWarn[G_COUNT];
 new Handle:g_hCvarBan[G_COUNT];
@@ -109,7 +122,6 @@ new g_iSensRound[MAXPLAYERS+1];
 new bool:g_bHasPrev[MAXPLAYERS+1];
 new Float:g_fPrevAng[MAXPLAYERS+1][2];
 new Float:g_fDYaw[MAXPLAYERS+1];
-new g_iAbsMouse[MAXPLAYERS+1][2];
 new g_iPrevButtons[MAXPLAYERS+1];
 new g_iCmd[MAXPLAYERS+1];
 new g_iTriggerUntil[MAXPLAYERS+1];
@@ -117,6 +129,23 @@ new g_iNlCooldown[MAXPLAYERS+1];
 new bool:g_bGrenade[MAXPLAYERS+1];
 
 /* Trace state (R52 g1ece0 probe, g1ebd8 last hit, g1d848 / g1de78 / g1e3a0). */
+/* Last cmd with mouse input (R52 mouseSt[0..1], angles g57b0c[2..3]). */
+new g_iLastMouse[MAXPLAYERS+1][2];
+new Float:g_fLastMouseAng[MAXPLAYERS+1][2];
+
+/* AMSAF state (R52 cnt[10], cnt[11], g58874, g576ec, mouseSt[5..6], g57b0c[0..1]). */
+new g_iAmsStage[MAXPLAYERS+1];
+new g_iAmsStep[MAXPLAYERS+1];
+new g_iAmsScore[MAXPLAYERS+1];
+new g_iAmsAccum[MAXPLAYERS+1][2];
+new bool:g_bAmsFlat[MAXPLAYERS+1];
+new g_iAmsWindowEnd[MAXPLAYERS+1];
+new g_iAmsStillCmd[MAXPLAYERS+1];
+new Float:g_fAmsEye[MAXPLAYERS+1][2];
+
+/* AGTWS: cmd of the +attack press that snapped (R52 g4d81c[2]). */
+new g_iSnapCmd[MAXPLAYERS+1];
+
 new Float:g_fProbe[MAXPLAYERS+1];
 new g_iLastHit[MAXPLAYERS+1];
 new g_iHit1[MAXPLAYERS+1][4];	/* count, hits, hitgroup A, hitgroup B */
@@ -137,6 +166,10 @@ public OnPluginStart()
 	g_hCvarBan[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTAF", "0", "AimBot AGTAF Mode:88/99/108/109: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 5)", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTNL", "1", "AimBot AGTNL Mode:200/201: notify admins from this counter value. (0 = never)", _, true, 0.0);
 	g_hCvarBan[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTNL", "0", "AimBot AGTNL Mode:200/201: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 1)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AMSAF", "5", "AimBot AMSAF Mode:101: notify admins from this counter value. (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AimBot AMSAF Mode:101: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 7)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTWS", "4", "AimBot AGTWS Mode:100: notify admins from this counter value. (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AimBot AGTWS Mode:100: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 6)", _, true, -100.0, true, 100.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
@@ -183,6 +216,11 @@ public OnClientPutInServer(client)
 	ResetMotion(client);
 	g_iTriggerUntil[client] = -1;
 	g_iNlCooldown[client] = 0;
+	g_iLastMouse[client][0] = g_iLastMouse[client][1] = 0;
+	g_fLastMouseAng[client][0] = g_fLastMouseAng[client][1] = 0.0;
+	ResetAmsaf(client);
+	g_iAmsStillCmd[client] = 0;
+	g_iSnapCmd[client] = 0;
 
 	g_fProbe[client] = 0.0;
 	g_iLastHit[client] = 0;
@@ -197,7 +235,6 @@ ResetMotion(client)
 {
 	g_bHasPrev[client] = false;
 	g_fDYaw[client] = 0.0;
-	g_iAbsMouse[client][0] = g_iAbsMouse[client][1] = 0;
 	g_iPrevButtons[client] = 0;
 }
 
@@ -264,34 +301,37 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	if (g_bHasPrev[client])
 	{
-		new prevMouse0 = g_iAbsMouse[client][0];
-		new prevMouse1 = g_iAbsMouse[client][1];
+		new bool:bMouse = (mouse[0] != 0 || mouse[1] != 0);
+		new prevMouse0 = g_iLastMouse[client][0];
+		new prevMouse1 = g_iLastMouse[client][1];
 		new Float:dPitch = FloatAbs(g_fPrevAng[client][0] - angles[0]);
 
 		g_fDYaw[client] = FloatAbs(g_fPrevAng[client][1] - angles[1]);
 		g_bGrenade[client] = IsHoldingGrenade(client);
 
+		/* R52 keeps the last non-zero mouse input. */
+		if (bMouse)
+		{
+			g_iLastMouse[client][0] = AbsValue(mouse[0]);
+			g_iLastMouse[client][1] = AbsValue(mouse[1]);
+		}
+
 		/* Trigger window: the +attack press and the next cmd. */
 		if (g_iTriggerUntil[client] != -1 && cmdnum > g_iTriggerUntil[client])
 			g_iTriggerUntil[client] = -1;
-		if ((buttons & IN_ATTACK) && !(g_iPrevButtons[client] & IN_ATTACK))
-			g_iTriggerUntil[client] = cmdnum + 1;
 
 		if (g_bSensKnown[client])
 		{
-			if (mouse[0] == 0 && mouse[1] == 0)
-				CheckNoMouse(client, angles, cmdnum);
+			if (bMouse)
+				CheckMouse(client, buttons, angles, cmdnum, prevMouse0, prevMouse1, dPitch);
 			else
-				CheckMouse(client, angles, cmdnum, mouse, prevMouse0, prevMouse1, dPitch);
+				CheckNoMouse(client, angles, cmdnum);
+
+			CheckAttack(client, buttons, vel, angles, cmdnum);
 		}
 
-		g_iAbsMouse[client][0] = AbsValue(mouse[0]);
-		g_iAbsMouse[client][1] = AbsValue(mouse[1]);
-	}
-	else
-	{
-		g_iAbsMouse[client][0] = AbsValue(mouse[0]);
-		g_iAbsMouse[client][1] = AbsValue(mouse[1]);
+		if ((buttons & IN_ATTACK) && !(g_iPrevButtons[client] & IN_ATTACK))
+			g_iTriggerUntil[client] = cmdnum + 1;
 	}
 
 	g_fPrevAng[client][0] = angles[0];
@@ -304,13 +344,19 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 /* mouse[0] == mouse[1] == 0 */
 CheckNoMouse(client, const Float:angles[3], cmdnum)
 {
+	CheckNoMouseAim(client, angles, cmdnum);
+
+	/* R52: any cmd without mouse input ends the AMSAF shot and the steady-mouse streak. */
+	if (g_iAmsStage[client] > 1)
+		AmsafEvaluate(client);
+	g_iCnt[client][C_STEADY] = -1;
+	ResetHit2(client);
+}
+
+CheckNoMouseAim(client, const Float:angles[3], cmdnum)
+{
 	if (!(GetEntityFlags(client) & FL_ONGROUND))
-	{
-		/* In the air: only the steady-mouse streak breaks (R52). */
-		g_iCnt[client][C_STEADY] = -1;
-		ResetHit2(client);
 		return;
-	}
 
 	if (g_fDYaw[client] > g_fThr2[client])
 	{
@@ -375,7 +421,7 @@ CheckNoMouse(client, const Float:angles[3], cmdnum)
 }
 
 /* Mouse is moving. */
-CheckMouse(client, const Float:angles[3], cmdnum, const mouse[2], prevMouse0, prevMouse1, Float:dPitch)
+CheckMouse(client, buttons, const Float:angles[3], cmdnum, prevMouse0, prevMouse1, Float:dPitch)
 {
 	/* Null Level 201: the mouse moves, the view does not. */
 	if (cmdnum > g_iNlCooldown[client] && GroupEnabled(G_AGTNL)
@@ -404,20 +450,26 @@ CheckMouse(client, const Float:angles[3], cmdnum, const mouse[2], prevMouse0, pr
 	if (GetEntityFlags(client) & FL_ONGROUND)
 	{
 		if (GroupEnabled(G_PRG) || GroupEnabled(G_AGTAF))
-			CheckSteadyMouse(client, angles, mouse, prevMouse0, prevMouse1);
+			CheckSteadyMouse(client, angles, prevMouse0, prevMouse1);
+
+		if (GroupEnabled(G_AMSAF))
+			CheckAmsafHeld(client, buttons, angles, cmdnum);
 	}
 
 	/* Any mouse input ends the no-mouse streak. */
 	g_iCnt[client][C_STREAK] = -1;
 	ResetHit1(client);
+
+	g_fLastMouseAng[client][0] = angles[0];
+	g_fLastMouseAng[client][1] = angles[1];
 }
 
 /* PRG 303/304: steady mouse movement while the trace stays on the same hitgroups. */
-CheckSteadyMouse(client, const Float:angles[3], const mouse[2], prevMouse0, prevMouse1)
+CheckSteadyMouse(client, const Float:angles[3], prevMouse0, prevMouse1)
 {
 	new s = g_iSensRound[client];
-	new d0 = AbsValue(AbsValue(mouse[0]) - prevMouse0);
-	new d1 = AbsValue(AbsValue(mouse[1]) - prevMouse1);
+	new d0 = AbsValue(g_iLastMouse[client][0] - prevMouse0);
+	new d1 = AbsValue(g_iLastMouse[client][1] - prevMouse1);
 
 	if (d0 > s && d1 > s)
 	{
@@ -457,6 +509,234 @@ CheckSteadyMouse(client, const Float:angles[3], const mouse[2], prevMouse0, prev
 	{
 		g_iCnt[client][C_STEADY] = -1;
 		ResetHit2(client);
+	}
+}
+
+/**
+ * AGTWS Mode:100 and AMSAF Mode:101 (R52 attack section of OnPlayerRunCmd)
+ */
+CheckAttack(client, buttons, const Float:vel[3], const Float:angles[3], cmdnum)
+{
+	if (!(buttons & IN_ATTACK))
+	{
+		g_iSnapCmd[client] = 0;
+		return;
+	}
+
+	if (!(g_iPrevButtons[client] & IN_ATTACK))
+	{
+		/* +attack press: remember a snap for AGTWS, arm AMSAF. */
+		if (g_fDYaw[client] >= g_fThr3[client])
+			g_iSnapCmd[client] = cmdnum;
+
+		if (g_iTriggerUntil[client] == -1)
+		{
+			ResetAmsaf(client);
+			if (GroupEnabled(G_AMSAF))
+				ArmAmsaf(client, vel, cmdnum);
+		}
+	}
+
+	CheckAgtws(client, angles, cmdnum);
+}
+
+CheckAgtws(client, const Float:angles[3], cmdnum)
+{
+	if (g_iSnapCmd[client] <= 0 || !GroupEnabled(G_AGTWS) || g_fDYaw[client] != 0.0)
+		return;
+
+	/* Yaw froze exactly after the snap, while pitch was still corrected. */
+	if (cmdnum - g_iSnapCmd[client] <= AGTWS_WINDOW
+		&& (g_fPrevAng[client][0] != angles[0] || g_fPrevAng[client][1] != angles[1]))
+	{
+		if (g_bGrenade[client])
+			ResetPrg(client);
+		else if (TraceTarget(client, angles, 0) > 0)
+			Detect(client, G_AGTWS, C_AGTWS, DECAY_LONG, "AimBot (Automatic Route Guidance When a Shot)", "Mode:100");
+	}
+
+	g_iSnapCmd[client] = 0;
+}
+
+ResetAmsaf(client)
+{
+	g_iAmsStage[client] = 0;
+	g_iAmsStep[client] = 0;
+	g_iAmsScore[client] = 0;
+	g_bAmsFlat[client] = false;
+}
+
+/* Bucket of a mouse delta in units of s: 0 (none), 1..cap (m <= k*s), cap+1 above. */
+Bucket(m, s, cap)
+{
+	if (m <= 0)
+		return 0;
+	for (new k = 1; k <= cap; k++)
+	{
+		if (m <= k * s)
+			return k;
+	}
+	return cap + 1;
+}
+
+ArmAmsaf(client, const Float:vel[3], cmdnum)
+{
+	/* Standing still (no wishmove) at the press, or the mouse was moving while attacking. */
+	if (vel[0] == 0.0 && vel[1] == 0.0)
+		g_iAmsStillCmd[client] = cmdnum;
+	if (cmdnum - g_iAmsStillCmd[client] > 1)
+		return;
+
+	g_iAmsWindowEnd[client] = cmdnum + AMS_WINDOW;
+
+	/* The view must have moved since the last cmd with mouse input. */
+	decl Float:vEye[3];
+	GetClientEyeAngles(client, vEye);
+	if (vEye[0] == g_fLastMouseAng[client][0] && vEye[1] == g_fLastMouseAng[client][1])
+		return;
+
+	g_fAmsEye[client][0] = vEye[0];
+	g_fAmsEye[client][1] = vEye[1];
+	g_iAmsScore[client] = 0;
+
+	new s = g_iSensRound[client];
+	new m0 = g_iLastMouse[client][0];
+	new m1 = g_iLastMouse[client][1];
+	g_iAmsAccum[client][0] = m0;
+	g_iAmsAccum[client][1] = m1;
+
+	new b0 = Bucket(m0, s, 7);
+	new b1 = Bucket(m1, s, 7);
+
+	new bool:bArm = false;
+	if (b0 == 8 || b1 == 8)
+		bArm = true;
+	else if (b0 >= 3 || b1 >= 3)
+		bArm = (m0 >= s && m1 >= s && !(m0 < 2 * s && m1 < 2 * s));
+	else if (b0 == 2 || b1 == 2)
+		bArm = (m0 >= 2 * s && m1 >= 2 * s && !(m0 < 3 * s && m1 < 3 * s));
+
+	if (bArm)
+	{
+		g_iAmsStage[client] = 1;
+		g_iAmsStep[client] = 1;
+	}
+}
+
+/* Mouse moving on the ground (R52 runs this inside the mouse branch). */
+CheckAmsafHeld(client, buttons, const Float:angles[3], cmdnum)
+{
+	if (!(buttons & IN_ATTACK))
+	{
+		if (g_iAmsStage[client] > 1)
+			AmsafEvaluate(client);
+		return;
+	}
+
+	if (cmdnum > g_iAmsWindowEnd[client])
+	{
+		ResetAmsaf(client);
+	}
+	else if (g_iAmsStage[client] > 0)
+	{
+		g_iAmsStage[client]++;
+
+		new s = g_iSensRound[client];
+		new m0 = g_iLastMouse[client][0];
+		new m1 = g_iLastMouse[client][1];
+
+		if (g_iAmsStage[client] == 2 && g_iAmsStep[client] == 1)
+		{
+			decl Float:vEye[3];
+			GetClientEyeAngles(client, vEye);
+			if (g_fAmsEye[client][0] == vEye[0] || g_fAmsEye[client][1] == vEye[1])
+			{
+				ResetAmsaf(client);
+			}
+			else
+			{
+				g_iAmsAccum[client][0] += m0;
+				g_iAmsAccum[client][1] += m1;
+				new sum = g_iAmsAccum[client][0] + g_iAmsAccum[client][1];
+
+				new b0 = Bucket(m0, s, 7);
+				new b1 = Bucket(m1, s, 7);
+				new bool:bHit = false;
+				if (b0 == 8 || b1 == 8)
+					bHit = (9 * s <= sum);
+				else if (b0 >= 3 || b1 >= 3)
+					bHit = (m0 >= s && m1 >= s && 9 * s <= sum);
+				else if (b0 == 2 || b1 == 2)
+					bHit = (m0 >= 2 * s && m1 >= 2 * s && 9 * s <= sum);
+
+				if (bHit)
+				{
+					g_iAmsScore[client]++;
+					g_iAmsStep[client] = 2;
+				}
+				if (g_iAmsStep[client] == 2 && TraceTarget(client, angles, 0) > 0)
+					g_iAmsScore[client]++;
+			}
+		}
+		else if (g_iAmsStage[client] == 3 && g_iAmsStep[client] == 2)
+		{
+			new b0 = Bucket(m0, s, 2);
+			new b1 = Bucket(m1, s, 2);
+			new bool:bHit = false;
+			if (b0 == 3 || b1 == 3)
+				bHit = !(m0 < 2 * s || m1 < 2 * s || m0 > 5 * s || m1 > 5 * s);
+			else if (b0 == 2 || b1 == 2)
+				bHit = !(m0 < s || m1 < s || m0 > 3 * s || m1 > 3 * s);
+			else if (b0 == 1 || b1 == 1)
+				bHit = !((m0 <= 0 && m1 <= 0) || m0 > 2 * s || m1 > 2 * s);
+
+			if (bHit)
+			{
+				g_iAmsScore[client]++;
+				g_iAmsStep[client] = 3;
+			}
+			if (g_iAmsStep[client] == 3 && TraceTarget(client, angles, 0) > 0)
+				g_iAmsScore[client]++;
+		}
+
+		if (angles[0] == g_fLastMouseAng[client][0] || angles[1] == g_fLastMouseAng[client][1])
+			g_bAmsFlat[client] = true;
+	}
+
+	g_iAmsStillCmd[client] = cmdnum;
+}
+
+/* End of the shot (R52 fn_185afc). */
+AmsafEvaluate(client)
+{
+	new score = g_iAmsScore[client];
+	new stage = g_iAmsStage[client];
+	new bool:bFlat = g_bAmsFlat[client];
+	ResetAmsaf(client);
+
+	if (score <= 1 || (!bFlat && stage > 3))
+		return;
+
+	if (g_bGrenade[client])
+	{
+		ResetPrg(client);
+		return;
+	}
+
+	g_iCnt[client][C_AMSAF] += score;
+
+	decl String:sWeapon[32], String:sMode[32];
+	GetClientWeapon(client, sWeapon, sizeof(sWeapon));
+	FormatEx(sMode, sizeof(sMode), "Mode:101 | score %i", score);
+	if (Evaluate(client, G_AMSAF, C_AMSAF, 480.0, "AimBot (Analysis Module Shooting After Firing)", sMode, sWeapon))
+		return;
+
+	/* R52 schedules one decay per score point (480 / 540 / 600 s). */
+	if (g_iCnt[client][C_AMSAF] > -1)
+	{
+		ScheduleDecay(client, C_AMSAF, 540.0);
+		if (score > 2)
+			ScheduleDecay(client, C_AMSAF, 600.0);
 	}
 }
 
