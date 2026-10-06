@@ -37,3 +37,5 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 
 * `smac_ultra_netcode` — Airstuck, Lag Exploit, Backtrack B, PSilent [Active Mode] по декоду SMAC Ultr@ R52.
   По умолчанию только уведомления админам. Подробности — в [docs/ULTRA_NETCODE.md](docs/ULTRA_NETCODE.md).
+* `smac_ultra_aimbot` — AimBot PRG 301–304, AGTNL 200/201 и Accurate Analysis (AGT, Trigger, AGTAF) по декоду R52.
+  Пороги считаются от `sensitivity` клиента. По умолчанию только уведомления. Подробности — в [docs/ULTRA_AIMBOT.md](docs/ULTRA_AIMBOT.md).

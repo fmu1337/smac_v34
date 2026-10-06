@@ -31,6 +31,7 @@ enum DetectionType {
 	Detection_LagExploit = 3800,
 	Detection_Backtrack = 5200,
 	Detection_UltraPSilent = 7100,
+	Detection_UltraAim = 7200,		/* PRG 301-304, AGTNL 200/201, AGT, Trigger, AGTAF */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
