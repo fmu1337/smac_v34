@@ -50,6 +50,7 @@ PLUGINS=(
 	smac_wallhack.sp
 	smac_ultra_netcode.sp
 	smac_ultra_aimbot.sp
+	smac_ultra_movement.sp
 )
 
 mkdir -p "$OUT_DIR"
