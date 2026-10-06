@@ -124,8 +124,8 @@ R52 **не читает `m_vecPunchAngle`**. Модель #7 («punch ≈ 0» и
 ## 8. Cvars / команды (`001_SMAC_Cvars.smx`)
 
 * Полная таблица проверяемых кваров (Check_Hack / Check_Changer / Check_CheatsC) — `docs/R52_CVARS.md`.
-* **SIC «cheat class Iniuria CS:S»** (слушатель команд): поток команд без аргументов, счётчик > 23 в окне, и команда
-  `spec_prev` → SIC-реакция (`smac_indirect_cheat`). Уверенность: средняя.
+* **SIC «cheat class Iniuria CS:S»**: > 20 команд в окне, и команда `voice_loopback`/`voice_inputfromfile` → SIC
+  (`smac_indirect_cheat`). Уточнено декомпилятором, см. `R52_SPEC.md` §8.
 * Слушатель команд также блокирует `ent_create`/`ent_fire` по подстроке, ведёт спам-счётчик и «SayBlock».
 * Квары `sv_cheats`, `host_timescale`, `sv_competitive_minspec`, `sv_consistency`, `mp_fadetoblack`, `sv_footsteps`,
   `sv_allowminmodels` — отслеживаются через `FindConVar` (replicated-проверка), а не жёстко форсятся.
