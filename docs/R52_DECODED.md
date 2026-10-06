@@ -1,5 +1,8 @@
 # SMAC Ultr@ R52 — что реально делают детекты (декод `001_SMAC_Global.smx`)
 
+> **Обновление:** точная спецификация по декомпилятору — `docs/R52_SPEC.md`. При расхождении верна она.
+> Главная поправка: порог PRG и Accurate Analysis — не 100°, а `sensitivity·0.033`; 100 — значение до ответа клиента.
+
 Источник: архив R52 (2018-04-09, `0.8.6.4+[SMAC]<Ultr@>-R52`), плагин обфусцирован SmartPawn.
 Метод: собственный эмулятор SourcePawn VM (`tools/r52re`) — расшифровка строк в `AskPluginLoad2`,
 конкретный прогон `OnPluginStart/OnConfigsExecuted/OnMapStart/OnClientPutInServer` с квара­ми из штатного `smac.cfg`,

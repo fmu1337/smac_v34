@@ -13,9 +13,20 @@
 | `host.py`, `hybrid.py` | модель SM-хоста (квары из `smac.cfg`, `OnPluginStart/OnConfigsExecuted/OnMapStart/OnClientPutInServer`), классификация глобалов: пул констант / per-client состояние |
 | `directed2.py`, `run_chain.py`, `run_chain_pub.py` | направленный поиск пути к блоку детекта (CFG-reachability + отсечение) |
 | `crep.py`, `svar.py` | отчёты: условия на пути к детекту, кто пишет переменную состояния |
+| `decomp.py` | **декомпилятор SP1 → псевдокод**: свёртка XOR-пар и opaque-предикатов по памяти после init, `&&`/`||` на стыках, удаление мёртвых веток, инлайн мелких функций; `--base hbase.bin --wr wr.pkl` |
+| `wr.py` | межпроцедурный анализ записей в глобалы → какие базы константны после init (нужно `decomp.py`) |
 | `dbgsym.py` | имена и адреса глобалов из `.dbg.symbols` (в R51 часть имён не обфусцирована) |
 
-Пример:
+Пример (декомпиляция):
+
+```bash
+python3 wr.py r52/addons/sourcemod/plugins/001_SMAC_Global.smx wr_global.pkl
+python3 decomp.py r52/addons/sourcemod/plugins/001_SMAC_Global.smx Accurate_Analysis_Module --base hbase_global.bin --wr wr_global.pkl
+```
+
+`hbase_global.bin` — память после прогона `AskPluginLoad2`/`OnPluginStart` (`run_apl.py` / `host.py`, pickle от `bytes`).
+
+Пример (поиск путей, старый способ):
 
 ```bash
 python3 xref.py r52/addons/sourcemod/plugins/001_SMAC_Global.smx 'PSilent'   # base_*.bin + где используется строка
