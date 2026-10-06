@@ -190,7 +190,43 @@ XOR-пары и opaque-предикаты SmartPawn по памяти после
   > 5 → всегда бан `SMAC_Hack (Lag Exploit)`. Порт в `smac_ultra_netcode` строже: требует cmdnum +1..11 и сбрасывает
   серию через 5 с, иначе потеря > 11 пакетов подряд (cmdnum скачет) давала бы бан.
 
-## 4. Что ещё не разобрано
+## 5. Посекундный тикер (`OnTimerUp`)
+
+`OnTimerUp` вызывается раз в секунду (Ultr@Tools). Для каждого игрока:
+
+| Детект | Условие | Квар |
+|---|---|---|
+| **Spinhack** | `Σ|Δyaw|` за секунду (с нормализацией через 180/360) > `420·sens` **или** > 4096; больше 5 таких секунд → кик | — |
+| **Teleport Hack** | смещение за секунду² > `SpeedTeleport²` при обычном movetype → бан (+) или кик (−) с дистанцией | `smac_SpeedTeleport` |
+| **Teleport: Fast Detect** | `|vel.z| > 1250` → SIC с тем же знаком | `smac_SpeedTeleport` |
+| **BunnyHop: Fast Detect** | в секундном срезе `|vel.x|` или `|vel.y|` > 289 при обычном movetype → сразу SIC-реакция | `smac_FD_BHOP` |
+| **Airstuck: Fast Detect** | скорость не меняется (каждая компонента < 0.7) при флагах ровно `0x10280`/`0x10282` (в воздухе), 3 секунды → реакция | `smac_Airstuck_reaction` |
+| **RCS -H** (`Eye_Angle_Test_Hurt`) | сумма `|Δpitch|+|Δyaw|` на тиках, где было попадание, за секунду > `|Hurt|` (по умолчанию 4); больше 2 секунд → SIC | `smac_Advanced_Eye_Angle_Test_Hurt` |
+| **RCS -F** (`Eye_Angle_Test_Fire`) | та же сумма на тиках стрельбы без попадания за секунду > `|Fire|` (40); больше 8 секунд → SIC | `smac_Advanced_Eye_Angle_Test_Fire` |
+| **AutoHotKeys** | `+left` и `+right` больше 6 раз каждая за секунду → AutoTrigger тип 6 | `smac_autotrigger_ban` |
+| **SpeedLimit** (`SpeedUp`/`SpeedLimitDetect`) | cmd в секунду > `ceil(66·SpeedUp)` (80): счётчик +1 (≥ 132 cmd — ещё +3); при превышении `|SpeedLimitDetect|` проверяются avg packets in/out > 46.2 и avg data > 66·30·2.2 → «FakeSendPacket[Max]» | `smac_SpeedUp`, `smac_SpeedLimitDetect` |
+| **Fake Lag** | cmd в секунду < `round(66·0.2)` = 13 → «FakeSendPacket[Min]»; данные in/out с соотношением ≤ 2.9 и пакетами ≤ 25 не наказываются | `smac_FL_Ctrl` |
+| **DDoS** | avg data клиента выше порога при пакетах > 46.2: +3, больше 3 → «DDoS Exploit» | `smac_DDoS_Ctrl` |
+
+Ещё он раз в 5 секунд сбрасывает `sv_cheats` в 0, отключает модули при `host_timescale != 1` и раз в цикл
+перезапрашивает `sensitivity` и `cl_mouseenable`.
+
+## 6. Уточнения по `OnPlayerRunCmd`
+
+* **Airstuck** (`smac_Airstuck_reaction`): cmdnum = прошлый + 1, а tickcount повторился, и игрок не «стоит»
+  (кнопки, мышь или углы ненулевые/изменились) → `cnt[25]++`. 6 → `cnt[26]++`, `cnt[25]` сброс; `cnt[26] ≥ 2` → реакция.
+  Повтор tickcount не подряд сбрасывает `cnt[25]`. Совпадает с портом `smac_ultra_netcode`.
+* **Fast AIM Detect** (`smac_Fast_AIM_Detect_*`): выстрел, где за первые 6 cmd менялись и pitch, и yaw, и **был нанесён
+  урон** (AAM добавляет `dmg` в окно). Затем на отпускании атаки углы ровно равны прошлым → `cnt[30]++`.
+* **2X** (`smac_method_2X_*`): машина состояний `g4d81c[client][3]` на фронтах атаки (двойной клик за выстрел),
+  детект в состояниях 103–104. Точный автомат не расписан.
+
+## 7. Карта кваров на глобалы (`Global`, обработчик `ConVarChanged`)
+
+Таблица имён `g1f1c0[16..81]`. Для `*_Ban`-кваров первый глобал хранит значение со знаком, второй — `|значение|`.
+Автоматически сгенерированный файл имён для `decomp.py --names` лежит в `tools/r52re/names_global.txt`.
+
+## 8. Что ещё не разобрано
 
 * UsingWH 102/103 и KnifeBot связаны с состоянием anti-WH: `SetTransmit`-хук пишет `g4c064`, когда скрытый противник
   становится видимым. 103 — накопленное изменение углов за окно > `thr5`; 102 — серия cmd с мышью ≥ 8·s после «появления».

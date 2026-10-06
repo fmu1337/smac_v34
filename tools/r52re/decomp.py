@@ -800,6 +800,10 @@ class Decomp:
         while changed:
             changed = False
             refs = collections.Counter()
+            for ad, s in out:
+                if s[0] == 'casetbl':
+                    refs[s[1][1]] += 1
+                    for j in range(s[1][0]): refs[s[1][3 + 2 * j]] += 1
             for ad, s in live:
                 if s[0] in ('goto',): refs[s[1]] += 1
                 if s[0] == 'if': refs[s[2]] += 1
