@@ -21,30 +21,53 @@ git worktree add ../smac_pr7 origin/cursor/port-xmazax-smac-4b55
 
 ## 1. Источники
 
-Лицензии ниже: «✔» — уверен, «?» — не проверял, надо посмотреть до мержа.
+Лицензии ниже: «✔» — GPLv3 заявлена явно; «GPL (SM)» — явной лицензии нет или автор её не публиковал, но это плагин/расширение SourceMod, а значит GPLv3 по условиям SourceMod (см. раздел 1.1).
 
 | # | Источник | Где | Лицензия | Что взято |
 |---|----------|-----|----------|-----------|
 | S1 | **xMaZax/SMAC 0.8.7.3** (форк SMAC, Silenci0) | https://github.com/xMaZax/SMAC | GPLv3 ✔ (как SMAC) | SourceBans/SB++ в `SMAC_Ban`, `MAXPLAYERS+1`, `smac_validate_auth`, achievement spam, `give` block, `smac_anticmdspam_kick`, eyetest compat + ослабленная проверка tickcount, ladder-skip в autotrigger, `IsClientInGame` в speedhack |
-| S2 | **Cheat-Acid GRAB** (сборник чужих AC) | https://github.com/DJPlaya/Cheat-Acid | ? (сборник; у каждой папки своя) | транзитный источник для S3–S8 |
+| S2 | **Cheat-Acid GRAB** (сборник чужих AC) | https://github.com/DJPlaya/Cheat-Acid | у каждой папки своя; всё — плагины SM → GPL (SM) | транзитный источник для S3–S8 |
 | S3 | **Little Anti-Cheat** (J_Tanzanite) | через S2, upstream `lilac_aimlock.sp`, `lilac_stock.sp` | GPLv3 ✔ | `smac_aimlock` (алгоритм почти 1:1), идея chat-clear, backtrack patch |
 | S4 | **StAC** (sapphonie / stephanie) | через S2 `GRAB/StAC/scripting/stac.sp` | GPLv3 ✔ | `smac_psilent` (A-B-A), `smac_aimsnap`, cmdnum spike в `smac_backtrack`, `cl_interpolate` в cvars |
-| S5 | **2x Anti-Aimbot Source** (simoneaolson) | через S2 `GRAB/2x Anti-Aimbot Source/sm_2x-AntiAimbot.sp` | ? | `smac_aimorigin` |
+| S5 | **2x Anti-Aimbot Source** (simoneaolson) | через S2 `GRAB/2x Anti-Aimbot Source/sm_2x-AntiAimbot.sp` | GPL (SM) | `smac_aimorigin` |
 | S6 | **SMAC official `_unsupported/smac_immunity.sp`** (GoD-Tony) | через S2 | GPLv3 ✔ | `smac_immunity` |
-| S7 | **Forlix FloodCheck** (`ff_hardflood`, `ff_voiceloopback`) | через S2 / FFC | ? | hardflood и voice_loopback в `smac_client` |
-| S8 | **CowAC** / **Bash** / **Oryx** / **Ash** | через S2 | ? | идеи для `smac_strafe`, `smac_triggerbot`, `smac_turncheck`, `smac_strafesync`, `smac_movesanity` |
-| S9 | **HOTGUARD**, **Cow Private** | приватные/слитые сборки | ⚠ приватное | `smac_movesanity`, `smac_turncheck`, LOS в `smac_css_antismoke`, cvar-проверки `cl_pitch*`, `net_fake*` |
-| S10 | **CA-ServerProtect / CA-ClientProtect** (Cheat-Acid) | через S2 | ? | `smac_serverlock` |
-| S11 | **SSAC v2** (null138, hlmod) | hlmod.ru | ? | `smac_ssac` |
-| S12 | **ProtectCMDS** (WeSTManCoder) | ? | ? | список блокируемых команд (`q_sndrcn`, `npc_*`, …) в `smac_commands` |
-| S13 | **SauRay** (toomuchvoltage) | https://github.com/toomuchvoltage/SauRay | ? | sound jitter и TE jitter в `smac_wallhack`, angle-scaled flash в `smac_css_antiflash` |
-| S14 | **SMAC Ultr@** R51/R52 (The Terminator, club-ultra.info) | закрытый, обфусцирован SmartPawn; распакованный `001_SMAC_Global.smx` (FFPS+zlib), `.data`-строки, `smac.cfg`, `smacr52fix.txt`, описание автора на counter-strike.cn.ua / sourceplay.ru | ⚠ закрытый коммерческий, порт по декомпиляции | идеи и имена cvar всех `Ultr@`-модулей (см. таблицу 2); `smac_cmd_block.cfg` в `smac_commands` |
-| S15 | **Ultr@Tools.ext.so 1.0.1** | закрытое расширение, разобрано по бинарю | ⚠ закрытое | `include/ultratools.inc`, `smac_ultratools.sp` |
-| S16 | **FrozDark custom_weapons** | локальный файл автора PR | ? | имя TE `"Shotgun Shot"` для CS:S |
+| S7 | **Forlix FloodCheck** (`ff_hardflood`, `ff_voiceloopback`) | через S2 / FFC | GPL (SM) | hardflood и voice_loopback в `smac_client` |
+| S8 | **CowAC** / **Bash** / **Oryx** / **Ash** | через S2 | GPL (SM) | идеи для `smac_strafe`, `smac_triggerbot`, `smac_turncheck`, `smac_strafesync`, `smac_movesanity` |
+| S9 | **HOTGUARD**, **Cow Private** | приватные/слитые сборки | GPL (SM); распространялось без исходников — нарушение со стороны авторов | `smac_movesanity`, `smac_turncheck`, LOS в `smac_css_antismoke`, cvar-проверки `cl_pitch*`, `net_fake*` |
+| S10 | **CA-ServerProtect / CA-ClientProtect** (Cheat-Acid) | через S2 | GPL (SM) | `smac_serverlock` |
+| S11 | **SSAC v2** (null138, hlmod) | hlmod.ru | GPL (SM) | `smac_ssac` |
+| S12 | **ProtectCMDS** (WeSTManCoder) | ? | GPL (SM) | список блокируемых команд (`q_sndrcn`, `npc_*`, …) в `smac_commands` |
+| S13 | **SauRay** (toomuchvoltage) | https://github.com/toomuchvoltage/SauRay | SP-часть — GPL (SM); ядро (GPU/HighOmega) — лицензия репозитория, мы его не брали | sound jitter и TE jitter в `smac_wallhack`, angle-scaled flash в `smac_css_antiflash` |
+| S14 | **SMAC Ultr@** R51/R52 (The Terminator, club-ultra.info) | закрытый, обфусцирован SmartPawn; распакованный `001_SMAC_Global.smx` (FFPS+zlib), `.data`-строки, `smac.cfg`, `smacr52fix.txt`, описание автора на counter-strike.cn.ua / sourceplay.ru | GPL (SM); распространялось без исходников (SmartPawn-обфускация) — нарушение со стороны авторов | идеи и имена cvar всех `Ultr@`-модулей (см. таблицу 2); `smac_cmd_block.cfg` в `smac_commands` |
+| S15 | **Ultr@Tools.ext.so 1.0.1** | закрытое расширение, разобрано по бинарю | GPL (SM) — расширение линкуется с SourceMod; бинарь без исходников | `include/ultratools.inc`, `smac_ultratools.sp` |
+| S16 | **FrozDark custom_weapons** | локальный файл автора PR | GPL (SM) | имя TE `"Shotgun Shot"` для CS:S |
 
-**Юридический момент.** S9, S14 и S15 — приватный или закрытый код, порт сделан по декомпиляции и
-слитым сборкам. В шапках модулей написано «rewrite, not 1:1», но имена cvar, коды режимов и пороги
-взяты оттуда. Перед публикацией решить, оставлять ли это в публичном репозитории.
+### 1.1 Лицензии: как это устроено
+
+- **SourceMod — GPLv3** с исключением AlliedModders: разрешено линковать с Source Engine, SourcePawn JIT
+  и модами Valve. Официальная позиция AlliedModders (`LICENSE.txt` в SourceMod, sourcemod.net/license.php):
+  плагины и расширения, собранные с include-файлами/API SourceMod, — производные работы и обязаны быть
+  GPL-совместимыми. Это и есть основание «всё, что под SM, — GPL».
+- Следовательно, Ultr@ (S14), Ultr@Tools.ext (S15), HOTGUARD и Cow Private (S9), раздаваемые только
+  бинарями (да ещё обфусцированными), **сами нарушают** условия SourceMod. Претензий у них к нам по сути нет.
+- Оговорка для честности: нарушение GPL автором не делает его код public domain и не выдаёт лицензию
+  автоматически каждому — права всё равно у автора, требовать соблюдения GPL может правообладатель
+  SourceMod. Но это теоретический риск: подавать в суд за переписанный код, защищая заведомо
+  нарушающий продукт, для таких авторов бессмысленно.
+- Важнее: **алгоритмы и идеи авторским правом не охраняются вообще**, охраняется конкретный текст кода.
+  Модули PR — переписанные реализации; имена cvar, коды режимов и пороги — функциональные параметры.
+  Так что по S9/S14/S15 вопрос закрыт.
+
+**Что реально надо сделать по лицензиям — это про наш репозиторий:**
+
+1. В репозитории **нет файла `LICENSE`**, а шапки GPL от оригинального SMAC (GoD-Tony, GPLv3) из
+   исходников вырезаны. SMAC v34 — производная SMAC, значит сам обязан быть GPLv3: положить
+   `LICENSE` (GPLv3) и вернуть copyright-уведомления (GoD-Tony / SMAC team, дальше Danyas).
+2. Где код перенесён близко к тексту (`smac_aimlock` из LilAC, `smac_psilent`/`smac_aimsnap` из StAC,
+   `smac_immunity` из SMAC), сохранить copyright авторов и пометку GPLv3 в шапке — сейчас стоит только
+   «ported from», без лицензионного уведомления.
+3. Раздавать `.smx` только вместе с исходниками (у нас и так открытый репозиторий — ок).
+
 Отдельно: `ULTRA_AGENT_PROMPT.txt` и `.gitignore` с `_ultra_mine/` — рабочий мусор агента, не продукт.
 
 ---
@@ -165,7 +188,7 @@ Legacy-модули **банят даже в observe-режиме**, поэто�
    заведомо честных игроках, и только потом поднимать `*_ban`.
 6. Кандидаты на выброс: `smac_soundesp` (blocker), TE и sound jitter в wallhack, `smac_ultratools`,
    `smac_entityspam`, `smac_aimorigin`, режимы `ultra_aim` без подтверждённого `mouse[]`.
-7. Решить юридический вопрос по S9 / S14 / S15.
+7. Добавить `LICENSE` (GPLv3) и вернуть copyright-уведомления в шапки (раздел 1.1).
 
 ---
 
