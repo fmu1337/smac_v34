@@ -56,3 +56,6 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   трассы аимбота. Защита, а не детект. Подробности — в [docs/ULTRA_AIMKILL.md](docs/ULTRA_AIMKILL.md).
 * `smac_ultra_protect` — No_Team_Flash (флешки не слепят своих) и Control_Entity (перезагрузка карты у лимита энтити)
   из R52. Подробности — в [docs/ULTRA_PROTECT.md](docs/ULTRA_PROTECT.md).
+* `smac_ultra_diag_norecoil` — **диагностика, без наказаний**: меряет `m_angEyeAngles` против углов usercmd и прогоняет
+  No Recoil A/B из R52, чтобы понять, ловил бы он обычных игроков. Как читать — в
+  [docs/ULTRA_DIAG_NORECOIL.md](docs/ULTRA_DIAG_NORECOIL.md).
