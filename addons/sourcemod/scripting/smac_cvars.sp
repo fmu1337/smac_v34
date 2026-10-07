@@ -2,6 +2,7 @@
 #include <smac>
 #include <smac_cvars>
 #include <basecomm>
+#include <smac_cvars_ultra>
 
 /* Plugin Info */
 public Plugin:myinfo =
@@ -14,6 +15,12 @@ public Plugin:myinfo =
 };
 /*Cvars*/
 new Handle:g_hCvarHldj = INVALID_HANDLE;
+new Handle:g_hCvarUltra = INVALID_HANDLE;
+
+/* SMAC Ultr@ R52 table (include/smac_cvars_ultra.inc): names added by it, and its trie flag. */
+#define Cvar_Ultra "8"
+new Handle:g_hUltraNames = INVALID_HANDLE;
+new Handle:g_hWarned[MAXPLAYERS+1];	/* cvars already reported with Action_Warn */
 
 /* Globals */
 #define CVAR_REPLICATION_DELAY 30
@@ -50,6 +57,9 @@ public OnPluginStart()
 	
 	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", _, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarHldj, OnCvarHldjChanged);
+	g_hCvarUltra = SMAC_CreateConVar("smac_cvars_ultra", "1", "SMAC Ultr@ R52 cvar table: 0 = off, 1 = admin notice only, 2 = R52 kick/ban. Missing or protected cvars are ignored.", _, true, 0.0, true, 2.0);
+	HookConVarChange(g_hCvarUltra, OnCvarUltraChanged);
+	g_hUltraNames = CreateArray(ByteCountToCells(MAX_CVAR_NAME_LEN));
 	
 	g_hCvarTrie = CreateTrie();
 	g_hCvarADT = CreateArray();
@@ -150,6 +160,12 @@ public OnPluginStart()
 	RegAdminCmd("smac_addcvar", Command_AddCvar, ADMFLAG_ROOT, "Add cvar to checking.");
 	RegAdminCmd("smac_removecvar", Command_RemCvar, ADMFLAG_ROOT, "Remove cvar from checking.");
 	
+	// SMAC Ultr@ R52 table, after our own entries so it never overrides them.
+	if (GetConVarInt(g_hCvarUltra) > 0)
+	{
+		AddUltraCvars();
+	}
+	
 	// scramble ordering.
 	if (g_iADTSize)
 	{
@@ -186,6 +202,45 @@ public OnCvarHldjChanged(Handle:convar, const String:oldValue[], const String:ne
 	}
 }
 
+public OnCvarUltraChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	decl String:sCvar[MAX_CVAR_NAME_LEN];
+	new size = GetArraySize(g_hUltraNames);
+	for (new i = 0; i < size; i++)
+	{
+		GetArrayString(g_hUltraNames, i, sCvar, sizeof(sCvar));
+		RemCvar(sCvar);
+	}
+	ClearArray(g_hUltraNames);
+	
+	if (GetConVarInt(g_hCvarUltra) > 0)
+	{
+		AddUltraCvars();
+	}
+}
+
+/* Called by AddUltraCvars(). Mode 1 turns the R52 action into a notice. */
+AddUltraCvar(CvarOrder:COrder, const String:sName[], CvarComp:CCompType, CvarAction:CAction, const String:sValue[] = "", const String:sValue2[] = "")
+{
+	decl String:sCvar[MAX_CVAR_NAME_LEN], Handle:hDataTrie;
+	strcopy(sCvar, sizeof(sCvar), sName);
+	StringToLower(sCvar);
+	
+	if (GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
+		return;
+	
+	if (GetConVarInt(g_hCvarUltra) < 2)
+	{
+		CAction = Action_Warn;
+	}
+	
+	if (AddCvar(COrder, sCvar, CCompType, CAction, sValue, sValue2) && GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
+	{
+		SetTrieValue(hDataTrie, Cvar_Ultra, 1);
+		PushArrayString(g_hUltraNames, sCvar);
+	}
+}
+
 public OnClientPostAdminCheck(client)
 {
 	if (!IsFakeClient(client))
@@ -202,6 +257,12 @@ public OnClientDisconnect(client)
 		g_iADTIndex[client] = -1;
 		g_iRequeryCount[client] = 0;
 		SetTimer(g_hTimer[client], INVALID_HANDLE);
+	}
+	
+	if (g_hWarned[client] != INVALID_HANDLE)
+	{
+		CloseHandle(g_hWarned[client]);
+		g_hWarned[client] = INVALID_HANDLE;
 	}
 }
 
@@ -456,6 +517,12 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 	// Initialize data
 	decl CvarComp:CCompType, String:sValue[MAX_CVAR_VALUE_LEN], String:sValue2[MAX_CVAR_VALUE_LEN], String:sKickMessage[255];
 	GetTrieValue(hDataTrie, Cvar_CompType, CCompType);
+	
+	// R52 table: a cvar missing in this client build (or protected) is not a violation.
+	new bUltra = 0;
+	GetTrieValue(hDataTrie, Cvar_Ultra, bUltra);
+	if (bUltra && result != ConVarQuery_Okay && CCompType != Comp_NonExist)
+		return;
 	GetTrieString(hDataTrie, Cvar_Value, sValue, sizeof(sValue));
 	GetTrieString(hDataTrie, Cvar_Value2, sValue2, sizeof(sValue2));
 	
@@ -527,6 +594,21 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 	decl CvarAction:CAction;
 	GetTrieValue(hDataTrie, Cvar_Action, CAction);
 	
+	// Notices are reported once per cvar and connection; the queries cycle all the time.
+	if (CAction == Action_Warn)
+	{
+		if (g_hWarned[client] == INVALID_HANDLE)
+		{
+			g_hWarned[client] = CreateTrie();
+		}
+		
+		new dummy;
+		if (GetTrieValue(g_hWarned[client], sCvar, dummy))
+			return;
+		
+		SetTrieValue(g_hWarned[client], sCvar, 1);
+	}
+	
 	new Handle:info = CreateKeyValues("");
 	
 	KvSetString(info, "cvar", sCvar);
@@ -545,6 +627,11 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 		
 		switch (CAction)
 		{
+			case Action_Warn:
+			{
+				SMAC_PrintAdminNotice("%t", "SMAC_CvarViolation", client, sCvar);
+				SMAC_LogAction(client, "failed checks on convar \"%s\" (notice only). result \"%s\" | CompType: \"%s\" | cvarValue \"%s\" | value: \"%s\" | value2: \"%s\"", sCvar, sResult, sCompType, cvarValue, sValue, sValue2);
+			}
 			case Action_Mute:
 			{
 				if (!BaseComm_IsClientMuted(client))

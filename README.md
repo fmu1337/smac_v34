@@ -47,3 +47,5 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   по декоду R52. По умолчанию только уведомления. Подробности — в [docs/ULTRA_INPUT.md](docs/ULTRA_INPUT.md).
 * `smac_ultra_client` — спам impulse, проверки `sensitivity` и FakeSendPacket (частота usercmd) по декоду R52.
   По умолчанию только уведомления. Подробности — в [docs/ULTRA_CLIENT.md](docs/ULTRA_CLIENT.md).
+* `smac_cvars` + таблица кваров R52 (`include/smac_cvars_ultra.inc`, 257 новых кваров): `smac_cvars_ultra` 0 выкл,
+  1 только уведомления (по умолчанию), 2 кик/бан как в R52. Подробности — в [docs/ULTRA_CVARS.md](docs/ULTRA_CVARS.md).
