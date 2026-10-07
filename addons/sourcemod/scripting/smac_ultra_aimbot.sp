@@ -38,6 +38,9 @@
  *   AGT Mode:299/288   weighted hit counter while the aim was still turning without mouse
  *   Trigger 199/188    same, only for hits within 2 cmds after the +attack press
  *   AGTAF 99/88, 109/108  hits during the PRG 303 steady-mouse streak with stable hitgroups
+ * UsingWH Mode:103   6-tick window from the first shot after +attack: aim change above thr2
+ *                    per axis on ground without mouse input sums to >= thr5 = max(sens / 8.5, 0.2)
+ *                    and the shot did damage (R52 102 is dead code there and not ported)
  *   (first number = kill, second = hurt)
  *
  * Counters start at -1 like R52: a detector reports when its counter reaches
@@ -50,7 +53,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Ultr@: Aimbot",
 	author = SMAC_AUTHOR,
-	description = "AimBot PRG 301-304, AGTNL 200/201, AGTWS 100, AMSAF 101 and Accurate Analysis (AGT, Trigger, AGTAF) from SMAC Ultr@ R52",
+	description = "AimBot PRG 301-304, AGTNL 200/201, AGTWS 100, AMSAF 101, UsingWH 103 and Accurate Analysis (AGT, Trigger, AGTAF) from SMAC Ultr@ R52",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -74,6 +77,7 @@ public Plugin:myinfo =
 
 #define AMS_WINDOW			6
 #define AGTWS_WINDOW		7
+#define WH_WINDOW			6
 
 /* Counters (R52 cnt[] slots). */
 #define C_TRIGGER	0	/* cnt[1]  Trigger 188/199 */
@@ -90,7 +94,8 @@ public Plugin:myinfo =
 #define C_NL201		11	/* cnt[45] */
 #define C_AMSAF		12	/* cnt[12] AMSAF 101 */
 #define C_AGTWS		13	/* cnt[16] AGTWS 100 */
-#define C_COUNT		14
+#define C_USINGWH	14	/* cnt[18] UsingWH 103 */
+#define C_COUNT		15
 
 /* Detector groups (cvar pairs). */
 #define G_PRG		0
@@ -100,7 +105,8 @@ public Plugin:myinfo =
 #define G_AGTNL		4
 #define G_AMSAF		5
 #define G_AGTWS		6
-#define G_COUNT		7
+#define G_USINGWH	7
+#define G_COUNT		8
 
 new Handle:g_hCvarWarn[G_COUNT];
 new Handle:g_hCvarBan[G_COUNT];
@@ -117,6 +123,7 @@ new Float:g_fNl201Time[MAXPLAYERS+1];
 new bool:g_bSensKnown[MAXPLAYERS+1];
 new Float:g_fThr2[MAXPLAYERS+1];
 new Float:g_fThr3[MAXPLAYERS+1];
+new Float:g_fThr5[MAXPLAYERS+1];
 new g_iSensRound[MAXPLAYERS+1];
 
 new bool:g_bHasPrev[MAXPLAYERS+1];
@@ -152,6 +159,18 @@ new g_iHit1[MAXPLAYERS+1][4];	/* count, hits, hitgroup A, hitgroup B */
 new g_iHit2[MAXPLAYERS+1][4];
 new g_iHit2b[MAXPLAYERS+1];
 
+/* UsingWH 103 (R52 whState[0], [1], [6], [9], [10], g53fc4): window after the first shot. */
+new g_iWhEnd[MAXPLAYERS+1];
+new g_iWhShotTick[MAXPLAYERS+1];
+new g_iWhDmg[MAXPLAYERS+1];
+new g_iWhLastTick[MAXPLAYERS+1];
+new g_iWhShots[MAXPLAYERS+1];
+new Float:g_fWhSum[MAXPLAYERS+1];
+new bool:g_bWhGround[MAXPLAYERS+1];
+new bool:g_bWhNoMouse[MAXPLAYERS+1];
+new g_iWhPrevMouse[MAXPLAYERS+1];
+new Float:g_fWhAng[MAXPLAYERS+1][2][2];	/* [0] = this cmd, [1] = previous cmd */
+
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
@@ -170,6 +189,8 @@ public OnPluginStart()
 	g_hCvarBan[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AimBot AMSAF Mode:101: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 7)", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTWS", "4", "AimBot AGTWS Mode:100: notify admins from this counter value. (0 = never)", _, true, 0.0);
 	g_hCvarBan[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AimBot AGTWS Mode:100: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 6)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Warning_AMS", "3", "AimBot UsingWH Mode:103: notify admins from this counter value. (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Ban_AMS", "0", "AimBot UsingWH Mode:103: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 6)", _, true, -100.0, true, 100.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
@@ -184,6 +205,7 @@ public OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+	AddTempEntHook("Shotgun Shot", TE_FireBullets);
 
 	CreateTimer(QUERY_INTERVAL, Timer_QueryAll, _, TIMER_REPEAT);
 
@@ -211,6 +233,7 @@ public OnClientPutInServer(client)
 	g_bSensKnown[client] = false;
 	g_fThr2[client] = UNKNOWN_THR;
 	g_fThr3[client] = UNKNOWN_THR;
+	g_fThr5[client] = UNKNOWN_THR;
 	g_iSensRound[client] = 0;
 
 	ResetMotion(client);
@@ -221,6 +244,9 @@ public OnClientPutInServer(client)
 	ResetAmsaf(client);
 	g_iAmsStillCmd[client] = 0;
 	g_iSnapCmd[client] = 0;
+	ResetWh(client);
+	g_iWhShots[client] = 0;
+	g_iWhPrevMouse[client] = 0;
 
 	g_fProbe[client] = 0.0;
 	g_iLastHit[client] = 0;
@@ -282,6 +308,9 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	g_fThr3[client] = g_fThr2[client] * 2.6;
 	if (g_fThr3[client] > 0.7)
 		g_fThr3[client] = 0.7;
+	g_fThr5[client] = sens / 8.5;
+	if (g_fThr5[client] < 0.2)
+		g_fThr5[client] = 0.2;
 	g_iSensRound[client] = RoundToNearest(sens);
 	g_bSensKnown[client] = true;
 }
@@ -332,6 +361,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 		if ((buttons & IN_ATTACK) && !(g_iPrevButtons[client] & IN_ATTACK))
 			g_iTriggerUntil[client] = cmdnum + 1;
+
+		if (GroupEnabled(G_USINGWH))
+			UsingWhCmd(client, buttons, angles, mouse);
 	}
 
 	g_fPrevAng[client][0] = angles[0];
@@ -872,6 +904,130 @@ public bool:TraceFilter_NotSelf(entity, contentsMask, any:client)
 }
 
 /**
+ * UsingWH Mode:103 (R52 fn_37ba38 / fn_138a8). Despite the name it does not use the
+ * anti-wallhack: the first shot after +attack (and every third one after it) opens a
+ * 6-tick window; on ground and without mouse input the per-axis aim change above thr2
+ * is summed. If the shot did damage and the sum reached thr5 = max(sens / 8.5, 0.2),
+ * the counter grows. R52 Mode:102 is not ported: its state never leaves -1 in R52.
+ */
+UsingWhCmd(client, buttons, const Float:angles[3], const mouse[2])
+{
+	g_fWhAng[client][1][0] = g_fPrevAng[client][0];
+	g_fWhAng[client][1][1] = g_fPrevAng[client][1];
+	g_fWhAng[client][0][0] = angles[0];
+	g_fWhAng[client][0][1] = angles[1];
+	g_bWhNoMouse[client] = (g_iWhPrevMouse[client] == 0 && mouse[0] == 0 && mouse[1] == 0);
+	g_iWhPrevMouse[client] = mouse[0];
+	g_bWhGround[client] = (GetEntityFlags(client) & FL_ONGROUND) != 0;
+
+	if (buttons & IN_ATTACK)
+	{
+		WhProcess(client);
+
+		if (!(g_iPrevButtons[client] & IN_ATTACK))
+		{
+			g_fWhSum[client] = 0.0;
+			g_iWhShots[client] = 0;
+			g_iWhDmg[client] = 0;
+		}
+	}
+	else
+	{
+		if (g_iWhDmg[client] > 0)
+			WhEvaluate(client);
+		g_iWhDmg[client] = 0;
+	}
+}
+
+/* R52 hooks the FireBullets temp entity ("Shotgun Shot" in CS:S). */
+public Action:TE_FireBullets(const String:te_name[], const clients[], numClients, Float:delay)
+{
+	new client = TE_ReadNum("m_iPlayer") + 1;
+	if (!IsPlaying(client) || !GroupEnabled(G_USINGWH))
+		return Plugin_Continue;
+
+	new tick = GetGameTickCount();
+	if (g_iWhShotTick[client] == tick)
+		return Plugin_Continue;
+
+	if (++g_iWhShots[client] == 1)
+	{
+		if (g_iWhDmg[client] > 0)
+			WhEvaluate(client);
+		if (g_iWhEnd[client] != 0)
+			ResetWh(client);
+
+		g_iWhEnd[client] = tick + WH_WINDOW;
+		g_iWhShotTick[client] = tick;
+		WhProcess(client);
+	}
+	else if (g_iWhShots[client] > 2)
+	{
+		g_iWhShots[client] = 0;
+	}
+	return Plugin_Continue;
+}
+
+WhProcess(client)
+{
+	new tick = GetGameTickCount();
+	if (g_iWhEnd[client] < tick)
+	{
+		if (g_iWhEnd[client] != 0)
+		{
+			if (g_iWhDmg[client] > 0)
+				WhEvaluate(client);
+			ResetWh(client);
+		}
+		return;
+	}
+
+	if (g_iWhLastTick[client] == tick)
+		return;
+	g_iWhLastTick[client] = tick;
+
+	if (!g_bWhGround[client] || !g_bWhNoMouse[client])
+	{
+		g_fWhSum[client] = 0.0;
+		return;
+	}
+
+	for (new axis = 0; axis < 2; axis++)
+	{
+		new Float:d = FloatAbs(FloatAbs(NormalizeAngle(g_fWhAng[client][0][axis])) - FloatAbs(NormalizeAngle(g_fWhAng[client][1][axis])));
+		if (d > g_fThr2[client])
+			g_fWhSum[client] += d;
+	}
+}
+
+WhEvaluate(client)
+{
+	if (g_bSensKnown[client] && g_fWhSum[client] >= g_fThr5[client])
+	{
+		ResetWh(client);
+		Detect(client, G_USINGWH, C_USINGWH, DECAY_LONG, "AimBot (Using WH)", "Mode:103");
+		return;
+	}
+	g_fWhSum[client] = 0.0;
+}
+
+ResetWh(client)
+{
+	g_iWhEnd[client] = 0;
+	g_iWhShotTick[client] = 0;
+	g_iWhDmg[client] = 0;
+	g_iWhLastTick[client] = 0;
+	g_fWhSum[client] = 0.0;
+}
+
+Float:NormalizeAngle(Float:angle)
+{
+	if (angle > 180.0)
+		angle -= 360.0;
+	return angle;
+}
+
+/**
  * Accurate Analysis Module (player_hurt / player_death)
  */
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
@@ -881,7 +1037,7 @@ public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	AnalyzeHit(event, attacker, victim, false, false);
+	AnalyzeHit(event, attacker, victim, false, false, GetEventInt(event, "dmg_health"));
 }
 
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
@@ -897,7 +1053,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		RelaxOnDeath(victim, C_AGTAF1, DECAY_LONG);
 	}
 
-	AnalyzeHit(event, attacker, victim, GetEventBool(event, "headshot"), true);
+	AnalyzeHit(event, attacker, victim, GetEventBool(event, "headshot"), true, 100);
 }
 
 RelaxOnDeath(client, counter, Float:delay)
@@ -908,7 +1064,7 @@ RelaxOnDeath(client, counter, Float:delay)
 		g_iCnt[client][counter]--;
 }
 
-AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill)
+AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill, dmg)
 {
 	if (!IS_CLIENT(attacker) || !IS_CLIENT(victim) || attacker == victim)
 		return;
@@ -927,6 +1083,9 @@ AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill)
 	new Float:dist = GetVectorDistance(vA, vV, true);
 	if (dist < MIN_TARGET_DIST_SQ)
 		return;
+
+	/* R52 Accurate Analysis adds the damage to the UsingWH window (whState[6]). */
+	g_iWhDmg[attacker] += dmg;
 
 	new bool:bPistol = GetTrieValue(g_hTriePistol, sWeapon, dummy);
 	new bool:bSniper = GetTrieValue(g_hTrieSniper, sWeapon, dummy);
