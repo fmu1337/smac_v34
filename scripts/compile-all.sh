@@ -51,6 +51,7 @@ PLUGINS=(
 	smac_ultra_netcode.sp
 	smac_ultra_aimbot.sp
 	smac_ultra_movement.sp
+	smac_ultra_input.sp
 )
 
 mkdir -p "$OUT_DIR"

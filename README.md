@@ -42,3 +42,6 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_ultra_movement` — Fast Run, Advanced BunnyHop, HaX2, AutoHotKeys Auto-Jump, Eye Angles 04, Teleport Hack,
   Airstuck/BunnyHop Fast Detect и Spinhack по декоду R52. По умолчанию только уведомления.
   Подробности — в [docs/ULTRA_MOVEMENT.md](docs/ULTRA_MOVEMENT.md).
+* `smac_ultra_input` — AutoTrigger (Auto-Fire, Auto-Strafe, Auto-Duck, Auto-Scroll, AutoHotKeys), Advanced Trigger,
+  Advanced AutoFire, Fast AIM Detect, Recoil Control System -F/-H и CheatCFG (Stop Movement, Fast Switch, Fast Reload)
+  по декоду R52. По умолчанию только уведомления. Подробности — в [docs/ULTRA_INPUT.md](docs/ULTRA_INPUT.md).

@@ -33,6 +33,7 @@ enum DetectionType {
 	Detection_UltraPSilent = 7100,
 	Detection_UltraAim = 7200,		/* PRG 301-304, AGTNL 200/201, AGT, Trigger, AGTAF */
 	Detection_UltraMovement = 7300,	/* Fast Run, Advanced BHop, HaX2, Eye Angles 04, Teleport, Airstuck Fast, Spinhack */
+	Detection_UltraInput = 7400,		/* AutoTrigger, Advanced Trigger/AutoFire, Fast AIM, RCS, CheatCFG */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
