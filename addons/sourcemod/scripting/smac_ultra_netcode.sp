@@ -20,6 +20,11 @@
  *                     jumps > 11 for the whole map; that is packet loss, so it is left out.
  *   Backtrack B     - cmdnum goes backwards. 23 rollbacks = stage, 2 stages = detection,
  *                     stages decay by 1 every 128 s.
+ *   Backtrack A     - at the shot the client tickcount is lower than the previous cmd's (or the
+ *                     previous one is negative). Counter from -1, each step decays in 300 s, the
+ *                     4th such shot is a detection.
+ *   Changer Player Status - a client flagged as a bot (IsFakeClient) sends mouse input; real bots
+ *                     never do. Reported once per connection.
  *   PSilent Active  - at the shot (weapon_fire = R52 FireBullets TE hook):
  *                       armed = 2 when the last 4 cmds have cmdnum and tickcount growing by
  *                       exactly 1, server ticks [0..2] consecutive, and the shot cmd arrived
@@ -44,7 +49,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Ultr@: Netcode",
 	author = SMAC_AUTHOR,
-	description = "Airstuck, Lag Exploit, Backtrack B and PSilent (choke-on-shot) from SMAC Ultr@ R52",
+	description = "Airstuck, Lag Exploit, Backtrack A/B, PSilent (choke-on-shot) and Changer Player Status from SMAC Ultr@ R52",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -61,6 +66,9 @@ public Plugin:myinfo =
 #define BACKTRACK_EVENTS	22
 #define BACKTRACK_STAGES	2
 #define BACKTRACK_DECAY		128.0
+
+#define BACKTRACK_A_EVENTS	2
+#define BACKTRACK_A_DECAY	300.0
 
 #define PSILENT_ARMED		2
 #define PSILENT_DETECT		2
@@ -86,6 +94,7 @@ new Handle:g_hCvarBacktrack = INVALID_HANDLE;
 new Handle:g_hCvarPSilentWarn = INVALID_HANDLE;
 new Handle:g_hCvarPSilentBan = INVALID_HANDLE;
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
+new Handle:g_hCvarFakeStatus = INVALID_HANDLE;
 
 /* Last 4 cmds: [3] = newest. */
 new g_iHistCmd[MAXPLAYERS+1][4];
@@ -116,6 +125,13 @@ new g_iBtStage[MAXPLAYERS+1];
 new Float:g_fBtStageTime[MAXPLAYERS+1];
 new g_iBtDetects[MAXPLAYERS+1];
 
+new g_iBtaEvents[MAXPLAYERS+1];
+new Float:g_fBtaTime[MAXPLAYERS+1];
+new g_iBtaDetects[MAXPLAYERS+1];
+
+new g_iFakeDetects[MAXPLAYERS+1];
+new bool:g_bFakeReported[MAXPLAYERS+1];
+
 new g_iPSilentState[MAXPLAYERS+1];
 new g_iPSilentDetects[MAXPLAYERS+1];
 new Float:g_fPSilentTime[MAXPLAYERS+1];
@@ -131,9 +147,10 @@ public OnPluginStart()
 
 	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarLag = SMAC_CreateConVar("smac_LagExploit_reaction", "1", "Lag Exploit (tickcount shift): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarBacktrack = SMAC_CreateConVar("smac_eyetest_reaction_Advanced", "1", "Backtrack Exploit-Mode:B (cmdnum rollback): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarBacktrack = SMAC_CreateConVar("smac_eyetest_reaction_Advanced", "1", "Backtrack Exploit-Mode:A (tickcount rollback on a shot) and B (cmdnum rollback): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarPSilentWarn = SMAC_CreateConVar("smac_PSilent_Warning", "1", "PSilent [Active Mode] detections before admins are notified. (0 = never)", _, true, 0.0);
 	g_hCvarPSilentBan = SMAC_CreateConVar("smac_PSilent_Ban", "0", "PSilent [Active Mode] detections before punish: -N = kick, +N = ban, 0 = never (R52: -12)", _, true, -100.0, true, 100.0);
+	g_hCvarFakeStatus = SMAC_CreateConVar("smac_ultra_fake_status", "1", "Changer Player Status (a client flagged as a bot sends mouse input): 0=off, 1=admin notice, 2=kick, 3=ban (R52: ban)", _, true, 0.0, true, 3.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
@@ -175,6 +192,13 @@ public OnClientPutInServer(client)
 	g_iBtStage[client] = 0;
 	g_fBtStageTime[client] = 0.0;
 	g_iBtDetects[client] = 0;
+
+	g_iBtaEvents[client] = -1;
+	g_fBtaTime[client] = 0.0;
+	g_iBtaDetects[client] = 0;
+
+	g_iFakeDetects[client] = 0;
+	g_bFakeReported[client] = false;
 
 	g_iPSilentState[client] = 0;
 	g_iPSilentDetects[client] = 0;
@@ -260,6 +284,14 @@ public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 
 	g_iPSilentState[client] = 0;
 
+	/* R52 Backtrack Exploit-Mode:A: on the shot the client tickcount went back (or the previous one
+	   is negative). The FireBullets hook in R52; weapon_fire runs at the same point. */
+	if (g_iHistLen[client] >= 2 && GetGameTime() >= g_fIgnoreUntil[client]
+		&& (g_iHistTick[client][3] < g_iHistTick[client][2] || g_iHistTick[client][2] < 0))
+	{
+		CheckBacktrackA(client);
+	}
+
 	if (g_iHistLen[client] < 4 || GetGameTime() < g_fIgnoreUntil[client] || IsLagging(client))
 		return;
 
@@ -299,6 +331,10 @@ public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
+	/* R52 "Changer Player Status": bots never send mouse input. */
+	if (IS_CLIENT(client) && IsFakeClient(client) && (mouse[0] != 0 || mouse[1] != 0))
+		CheckFakeStatus(client, mouse);
+
 	if (!IsPlaying(client))
 	{
 		g_iHistLen[client] = 0;
@@ -493,6 +529,64 @@ CheckPSilent(client, buttons)
 	FormatEx(sDetail, sizeof(sDetail), "choked shot followed by batched cmds (dYaw %.3f, thr %.3f)", g_fDYaw[client], g_fThr3[client]);
 	Report(client, Detection_UltraPSilent, info, g_iPSilentDetects[client], warn, ban, "PSilent [Active Mode]", sDetail);
 	CloseHandle(info);
+}
+
+CheckBacktrackA(client)
+{
+	new level = GetConVarInt(g_hCvarBacktrack);
+	if (level <= 0)
+		return;
+
+	/* R52: -1, 0, 1, 2 decay in 300 s each; the 4th shot reacts and resets the counter to -2. */
+	g_iBtaEvents[client] = DecaySigned(g_iBtaEvents[client], g_fBtaTime[client], BACKTRACK_A_DECAY) + 1;
+	g_fBtaTime[client] = GetGameTime();
+	if (g_iBtaEvents[client] <= BACKTRACK_A_EVENTS)
+		return;
+
+	g_iBtaEvents[client] = -2;
+
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "tickcount", g_iHistTick[client][3]);
+	KvSetNum(info, "prev_tickcount", g_iHistTick[client][2]);
+
+	decl String:sDetail[96];
+	FormatEx(sDetail, sizeof(sDetail), "shot with tickcount %i after %i", g_iHistTick[client][3], g_iHistTick[client][2]);
+	ReportLevel(client, Detection_Backtrack, info, g_iBtaDetects[client], level, "Backtrack Exploit-Mode:A", sDetail);
+	CloseHandle(info);
+}
+
+CheckFakeStatus(client, const mouse[2])
+{
+	new level = GetConVarInt(g_hCvarFakeStatus);
+	if (level <= 0 || g_bFakeReported[client] || !IsClientInGame(client))
+		return;
+
+	g_bFakeReported[client] = true;
+
+	/* R52 kicks instead of banning a "bot" that connects from the server itself. */
+	decl String:sIP[32];
+	if (level >= 3 && GetClientIP(client, sIP, sizeof(sIP)) && StrEqual(sIP, "127.0.0.1"))
+		level = 2;
+
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "mouse_x", mouse[0]);
+	KvSetNum(info, "mouse_y", mouse[1]);
+
+	decl String:sDetail[96];
+	FormatEx(sDetail, sizeof(sDetail), "client flagged as a bot sends mouse input %i %i", mouse[0], mouse[1]);
+	ReportLevel(client, Detection_UltraFakeStatus, info, g_iFakeDetects[client], level, "Changer Player Status", sDetail);
+	CloseHandle(info);
+}
+
+/* Like Decay(), but for R52 counters that start at -1 (or -2 after a reaction). */
+DecaySigned(value, Float:lastTime, Float:period)
+{
+	if (value <= -1 || lastTime <= 0.0)
+		return value;
+
+	new steps = RoundToFloor((GetGameTime() - lastTime) / period);
+	value -= steps;
+	return (value < -1) ? -1 : value;
 }
 
 /**
