@@ -52,3 +52,5 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_ultra_server` — команды от «полуподключённого» клиента, `rcon` из клиентской команды, переполнение числовых
   аргументов, SIC Iniuria и проверка авторизации из плагинов Rcon/Cvars/Client R52. По умолчанию блок и уведомления.
   Подробности — в [docs/ULTRA_SERVER.md](docs/ULTRA_SERVER.md).
+* `smac_ultra_aimkill` — AIM_Kill из R52: невидимые несталкивающиеся приманки (ящик у лица игрока), в которые упираются
+  трассы аимбота. Защита, а не детект. Подробности — в [docs/ULTRA_AIMKILL.md](docs/ULTRA_AIMKILL.md).

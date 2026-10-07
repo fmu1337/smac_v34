@@ -54,6 +54,7 @@ PLUGINS=(
 	smac_ultra_input.sp
 	smac_ultra_client.sp
 	smac_ultra_server.sp
+	smac_ultra_aimkill.sp
 )
 
 mkdir -p "$OUT_DIR"
