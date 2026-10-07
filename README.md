@@ -45,3 +45,5 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_ultra_input` — AutoTrigger (Auto-Fire, Auto-Strafe, Auto-Duck, Auto-Scroll, AutoHotKeys), Advanced Trigger,
   Advanced AutoFire, Fast AIM Detect, Recoil Control System -F/-H и CheatCFG (Stop Movement, Fast Switch, Fast Reload)
   по декоду R52. По умолчанию только уведомления. Подробности — в [docs/ULTRA_INPUT.md](docs/ULTRA_INPUT.md).
+* `smac_ultra_client` — спам impulse, проверки `sensitivity` и FakeSendPacket (частота usercmd) по декоду R52.
+  По умолчанию только уведомления. Подробности — в [docs/ULTRA_CLIENT.md](docs/ULTRA_CLIENT.md).
