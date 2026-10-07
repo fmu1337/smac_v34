@@ -35,6 +35,7 @@ enum DetectionType {
 	Detection_UltraMovement = 7300,	/* Fast Run, Advanced BHop, HaX2, Eye Angles 04, Teleport, Airstuck Fast, Spinhack */
 	Detection_UltraInput = 7400,		/* AutoTrigger, Advanced Trigger/AutoFire, Fast AIM, RCS, CheatCFG */
 	Detection_UltraClient = 7500,		/* Impulse spam, sensitivity, FakeSendPacket */
+	Detection_UltraServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

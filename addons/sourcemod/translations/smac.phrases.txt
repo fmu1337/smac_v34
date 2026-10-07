@@ -144,4 +144,9 @@
 	{
 		"en"		"You were kicked by the anti-cheat (suspicious usercmds)"
 	}
+
+	"SMAC_FailedAuth"
+	{
+		"en"		"Your Steam ID could not be validated. Please reconnect"
+	}
 }

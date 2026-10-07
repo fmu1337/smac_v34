@@ -53,6 +53,7 @@ PLUGINS=(
 	smac_ultra_movement.sp
 	smac_ultra_input.sp
 	smac_ultra_client.sp
+	smac_ultra_server.sp
 )
 
 mkdir -p "$OUT_DIR"

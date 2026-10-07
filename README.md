@@ -49,3 +49,6 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   По умолчанию только уведомления. Подробности — в [docs/ULTRA_CLIENT.md](docs/ULTRA_CLIENT.md).
 * `smac_cvars` + таблица кваров R52 (`include/smac_cvars_ultra.inc`, 257 новых кваров): `smac_cvars_ultra` 0 выкл,
   1 только уведомления (по умолчанию), 2 кик/бан как в R52. Подробности — в [docs/ULTRA_CVARS.md](docs/ULTRA_CVARS.md).
+* `smac_ultra_server` — команды от «полуподключённого» клиента, `rcon` из клиентской команды, переполнение числовых
+  аргументов, SIC Iniuria и проверка авторизации из плагинов Rcon/Cvars/Client R52. По умолчанию блок и уведомления.
+  Подробности — в [docs/ULTRA_SERVER.md](docs/ULTRA_SERVER.md).
