@@ -42,7 +42,7 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_ultra_movement` — Fast Run, Advanced BunnyHop, HaX2, AutoHotKeys Auto-Jump, Eye Angles 04, Teleport Hack,
   Airstuck/BunnyHop Fast Detect и Spinhack по декоду R52. По умолчанию только уведомления.
   Подробности — в [docs/ULTRA_MOVEMENT.md](docs/ULTRA_MOVEMENT.md).
-* `smac_ultra_input` — AutoTrigger (Auto-Fire, Auto-Strafe, Auto-Duck, Auto-Scroll, AutoHotKeys), Advanced Trigger,
+* `smac_ultra_input` — AutoTrigger (Auto-Fire, Auto-Strafe, Auto-Duck, Auto-Scroll, AutoHotKeys), 2X, KnifeBot, Advanced Trigger,
   Advanced AutoFire, Fast AIM Detect, Recoil Control System -F/-H и CheatCFG (Stop Movement, Fast Switch, Fast Reload)
   по декоду R52. По умолчанию только уведомления. Подробности — в [docs/ULTRA_INPUT.md](docs/ULTRA_INPUT.md).
 * `smac_ultra_client` — спам impulse, проверки `sensitivity` и FakeSendPacket (частота usercmd) по декоду R52.
@@ -54,3 +54,5 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   Подробности — в [docs/ULTRA_SERVER.md](docs/ULTRA_SERVER.md).
 * `smac_ultra_aimkill` — AIM_Kill из R52: невидимые несталкивающиеся приманки (ящик у лица игрока), в которые упираются
   трассы аимбота. Защита, а не детект. Подробности — в [docs/ULTRA_AIMKILL.md](docs/ULTRA_AIMKILL.md).
+* `smac_ultra_protect` — No_Team_Flash (флешки не слепят своих) и Control_Entity (перезагрузка карты у лимита энтити)
+  из R52. Подробности — в [docs/ULTRA_PROTECT.md](docs/ULTRA_PROTECT.md).

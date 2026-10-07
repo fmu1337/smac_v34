@@ -25,6 +25,9 @@
  * Recoil Control System -F / -H: inside that window |dPitch| + |dYaw| of every cmd is
  *   summed per second; the cmd that landed a hit goes to the -H sum instead. -F: sum > 40
  *   in 10 seconds; -H: sum > 4 in 4 seconds (each such second decays in 420 s).
+ * 2X (code 406): first click held exactly 4-5 cmds, released 1-4 cmds, second click held 3-4 cmds.
+ * KnifeBot (code 400): knife +attack2 window of 6 ticks; the buttons of the hit cmd and of the
+ *   cmd before it come back in that order. Off by default (quick human stabs match it too).
  * CheatCFG (smac_css_CheatCFG):
  *   Stop Movement  - +attack alone right after a cmd with exactly one movement key
  *                    (or forward/back + one side key), more than 7 times;
@@ -41,7 +44,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Ultr@: Input",
 	author = SMAC_AUTHOR,
-	description = "AutoTrigger, Advanced Trigger/AutoFire, Fast AIM, RCS and CheatCFG from SMAC Ultr@ R52",
+	description = "AutoTrigger, 2X, KnifeBot, Advanced Trigger/AutoFire, Fast AIM, RCS and CheatCFG from SMAC Ultr@ R52",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -89,9 +92,13 @@ new String:g_sAutoTrigger[AT_COUNT][] =
 #define C_STOPMOVE			5
 #define C_FASTSWITCH		6
 #define C_FASTRELOAD		7
-#define C_COUNT				8
+#define C_2X				8
+#define C_KNIFEBOT			9
+#define C_COUNT				10
 
 #define DECAY				420.0
+#define KNIFEBOT_DECAY		1024.0
+#define KNIFEBOT_WINDOW		6
 #define FASTAIM_WINDOW		6
 #define RCS_H_SECONDS		2
 #define RCS_F_SECONDS		8
@@ -117,6 +124,10 @@ new Handle:g_hCvarRcsHurt = INVALID_HANDLE;
 new Handle:g_hCvarRcsFire = INVALID_HANDLE;
 new Handle:g_hCvarRcsNotice = INVALID_HANDLE;
 new Handle:g_hCvarCheatCfg = INVALID_HANDLE;
+new Handle:g_hCvar2XWarn = INVALID_HANDLE;
+new Handle:g_hCvar2XBan = INVALID_HANDLE;
+new Handle:g_hCvarKnifeWarn = INVALID_HANDLE;
+new Handle:g_hCvarKnifeBan = INVALID_HANDLE;
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
 
 new Handle:g_hTrieExclude = INVALID_HANDLE;
@@ -152,6 +163,19 @@ new g_iSeenClip[MAXPLAYERS+1];
 new Float:g_fTimers[MAXPLAYERS+1][3];
 new g_iPressTick[MAXPLAYERS+1];
 
+/* Buttons of the last two cmds ([1] = newest), for patterns taken while a cmd runs. */
+new g_iBtnHist[MAXPLAYERS+1][2];
+
+/* 2X (R52 g4d81c[3], g4d81c[4]): hold length of the click, then 100 + hold of the second one. */
+new g_i2XState[MAXPLAYERS+1];
+new g_i2XUp[MAXPLAYERS+1];
+
+/* KnifeBot (R52 whState[2..5]): window end, buttons before / at the hit, step. */
+new g_iKnifeEnd[MAXPLAYERS+1];
+new g_iKnifePrev[MAXPLAYERS+1];
+new g_iKnifeHit[MAXPLAYERS+1];
+new g_iKnifeStep[MAXPLAYERS+1];
+
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
@@ -167,6 +191,10 @@ public OnPluginStart()
 	g_hCvarRcsFire = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Fire", "-40", "Recoil Control System -F: max aim change per second while firing, +N = ban, -N = kick, 0 = off", _, true, -1000.0, true, 1000.0);
 	g_hCvarRcsNotice = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_notice_only", "1", "Recoil Control System: only notify admins instead of the kick/ban set by the sign.", _, true, 0.0, true, 1.0);
 	g_hCvarCheatCfg = SMAC_CreateConVar("smac_css_CheatCFG", "1", "CheatCFG (Stop Movement, Fast Switch, Fast Reload): 0=off, 1=admin notice, 2=kick, 3=ban (4-6 = same, R52 league mode) (R52: 3)", _, true, 0.0, true, 6.0);
+	g_hCvar2XWarn = SMAC_CreateConVar("smac_method_2X_Warning", "8", "Using the button 2X for fire: detections before admins are notified. (0 = never)", _, true, 0.0);
+	g_hCvar2XBan = SMAC_CreateConVar("smac_method_2X_Ban", "0", "Using the button 2X for fire: +N ban / -N kick after more than N detections, 0 = never (R52: 10)", _, true, -100.0, true, 100.0);
+	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: detections before admins are notified, 0 = never (R52: 1; off here, see docs/ULTRA_INPUT.md)", _, true, 0.0);
+	g_hCvarKnifeBan = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Ban", "0", "KnifeBot: +N ban / -N kick after more than N detections, 0 = never (R52: 2)", _, true, -100.0, true, 100.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
@@ -222,6 +250,12 @@ public OnClientPutInServer(client)
 	g_iSeenClip[client] = 0;
 	g_fTimers[client][0] = g_fTimers[client][1] = g_fTimers[client][2] = 0.0;
 	g_iPressTick[client] = 0;
+	g_iBtnHist[client][0] = g_iBtnHist[client][1] = 0;
+	g_i2XState[client] = -1;
+	g_i2XUp[client] = 0;
+	g_iKnifeEnd[client] = 0;
+	g_iKnifePrev[client] = g_iKnifeHit[client] = -1;
+	g_iKnifeStep[client] = -1;
 }
 
 /* R52 hooks the FireBullets temp entity ("Shotgun Shot" in CS:S); the clip is already
@@ -277,10 +311,16 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			OnAttackPress(client, buttons, tickcount);
 		else
 			OnAttackHold(client);
+
+		/* 2X: every cmd with +attack held adds to the hold length. */
+		if (g_i2XState[client] >= 0)
+			g_i2XState[client]++;
 	}
 	else
 	{
 		OnAttackUp(client, prev, angles, tickcount);
+		Check2XUp(client);
+		CheckKnifeBot(client, buttons, tickcount);
 	}
 
 	Store(client, buttons, angles);
@@ -289,6 +329,8 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 Store(client, buttons, const Float:angles[3])
 {
+	g_iBtnHist[client][0] = g_iBtnHist[client][1];
+	g_iBtnHist[client][1] = buttons;
 	g_iPrevButtons[client] = buttons;
 	g_fPrevAng[client][0] = angles[0];
 	g_fPrevAng[client][1] = angles[1];
@@ -379,6 +421,16 @@ OnAttackPress(client, buttons, tickcount)
 	g_iPressTick[client] = tickcount;
 	g_bReleased[client] = false;
 
+	/* 2X: a new click starts at 0 unless it is the second click of a pair (100). */
+	if (GetConVarInt(g_hCvar2XWarn) > 0 || GetConVarInt(g_hCvar2XBan) != 0)
+	{
+		if (IsExcludedWeapon(client))
+			g_i2XState[client] = -1;
+		else if (g_i2XState[client] != 100)
+			g_i2XState[client] = 0;
+		g_i2XUp[client] = 0;
+	}
+
 	new warn = GetConVarInt(g_hCvarTriggerWarn);
 	new ban = GetConVarInt(g_hCvarTriggerBan);
 	if (!(g_iClickButtons[client] & IN_ATTACK) || (warn <= 0 && ban == 0))
@@ -467,14 +519,26 @@ CheckWindow(client, prev, const Float:angles[3], tickcount)
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new dmg = GetEventInt(event, "dmg_health");
-	if (GetEventInt(event, "health") > 0 && dmg < MIN_HIT_DMG)
-		return;
+	new bool:bWeak = (GetEventInt(event, "health") > 0 && dmg < MIN_HIT_DMG);
 
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if (!IS_CLIENT(attacker) || !IS_CLIENT(victim) || attacker == victim)
 		return;
+
+	/* R52 fn_145c70: the attacker's buttons before and during the cmd that hit. */
+	if (g_iKnifeEnd[attacker] != 0)
+	{
+		if (g_iKnifePrev[attacker] == -1)
+			g_iKnifePrev[attacker] = g_iBtnHist[attacker][0];
+		if (g_iKnifeHit[attacker] == -1)
+			g_iKnifeHit[attacker] = g_iBtnHist[attacker][1];
+	}
+
 	if (!IsClientInGame(attacker) || !IsClientInGame(victim) || IsFakeClient(attacker) || !IsPlayerAlive(attacker))
+		return;
+
+	if (bWeak)
 		return;
 
 	decl String:sWeapon[32];
@@ -691,6 +755,92 @@ RcsSecond(client, counter, seconds, value, const String:name[], Float:sum)
 }
 
 /**
+ * 2X (R52 fn_14ee54 / fn_146230): the first click held exactly 4-5 cmds, released for at most
+ * 4 cmds, the second click held exactly 3-4 cmds. Called on every cmd without +attack.
+ */
+Check2XUp(client)
+{
+	if (g_i2XState[client] <= 0)
+		return;
+
+	g_i2XUp[client]++;
+
+	if (g_i2XState[client] > 100)
+	{
+		if (g_i2XState[client] > 102 && g_i2XState[client] < 105)
+		{
+			g_i2XState[client] = -1;
+			g_iCnt[client][C_2X]++;
+			Evaluate(client, C_2X, GetConVarInt(g_hCvar2XWarn), GetConVarInt(g_hCvar2XBan), "Using the button 2X for fire", "4-5 cmd click, short gap, 3-4 cmd click");
+		}
+		else
+		{
+			g_i2XState[client] = -1;
+		}
+		return;
+	}
+
+	if (g_i2XUp[client] > 5)
+		g_i2XState[client] = -1;
+	else if (g_i2XUp[client] == 1)
+		g_i2XState[client] = (g_i2XState[client] >= 4 && g_i2XState[client] <= 5) ? 100 : -1;
+}
+
+/**
+ * KnifeBot (R52, code 400): +attack2 with the knife opens a 6-tick window. If a hit lands
+ * in it, the buttons before and during the hit cmd are kept; when the following cmds show
+ * the hit buttons again and then the buttons from before, the counter grows.
+ * Called on every cmd without +attack.
+ */
+CheckKnifeBot(client, buttons, tickcount)
+{
+	new warn = GetConVarInt(g_hCvarKnifeWarn);
+	new ban = GetConVarInt(g_hCvarKnifeBan);
+	if (warn <= 0 && ban == 0)
+		return;
+
+	if ((buttons & IN_ATTACK2) && g_iKnifeEnd[client] == 0)
+	{
+		g_iKnifePrev[client] = g_iKnifeHit[client] = -1;
+
+		decl String:sWeapon[32];
+		GetClientWeapon(client, sWeapon, sizeof(sWeapon));
+		if (StrContains(sWeapon, "weapon_knife") != -1)
+		{
+			g_iKnifeEnd[client] = tickcount + KNIFEBOT_WINDOW;
+			g_iKnifeStep[client] = 0;
+		}
+		else
+		{
+			g_iKnifeStep[client] = -1;
+		}
+	}
+
+	if (tickcount >= g_iKnifeEnd[client])
+	{
+		g_iKnifeEnd[client] = 0;
+		return;
+	}
+
+	if (g_iKnifePrev[client] <= -1 || g_iKnifeHit[client] == g_iKnifePrev[client])
+		return;
+
+	if ((g_iKnifeStep[client] == 0 && buttons == g_iKnifeHit[client])
+		|| (g_iKnifeStep[client] == 1 && buttons == g_iKnifePrev[client]))
+	{
+		if (++g_iKnifeStep[client] > 1)
+		{
+			g_iKnifeEnd[client] = 0;
+			g_iKnifePrev[client] = g_iKnifeHit[client] = -1;
+			g_iKnifeStep[client] = -1;
+
+			g_iCnt[client][C_KNIFEBOT]++;
+			Evaluate(client, C_KNIFEBOT, warn, ban, "KnifeBot", "knife hit buttons replayed in the 6-tick window");
+		}
+	}
+}
+
+/**
  * Warning/Ban counters (R52): the counter starts at -1; admins are notified from Warning on,
  * more than |Ban| punishes (+ ban, - kick) and resets it to -1. Each step decays in 420 s.
  */
@@ -708,19 +858,20 @@ Evaluate(client, counter, warn, ban, const String:name[], const String:detail[])
 	if (value <= -1)
 		return;
 
-	ScheduleDecay(client, counter);
+	ScheduleDecay(client, counter, (counter == C_KNIFEBOT) ? KNIFEBOT_DECAY : DECAY);
 
 	if (warn > 0 && value >= warn)
 		React(client, name, name, 1, value, detail);
 }
 
 /* R52 SetBan -> OnBanReleased, postponed while the player is not on a team. */
-ScheduleDecay(client, counter)
+ScheduleDecay(client, counter, Float:delay = DECAY)
 {
 	new Handle:pack;
-	CreateDataTimer(DECAY, Timer_Decay, pack, TIMER_FLAG_NO_MAPCHANGE);
+	CreateDataTimer(delay, Timer_Decay, pack, TIMER_FLAG_NO_MAPCHANGE);
 	WritePackCell(pack, GetClientUserId(client));
 	WritePackCell(pack, counter);
+	WritePackFloat(pack, delay);
 }
 
 public Action:Timer_Decay(Handle:timer, Handle:pack)
@@ -728,6 +879,7 @@ public Action:Timer_Decay(Handle:timer, Handle:pack)
 	ResetPack(pack);
 	new client = GetClientOfUserId(ReadPackCell(pack));
 	new counter = ReadPackCell(pack);
+	new Float:delay = ReadPackFloat(pack);
 
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || g_iCnt[client][counter] <= -1)
 		return Plugin_Stop;
@@ -735,7 +887,7 @@ public Action:Timer_Decay(Handle:timer, Handle:pack)
 	if (GetClientTeam(client) > 1)
 		g_iCnt[client][counter]--;
 	else
-		ScheduleDecay(client, counter);
+		ScheduleDecay(client, counter, delay);
 
 	return Plugin_Stop;
 }
