@@ -41,7 +41,7 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   По умолчанию только уведомления админам. Подробности — в [docs/ULTRA_NETCODE.md](docs/ULTRA_NETCODE.md).
 * `smac_ultra_aimbot` — AimBot PRG 301–304, AGTNL 200/201, AGTWS 100, AMSAF 101, UsingWH 103 и Accurate Analysis (AGT, Trigger, AGTAF) по декоду R52.
   Пороги считаются от `sensitivity` клиента. По умолчанию только уведомления. Подробности — в [docs/ULTRA_AIMBOT.md](docs/ULTRA_AIMBOT.md).
-* `smac_ultra_movement` — Fast Run, Advanced BunnyHop, HaX2, AutoHotKeys Auto-Jump, Eye Angles 04, Teleport Hack,
+* `smac_ultra_movement` — Fast Run, Advanced BunnyHop, HaX2, AutoHotKeys Auto-Jump, Teleport Hack,
   Airstuck/BunnyHop Fast Detect и Spinhack по декоду R52. По умолчанию только уведомления.
   Подробности — в [docs/ULTRA_MOVEMENT.md](docs/ULTRA_MOVEMENT.md).
 * `smac_ultra_input` — AutoTrigger (Auto-Fire, Auto-Strafe, Auto-Duck, Auto-Scroll, AutoHotKeys), 2X, KnifeBot, Advanced Trigger,
@@ -64,3 +64,6 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_wallhack`, `smac_css_antismoke`, `smac_css_antiflash` — доработки anti-WH из R52: `smac_wallhack` 0/1/2 (FFA),
   `smac_wallhack_Level`, `smac_wallhack_Time` 0.2 с, хитбокс уже, трасса в голову; дым и флешка с режимом 2.
   Подробности — в [docs/ULTRA_WALLHACK.md](docs/ULTRA_WALLHACK.md).
+* `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
+  снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
+  блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).

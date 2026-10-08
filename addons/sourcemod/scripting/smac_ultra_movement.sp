@@ -13,8 +13,6 @@
  * Per usercmd:
  *   Fast Run            wishmove without the matching key (sidemove > 0 without +moveright, ...)
  *                       while |vel.x| or |vel.y| > 289; more than 22 such cmds (reset on death).
- *   Eye Angles 04       pitch outside +-89.9 or roll outside +-30; the 2nd violation within
- *                       528 s is reported.
  *   Advanced BunnyHop   (R52 fn_344b08, on every +jump press on the ground)
  *                       n = +jump presses since the previous ground jump, ema = (9*ema + n) / 10.
  *                       ema < 1.1 (one press per jump) and horizontal speed >= 350 on 12 jumps.
@@ -43,14 +41,14 @@ public Plugin:myinfo =
 {
 	name = "SMAC Ultr@: Movement",
 	author = SMAC_AUTHOR,
-	description = "Fast Run, Advanced BunnyHop, HaX2, Eye Angles 04, Teleport, Airstuck and Spinhack from SMAC Ultr@ R52",
+	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack from SMAC Ultr@ R52",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
 
 /* Checks (index into g_sCheck). */
 #define M_FASTRUN		0
-#define M_EYE04			1
+#define M_EYE04			1		/* Eye Angles 04 moved to smac_eyetest; index kept */
 #define M_ADVBHOP		2
 #define M_AUTOJUMP		3
 #define M_HAX2			4
@@ -79,9 +77,6 @@ new String:g_sCheck[M_COUNT][] =
 #define FASTRUN_CMDS		22
 #define FASTRUN_AFTER		-264
 
-#define EYE_MAX_PITCH		89.9
-#define EYE_MAX_ROLL		30.0
-#define EYE_DECAY			528.0
 
 #define BHOP_EMA_SINGLE		1.1
 #define BHOP_EMA_SCROLL		15.0
@@ -112,7 +107,6 @@ new String:g_sCheck[M_COUNT][] =
 #define MIN_PACKET_FRAC		0.7
 
 new Handle:g_hCvarFastRun = INVALID_HANDLE;
-new Handle:g_hCvarEye = INVALID_HANDLE;
 new Handle:g_hCvarAutoTrigger = INVALID_HANDLE;
 new Handle:g_hCvarAirstuck = INVALID_HANDLE;
 new Handle:g_hCvarTeleport = INVALID_HANDLE;
@@ -125,9 +119,8 @@ new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 new g_iDetects[MAXPLAYERS+1][M_COUNT];
 new Float:g_fNextNotice[MAXPLAYERS+1][M_COUNT];
 
-/* Fast Run / Eye Angles 04 */
+/* Fast Run */
 new g_iFastRun[MAXPLAYERS+1];
-new g_iEye[MAXPLAYERS+1];
 
 /* Advanced BunnyHop (R52 fn_344b08 state) */
 new g_iJumpPresses[MAXPLAYERS+1];
@@ -160,7 +153,6 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run and BunnyHop: Fast Detect (speed > 289): 0=off, 1=admin notice, 2=kick, 3=ban (R52: 2)", _, true, 0.0, true, 3.0);
-	g_hCvarEye = SMAC_CreateConVar("smac_eyetest_reaction", "1", "Eye Angles 04 (pitch > 89.9 or roll > 30): 0=off, 1=admin notice, 2=kick, 3=ban (R52: 3)", _, true, 0.0, true, 3.0);
 	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only (R52: 2)", _, true, -1.0, true, 4.0);
 	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarTeleport = SMAC_CreateConVar("smac_SpeedTeleport", "-1500.0", "Teleport Hack: max distance per second, +N = ban, -N = kick, 0 = off (also Teleport Hack: Fast Detect)", _, true, -50000.0, true, 50000.0);
@@ -193,7 +185,6 @@ public OnClientPutInServer(client)
 		g_fNextNotice[client][i] = 0.0;
 	}
 
-	g_iEye[client] = -1;
 	g_iAirstuck[client] = -1;
 
 	g_iJumpPresses[client] = 0;
@@ -297,7 +288,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	new flags = GetEntityFlags(client);
 
-	CheckEyeAngles(client, flags, angles);
 	CheckFastRun(client, buttons, vel);
 	CheckJump(client, buttons, flags);
 
@@ -314,30 +304,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	g_iPrevButtons[client] = buttons;
 	return Plugin_Continue;
-}
-
-CheckEyeAngles(client, flags, const Float:angles[3])
-{
-	new level = GetConVarInt(g_hCvarEye);
-	if (level <= 0 || (flags & (FL_FROZEN | FL_ATCONTROLS)))
-		return;
-
-	new Float:pitch = NormalizeAngle(angles[0]);
-	new Float:roll = NormalizeAngle(angles[2]);
-	if (pitch >= -EYE_MAX_PITCH && pitch <= EYE_MAX_PITCH && roll >= -EYE_MAX_ROLL && roll <= EYE_MAX_ROLL)
-		return;
-
-	/* R52: the first violation only arms a 528 s decay, the next one is reported. */
-	if (++g_iEye[client] <= 0)
-	{
-		ScheduleEyeDecay(client);
-		return;
-	}
-
-	decl String:sDetail[96];
-	FormatEx(sDetail, sizeof(sDetail), "angles %.2f %.2f %.2f", angles[0], angles[1], angles[2]);
-	new action = React(client, M_EYE04, level, sDetail);
-	g_iEye[client] = (action > 1) ? -30 : -2;
 }
 
 CheckFastRun(client, buttons, const Float:vel[3])
@@ -664,24 +630,6 @@ TeleportLevel(Float:teleport)
 /**
  * Delayed decays (R52 SetBan -> OnBanReleased), postponed while the player is not on a team.
  */
-ScheduleEyeDecay(client)
-{
-	CreateTimer(EYE_DECAY, Timer_EyeDecay, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-}
-
-public Action:Timer_EyeDecay(Handle:timer, any:userid)
-{
-	new client = GetClientOfUserId(userid);
-	if (!IS_CLIENT(client) || !IsClientInGame(client) || g_iEye[client] <= -1)
-		return Plugin_Stop;
-
-	if (GetClientTeam(client) > 1)
-		g_iEye[client]--;
-	else
-		ScheduleEyeDecay(client);
-	return Plugin_Stop;
-}
-
 ScheduleAirstuckDecay(client)
 {
 	CreateTimer(AIRSTUCK_DECAY, Timer_AirstuckDecay, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
@@ -785,13 +733,6 @@ IgnoreClient(client, Float:seconds)
 	new Float:until = GetGameTime() + seconds;
 	if (until > g_fIgnoreUntil[client])
 		g_fIgnoreUntil[client] = until;
-}
-
-Float:NormalizeAngle(Float:angle)
-{
-	if (angle > 180.0)
-		angle -= 360.0;
-	return angle;
 }
 
 CopyVector(const Float:src[3], Float:dst[3])

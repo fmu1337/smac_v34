@@ -25,9 +25,9 @@
 | Act.Mode 300 (зонд по `m_angEyeAngles`) | — | нет | не разобран до конца |
 | Fast Run, BunnyHop / Airstuck / Teleport Fast Detect, Teleport Hack | `smac_ultra_movement` | уведомл. | |
 | Advanced BunnyHop, HaX2, AutoHotKeys Auto-Jump | `smac_ultra_movement` | уведомл. | |
-| Eye Angles 04 | `smac_ultra_movement` | уведомл. | |
+| Eye Angles 04 | `smac_eyetest` | да | перенесён из `smac_ultra_movement` |
 | Spinhack (R52) | `smac_ultra_movement` | уведомл. | в master есть свой `smac_spinhack` |
-| Eyetest 01–03 | master | master | `smac_eyetest` |
+| Eyetest 01–03, `smac_NoS_NoR` | `smac_eyetest` | да | второе нарушение, пауза 5 с — `docs/ULTRA_STOCK.md` |
 | AutoTrigger (Auto-Fire, Strafe, Duck, Scroll, AutoHotKeys) | `smac_ultra_input` | уведомл. | |
 | AutoTrigger тип 0 (BunnyHop-таймер) | — | нет | смысл таймера не разобран |
 | Advanced Trigger, Advanced AutoFire | `smac_ultra_input` | уведомл. | |
@@ -41,7 +41,10 @@
 | Fake Lag (`smac_FL_Ctrl`), DDoS, Voice_Ctrl | — | нет | эвристики на средних потоках, шумные |
 | Таблица кваров (325) | `smac_cvars` + `smac_cvars_ultra.inc` | уведомл. | 257 новых, 68 уже были |
 | Half-connected command, `rcon` от клиента, переполнение аргументов, Iniuria, Validate Auth | `smac_ultra_server` | блок + уведомл. | |
-| Ник, анти-реконнект, блок-лист и спам команд, `say`, `ent_*`, `rcon_password` | master | master | `smac_client`, `smac_commands`, `smac_rcon` |
+| Стандартный AimBot (`smac_aimbot_ban`) | `smac_aimbot` | да | 35°, 45 cmd, и на попаданиях |
+| Ник, анти-реконнект, `autobuy`, `smac_Lock_Adm` | `smac_client` | да | спам ником 2 за 15 с; Lock_Adm по умолчанию 4 |
+| Спам команд, `say`, `ucp_*` | `smac_commands` | да | −25 в секунду, кик |
+| `smac_cmd_block.cfg`, `rcon_password` | `smac_rcon` | да | блок только для игроков |
 | Флуд `status` / `ping` | master | master | лимит = `smac_antispam_cmds`; подмена вывода `status` не перенесена |
 
 ## Защиты
@@ -52,7 +55,7 @@
 | No_Team_Flash | `smac_ultra_protect` | выкл. (как в R52) | |
 | Control_Entity 1 (перезагрузка у лимита) | `smac_ultra_protect` | вкл. (как в R52) | |
 | Control_Entity 2 (удаление спама) | — | нет | условие искажено в декомпиляции |
-| defusefix, respawnfix | master | master | `smac_css_fixes` |
+| defusefix, respawnfix | `smac_css_fixes` | master | совпадают с R52; исправлена проверка SteamID на SM ≥ 1.7 |
 | Anti-Wallhack (`_Level`, `_Time`, FFA) | `smac_wallhack` | да | ядро R52 = стоковый SMAC; перенесены геометрия, время, FFA — `docs/ULTRA_WALLHACK.md` |
 | AntiFlash 1/2 | `smac_css_antiflash` | да | режим 2 (оверлей) не проверен в игре |
 | AntiSmoke 1/2 | `smac_css_antismoke` | да | константы R52; режим 2 не зависит от anti-WH |
@@ -77,5 +80,6 @@
 | #20 | `smac_ultra_diag_norecoil` |
 | #21 | Backtrack A, Changer Player Status, эта карта |
 | #22 | anti-WH, AntiFlash, AntiSmoke по R52 |
+| #23 | стоковые aimbot, eyetest, client, commands, rcon по R52 |
 
 Каждый PR стоит на предыдущем; #10 — на master. Сливать по порядку.
