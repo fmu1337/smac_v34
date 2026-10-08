@@ -53,8 +53,10 @@
 | Control_Entity 1 (перезагрузка у лимита) | `smac_ultra_protect` | вкл. (как в R52) | |
 | Control_Entity 2 (удаление спама) | — | нет | условие искажено в декомпиляции |
 | defusefix, respawnfix | master | master | `smac_css_fixes` |
-| Anti-Wallhack, AntiFlash, AntiSmoke | master / #5, #7 | — | свои реализации в других PR |
-| SoundESP | — | нет | работает от матрицы видимости anti-WH R52 |
+| Anti-Wallhack (`_Level`, `_Time`, FFA) | `smac_wallhack` | да | ядро R52 = стоковый SMAC; перенесены геометрия, время, FFA — `docs/ULTRA_WALLHACK.md` |
+| AntiFlash 1/2 | `smac_css_antiflash` | да | режим 2 (оверлей) не проверен в игре |
+| AntiSmoke 1/2 | `smac_css_antismoke` | да | константы R52; режим 2 не зависит от anti-WH |
+| SoundESP | — | нет | ложные координаты/данные звука; режим 0 = звуковой хук master |
 | NoSpamWeapon | — | нет | код с кваром не найден |
 | Лицензионная обвязка, Ultr@Tools (таймеры, `SetBan`/`OnBanReleased`) | — | не нужно | заменено таймерами SourceMod |
 
@@ -74,5 +76,6 @@
 | #19 | 2X, KnifeBot, `smac_ultra_protect` |
 | #20 | `smac_ultra_diag_norecoil` |
 | #21 | Backtrack A, Changer Player Status, эта карта |
+| #22 | anti-WH, AntiFlash, AntiSmoke по R52 |
 
 Каждый PR стоит на предыдущем; #10 — на master. Сливать по порядку.

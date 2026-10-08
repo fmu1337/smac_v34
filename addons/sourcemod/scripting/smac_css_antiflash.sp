@@ -14,10 +14,25 @@ public Plugin:myinfo =
 
 
 new Float:g_fFlashedUntil[MAXPLAYERS+1];
+new Float:g_fOverlayUntil[MAXPLAYERS+1];
 new bool:g_bFlashHooked = false;
+
+// 0 = off, 1 = white fade and no players while fully blind, 2 = also a random screen overlay (SMAC Ultr@ R52).
+new g_iMode = 1;
+
+// Overlays SMAC Ultr@ R52 uses on CS:S.
+new const String:g_sOverlays[][] =
+{
+	"effects/security_noise2.vmt",
+	"effects/filmscan256.vmt"
+};
 
 public OnPluginStart()
 {
+	new Handle:hCvar = CreateConVar("smac_AntiFlash", "1", "Prevents anti-flashbang cheats from working. (0:Disabled, 1:Standard Protection, 2:Advanced Protection)", _, true, 0.0, true, 2.0);
+	g_iMode = GetConVarInt(hCvar);
+	HookConVarChange(hCvar, OnModeChanged);
+	
 	// Hooks.
 	HookEvent("player_blind", Event_PlayerBlind, EventHookMode_Post);
 }
@@ -31,16 +46,22 @@ public OnClientPutInServer(client)
 	}
 }
 
+public OnModeChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_iMode = GetConVarInt(convar);
+}
+
 public OnClientDisconnect(client)
 {
 	g_fFlashedUntil[client] = 0.0;
+	g_fOverlayUntil[client] = 0.0;
 }
 
 public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (IS_CLIENT(client) && !IsFakeClient(client))
+	if (g_iMode && IS_CLIENT(client) && !IsFakeClient(client))
 	{
 		new Float:alpha = GetEntPropFloat(client, Prop_Send, "m_flFlashMaxAlpha");
 		
@@ -65,6 +86,17 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 		// Fade in the flash.
 		SendMsgFadeUser(client, RoundToNearest(duration * 1000.0));
 		
+		if (g_iMode == 2)
+		{
+			// SMAC Ultr@ R52: a second flash that cheats removing the white fade don't touch.
+			// It is cleared after 0.72 of the flash duration (R52: duration * 900 / 1250).
+			new Float:fOverlay = duration * 0.72;
+			
+			ClientCommand(client, "r_screenoverlay \"%s\"", g_sOverlays[GetRandomInt(0, sizeof(g_sOverlays) - 1)]);
+			g_fOverlayUntil[client] = GetGameTime() + fOverlay;
+			CreateTimer(fOverlay, Timer_OverlayEnded, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+		}
+		
 		if (!g_bFlashHooked)
 		{
 			AntiFlash_HookAll();
@@ -72,6 +104,20 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 			
 		CreateTimer(duration, Timer_FlashEnded);
 	}
+}
+
+public Action:Timer_OverlayEnded(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	
+	// A newer flash keeps its own overlay.
+	if (client && g_fOverlayUntil[client] && GetGameTime() >= g_fOverlayUntil[client] - 0.05)
+	{
+		g_fOverlayUntil[client] = 0.0;
+		ClientCommand(client, "r_screenoverlay 0");
+	}
+	
+	return Plugin_Stop;
 }
 
 public Action:Timer_FlashEnded(Handle:timer)

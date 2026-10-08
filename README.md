@@ -61,3 +61,6 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_ultra_diag_norecoil` — **диагностика, без наказаний**: меряет `m_angEyeAngles` против углов usercmd и прогоняет
   No Recoil A/B из R52, чтобы понять, ловил бы он обычных игроков. Как читать — в
   [docs/ULTRA_DIAG_NORECOIL.md](docs/ULTRA_DIAG_NORECOIL.md).
+* `smac_wallhack`, `smac_css_antismoke`, `smac_css_antiflash` — доработки anti-WH из R52: `smac_wallhack` 0/1/2 (FFA),
+  `smac_wallhack_Level`, `smac_wallhack_Time` 0.2 с, хитбокс уже, трасса в голову; дым и флешка с режимом 2.
+  Подробности — в [docs/ULTRA_WALLHACK.md](docs/ULTRA_WALLHACK.md).
