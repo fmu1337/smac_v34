@@ -35,6 +35,8 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 
 ## Порты SMAC Ultr@ R52
 
+Полная карта: что из R52 куда перенесено и что нет — [docs/ULTRA_COVERAGE.md](docs/ULTRA_COVERAGE.md).
+
 * `smac_ultra_netcode` — Airstuck, Lag Exploit, Backtrack A/B, PSilent [Active Mode] и Changer Player Status по декоду SMAC Ultr@ R52.
   По умолчанию только уведомления админам. Подробности — в [docs/ULTRA_NETCODE.md](docs/ULTRA_NETCODE.md).
 * `smac_ultra_aimbot` — AimBot PRG 301–304, AGTNL 200/201, AGTWS 100, AMSAF 101, UsingWH 103 и Accurate Analysis (AGT, Trigger, AGTAF) по декоду R52.
