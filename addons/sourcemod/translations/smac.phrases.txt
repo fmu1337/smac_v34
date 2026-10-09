@@ -123,6 +123,12 @@
 		"en"		"{1} is suspected of cheating with their eye angles."
 	}
 	
+	"SMAC_SeedSkipDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:i}"
+		"en"		"{1} is suspected of nospread seed hunting. (Detection #{2} | CmdNum skip: {3})"
+	}
+	
 	"SMAC_WelcomeMsg"
 	{
 		"en"		"This server is protected by SMAC"
@@ -132,5 +138,21 @@
 	{
 		"#format"	"{1:N},{2:s},{3:s},{4:s},{5:i},{6:s}"
 		"en"		"\n\n================================\n -= | SMAC v34: Cheat Detected | =- \n================================\n You are Banned from this server!\n================================\n Name: {1}\n SteamID: {2} \n IP: {3} \n Reason: {4} \n Duration: {5} min. \n Contact: {6}\n ===============================\n\n"
+	}
+
+	"SMAC_UltraNotice"
+	{
+		"#format"	"{1:N},{2:s},{3:d}"
+		"en"		"{1} detected: {2} (#{3})"
+	}
+
+	"SMAC_UltraKick"
+	{
+		"en"		"You were kicked by the anti-cheat (suspicious usercmds)"
+	}
+
+	"SMAC_FailedAuth"
+	{
+		"en"		"Your Steam ID could not be validated. Please reconnect"
 	}
 }

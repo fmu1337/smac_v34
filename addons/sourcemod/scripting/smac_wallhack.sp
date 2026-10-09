@@ -26,6 +26,15 @@ public Plugin:myinfo =
 new bool:g_bFarEspEnabled;
 new g_iMaxTraces; //ty for crashfix to alex smirnov (aka Ultr@)
 
+// SMAC Ultr@ R52: 0 = off, 1 = enemies only (radar on), 2 = FFA (everyone, radar off).
+new g_iMode = 1;
+// SMAC Ultr@ R52: rectangle width divisor = 7.0 + smac_wallhack_Level (master SMAC used 4.0).
+new Float:g_fWideDivisor = 7.0;
+new Handle:g_hCvarTime = INVALID_HANDLE;
+// SMAC Ultr@ R52 Anti-SoundESP: -1 = no sound handling, 0 = real sounds, 1-4 = faked for listeners who can't see the source.
+new g_iSoundESP = 0;
+new Handle:g_hCvarTickTime = INVALID_HANDLE;
+
 new g_iDownloadTable = INVALID_STRING_TABLE;
 new Handle:g_hIgnoreSounds = INVALID_HANDLE;
 
@@ -57,14 +66,28 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
-	g_iCacheTicks = TIME_TO_TICK(0.75);
-	new Handle: hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", _, true, 1.0);
+	new Handle: hCvar = CreateConVar("smac_wallhack", "1", "Anti-Wallhack mode. (0:Disable, 1:Normal Mode, 2:FFA Mode, Radar OFF)", _, true, 0.0, true, 2.0);
+	g_iMode = GetConVarInt(hCvar);
+	HookConVarChange(hCvar, OnModeChanged);
+	
+	hCvar = CreateConVar("smac_wallhack_Level", "0.0", "Degree of rigidity of the Anti-Wallhack. (Easy < 0.0 > Hard; -3.0 = stock SMAC width)", _, true, -3.0, true, 3.0);
+	OnLevelChanged(hCvar, "", "");
+	HookConVarChange(hCvar, OnLevelChanged);
+	
+	hCvar = CreateConVar("smac_SoundESP", "0", "Anti-SoundESP for listeners who can't see the source. (-1:Disable sound handling, 0:Real sounds, 1:Fake position, 2:Fake position + level/pitch, 3:Volume by distance + level/pitch, 4:All)", _, true, -1.0, true, 4.0);
+	g_iSoundESP = GetConVarInt(hCvar);
+	HookConVarChange(hCvar, OnSoundESPChanged);
+	
+	hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", _, true, 1.0);
 	OnMaxTracesChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnMaxTracesChanged);
 	
-	hCvar = CreateConVar("smac_wallhack_ticktime", "0.75", "Scan speed of players are behind the wall.", _, true, 0.1, true, 2.0);
-	WallHack_TickOnSettingsChanged(hCvar, "", "");
-	HookConVarChange(hCvar, WallHack_TickOnSettingsChanged);
+	g_hCvarTime = CreateConVar("smac_wallhack_Time", "0.2", "How long a player stays visible after he was last seen, in seconds.", _, true, 0.1, true, 0.4);
+	HookConVarChange(g_hCvarTime, WallHack_TickOnSettingsChanged);
+	
+	g_hCvarTickTime = CreateConVar("smac_wallhack_ticktime", "0", "Legacy (stock SMAC, was 0.75): when above 0, used instead of smac_wallhack_Time.", _, true, 0.0, true, 2.0);
+	HookConVarChange(g_hCvarTickTime, WallHack_TickOnSettingsChanged);
+	WallHack_TickOnSettingsChanged(INVALID_HANDLE, "", "");
 	
 	g_iTickRate = RoundToFloor(1.0 / GetTickInterval());
 	
@@ -96,7 +119,11 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerStateChanged, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerStateChanged, EventHookMode_Post);
 	HookEvent("player_team", Event_PlayerStateChanged, EventHookMode_Post);
-	FarESP_Enable();
+	
+	if (g_iMode)
+	{
+		FarESP_Enable();
+	}
 	
 	for (new i = 1; i <= MaxClients; i++)
 	{
@@ -129,9 +156,55 @@ public OnPluginStart()
 	SetTrieValue(g_hIgnoreSounds, "radio/ctwin.wav", 1);
 }
 
-public WallHack_TickOnSettingsChanged(Handle:convar, String:oldValue[], String:newValue[])
+public WallHack_TickOnSettingsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	g_iCacheTicks = TIME_TO_TICK(GetConVarFloat(convar));
+	new Float:fTime = GetConVarFloat(g_hCvarTickTime);
+	
+	if (fTime <= 0.0)
+	{
+		fTime = GetConVarFloat(g_hCvarTime);
+	}
+	
+	g_iCacheTicks = TIME_TO_TICK(fTime);
+}
+
+public OnSoundESPChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_iSoundESP = GetConVarInt(convar);
+}
+
+public OnLevelChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_fWideDivisor = 7.0 + GetConVarFloat(convar);
+}
+
+public OnModeChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_iMode = GetConVarInt(convar);
+	
+	if (g_iMode)
+	{
+		if (!g_bFarEspEnabled)
+		{
+			FarESP_Enable();
+		}
+	}
+	else
+	{
+		if (g_bFarEspEnabled)
+		{
+			FarESP_Disable();
+		}
+		
+		// Everyone is transmitted again.
+		for (new i = 0; i < sizeof(g_bIsVisible); i++)
+		{
+			for (new j = 0; j < sizeof(g_bIsVisible[]); j++)
+			{
+				g_bIsVisible[i][j] = true;
+			}
+		}
+	}
 }
 
 public OnConfigsExecuted()
@@ -258,6 +331,9 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 	/* Emit sounds to clients who aren't being transmitted the entity. */
 	decl dummy;
 	
+	if (!g_iMode || g_iSoundESP < 0)
+		return Plugin_Continue;
+	
 	if (!entity || !IsValidEdict(entity) || GetTrieValue(g_hIgnoreSounds, sample, dummy))
 		return Plugin_Continue;
 
@@ -300,25 +376,97 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 		newTotal = 0;
 	}
 	
+	// R52 fakes weapon, item and body sounds only.
+	new bool:bFake = (g_iSoundESP > 0 && (channel == SNDCHAN_WEAPON || channel == SNDCHAN_ITEM || channel == SNDCHAN_BODY));
+	decl hiddenClients[MaxClients];
+	new hiddenTotal;
+	
 	// Determine which clients still need this sound.
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		// A client in the PVS will be expected to predict the sound even if we're blocking transmit.
 		if (bAddClient[i] || ((g_bProcess[i] || g_bIsObserver[i]) && !g_bIsVisible[iOwner][i] && g_iPVSSoundCache[iOwner][i] > g_iTickCount))
 		{
-			newClients[newTotal++] = i;
+			if (bFake && !g_bIsVisible[iOwner][i])
+			{
+				hiddenClients[hiddenTotal++] = i;
+			}
+			else
+			{
+				newClients[newTotal++] = i;
+			}
 		}
 	}
+	
+	decl Float:vOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vOrigin);
 	
 	// Emit without entity information.
 	if (newTotal)
 	{
-		decl Float:vOrigin[3];
-		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vOrigin);
 		EmitSound(newClients, newTotal, sample, SOUND_FROM_WORLD, channel, level, flags, volume, pitch, _, vOrigin);
 	}
 	
+	if (hiddenTotal)
+	{
+		SoundESP_Emit(hiddenClients, hiddenTotal, sample, channel, level, flags, volume, pitch, vOrigin);
+	}
+	
 	return Plugin_Stop;
+}
+
+/**
+ * Anti-SoundESP (SMAC Ultr@ R52, smac_SoundESP). For each listener who can't see the source:
+ *   1, 2, 4  the sound comes from a random point near the source (x/y -269.7..289, z -180..289);
+ *   2+       level 75 and pitch 100, so the weapon can't be told from them;
+ *   3, 4     volume 100000 / dist^2 limited to 0.7, nothing below 0.1 (about 1000 units).
+ * R52 replayed one sound per server tick from OnPlayerRunCmd and dropped the rest; here every sound
+ * is sent right away.
+ */
+SoundESP_Emit(const clients[], numClients, const String:sample[], channel, level, flags, Float:volume, pitch, const Float:vSource[3])
+{
+	decl Float:vPos[3], Float:vListener[3], players[1];
+	
+	for (new n = 0; n < numClients; n++)
+	{
+		new client = clients[n];
+		new iLevel = level, iPitch = pitch;
+		new Float:fVolume = volume;
+		
+		vPos[0] = vSource[0];
+		vPos[1] = vSource[1];
+		vPos[2] = vSource[2];
+		
+		if (g_iSoundESP != 3)
+		{
+			vPos[0] += GetRandomFloat(-269.7, 289.0);
+			vPos[1] += GetRandomFloat(-269.7, 289.0);
+			vPos[2] += GetRandomFloat(-180.0, 289.0);
+		}
+		
+		if (g_iSoundESP >= 2)
+		{
+			iLevel = SNDLEVEL_NORMAL;
+			iPitch = SNDPITCH_NORMAL;
+		}
+		
+		if (g_iSoundESP >= 3)
+		{
+			GetClientAbsOrigin(client, vListener);
+			new Float:fDist = GetVectorDistance(vListener, vSource, true);
+			
+			fVolume = (fDist > 0.0) ? 100000.0 / fDist : 0.7;
+			
+			if (fVolume < 0.1)
+				continue;
+			
+			if (fVolume > 0.7)
+				fVolume = 0.7;
+		}
+		
+		players[0] = client;
+		EmitSound(players, 1, sample, SOUND_FROM_WORLD, channel, iLevel, flags, fVolume, iPitch, _, vPos);
+	}
 }
 
 /**
@@ -359,7 +507,8 @@ public OnGameFrame()
 		}
 	}
 	
-	if (g_bFarEspEnabled)
+	// FFA mode keeps the radar off: engine messages stay blocked and nothing is sent instead.
+	if (g_bFarEspEnabled && g_iMode == 1)
 	{
 		switch (g_iTickCount % g_iTickRate)
 		{
@@ -395,6 +544,9 @@ public Action:Hook_SetTransmit(entity, client)
 {
 	static iLastChecked[MAXPLAYERS][MAXPLAYERS];
 	
+	if (!g_iMode)
+		return Plugin_Continue;
+	
 	// Cache PVS for sound hook.
 	g_iPVSSoundCache[entity][client] = g_iTickCount + g_iCacheTicks;
 	
@@ -408,7 +560,7 @@ public Action:Hook_SetTransmit(entity, client)
 	
 	if (g_bProcess[client])
 	{
-		if (g_bProcess[entity] && g_iTeam[client] != g_iTeam[entity] && !g_bIgnore[client])
+		if (g_bProcess[entity] && (g_iMode == 2 || g_iTeam[client] != g_iTeam[entity]) && !g_bIgnore[client])
 		{
 			if (g_iThread[client] == g_iCurrentThread)
 			{
@@ -486,7 +638,18 @@ UpdateClientData(client)
 	GetClientEyePosition(client, g_vEyePos[client]);
 	
 	// Adjust vectors relative to the model's absolute centre.
-	g_vMaxs[client][2] /= 2.0;
+	// SMAC Ultr@ R52: half height = view offset / 2.2 (follows crouching, a bit lower than the hull).
+	new Float:fHalfHeight = (g_vEyePos[client][2] - g_vAbsCentre[client][2]) / 2.2;
+	
+	if (fHalfHeight > 0.0)
+	{
+		g_vMaxs[client][2] = fHalfHeight;
+	}
+	else
+	{
+		g_vMaxs[client][2] /= 2.0;
+	}
+	
 	g_vMins[client][2] -= g_vMaxs[client][2];
 	g_vAbsCentre[client][2] += g_vMaxs[client][2];
 
@@ -576,12 +739,12 @@ bool:IsAbleToSee(entity, client)
 		if (IsPointVisible(g_vEyePos[client], g_vAbsCentre[entity]))
 			return true;
 		
-		// Check if weapon tip is visible.
-		if (IsFwdVecVisible(g_vEyePos[client], g_vEyeAngles[entity], g_vEyePos[entity]))
-			return true;
-		
 		// Check outer 4 corners of player.
 		if (IsRectangleVisible(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 1.30))
+			return true;
+		
+		// Check if head is visible (SMAC Ultr@ R52; stock SMAC traced to a point 50 units in front of the eyes).
+		if (IsPointVisible(g_vEyePos[client], g_vEyePos[entity]))
 			return true;
 
 		// Check inner 4 corners of player.
@@ -620,22 +783,11 @@ bool:IsPointVisible(const Float:start[3], const Float:end[3])
 	return TR_GetFraction() == 1.0;
 }
 
-bool:IsFwdVecVisible(const Float:start[3], const Float:angles[3], const Float:end[3])
-{
-	decl Float:fwd[3];
-	
-	GetAngleVectors(angles, fwd, NULL_VECTOR, NULL_VECTOR);
-	ScaleVector(fwd, 50.0);
-	AddVectors(end, fwd, fwd);
-
-	return IsPointVisible(start, fwd);
-}
-
 bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mins[3], const Float:maxs[3], Float:scale=1.0)
 {
 	new Float:ZpozOffset = maxs[2];
 	new Float:ZnegOffset = mins[2];
-	new Float:WideOffset = ((maxs[0] - mins[0]) + (maxs[1] - mins[1])) / 4.0;
+	new Float:WideOffset = ((maxs[0] - mins[0]) + (maxs[1] - mins[1])) / g_fWideDivisor;
 
 	// This rectangle is just a point!
 	if (ZpozOffset == 0.0 && ZnegOffset == 0.0 && WideOffset == 0.0)
@@ -832,7 +984,7 @@ public OnForceCameraChanged(Handle:convar, const String:oldValue[], const String
 
 public OnMapStart()
 {
-	if (!g_bFarEspEnabled)
+	if (g_iMode && !g_bFarEspEnabled)
 	{
 		FarESP_Enable();
 	}
@@ -1018,6 +1170,10 @@ SendRadarFakeTeam(team)
 
 SendRadarClient(client, flags)
 {
+	// FFA mode: radar off.
+	if (g_iMode != 1)
+		return;
+
 	// A player was spotted and needs to be sent out to all clients.
 	decl iClients[MaxClients];
 	new numClients, iTeam = g_iTeam[client];

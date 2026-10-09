@@ -23,9 +23,21 @@ enum DetectionType {
 	Detection_UserCmdTamperingTickcount,
 	Detection_UserCmdTamperingButtons,
 	Detection_Eyeangles,
+	Detection_SeedSkip,
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
-	
+
+	/* SMAC Ultr@ R52 ports (smac_ultra_*.sp). */
+	Detection_AirStuck = 3500,
+	Detection_LagExploit = 3800,
+	Detection_Backtrack = 5200,
+	Detection_UltraPSilent = 7100,
+	Detection_UltraAim = 7200,		/* PRG 301-304, AGTNL 200/201, AGT, Trigger, AGTAF */
+	Detection_UltraMovement = 7300,	/* Fast Run, Advanced BHop, HaX2, Eye Angles 04, Teleport, Airstuck Fast, Spinhack */
+	Detection_UltraInput = 7400,		/* AutoTrigger, Advanced Trigger/AutoFire, Fast AIM, RCS, CheatCFG */
+	Detection_UltraClient = 7500,		/* Impulse spam, sensitivity, FakeSendPacket */
+	Detection_UltraServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
+	Detection_UltraFakeStatus = 7700,	/* Changer Player Status: a client flagged as a bot sends mouse input */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

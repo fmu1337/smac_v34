@@ -12,18 +12,27 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-#define SMOKE_DELAYTIME	0.75	// Seconds until smoke is fully deployed
-#define SMOKE_FADETIME	15.0	// Seconds until a smoke begins to fade away
-#define SMOKE_RADIUS	2025	// (45^2) Radius to check for a player inside a smoke cloud
+// Values from SMAC Ultr@ R52 (stock SMAC: 0.75 s, 15 s, 45 units).
+#define SMOKE_DELAYTIME	0.7		// Seconds until smoke is fully deployed
+#define SMOKE_FADETIME	16.0	// Seconds until a smoke begins to fade away
+#define SMOKE_RADIUS	3025	// (55^2) Radius to check for a player inside a smoke cloud
 
 new Handle:g_hSmokeLoop = INVALID_HANDLE;
 new Handle:g_hSmokes = INVALID_HANDLE;
 new bool:g_bIsInSmoke[MAXPLAYERS+1];
+new g_iTeam[MAXPLAYERS+1];
 new g_iRoundCount;
+
+// 0 = off, 1 = a player inside a smoke sees nobody, 2 = also nobody of the other team sees a player inside a smoke.
+new g_iMode = 1;
 
 public OnPluginStart()
 {
 	g_hSmokes = CreateArray(3);
+	
+	new Handle:hCvar = CreateConVar("smac_AntiSmoke", "1", "Prevents anti-smoke cheats from working. (0:Disabled, 1:Standard Protection, 2:Advanced Protection)", _, true, 0.0, true, 2.0);
+	g_iMode = GetConVarInt(hCvar);
+	HookConVarChange(hCvar, OnModeChanged);
 	
 	// Hooks.
 	HookEvent("smokegrenade_detonate", Event_SmokeDetonate, EventHookMode_Post);
@@ -31,6 +40,16 @@ public OnPluginStart()
 
 }
 
+
+public OnModeChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_iMode = GetConVarInt(convar);
+	
+	if (!g_iMode)
+	{
+		AntiSmoke_UnhookAll();
+	}
+}
 
 public OnMapEnd()
 {
@@ -53,6 +72,9 @@ public OnClientDisconnect(client)
 
 public Event_SmokeDetonate(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	if (!g_iMode)
+		return;
+	
 	/* Delay immersion tests until smoke is fully deployed. */
 	new Handle:hPack;
 	CreateDataTimer(SMOKE_DELAYTIME, Timer_SmokeDeployed, hPack, TIMER_FLAG_NO_MAPCHANGE);
@@ -76,7 +98,7 @@ public Action:Timer_SmokeDeployed(Handle:timer, Handle:hPack)
 	ResetPack(hPack);
 	
 	/* Make sure the smoke still exists. */
-	if (g_iRoundCount == ReadPackCell(hPack))
+	if (g_iMode && g_iRoundCount == ReadPackCell(hPack))
 	{
 		decl Float:vSmoke[3];
 		vSmoke[0] = ReadPackFloat(hPack);
@@ -118,10 +140,13 @@ public Action:Timer_SmokeCheck(Handle:timer)
 	
 	for (new i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientInGame(i) && !IsFakeClient(i))
+		g_bIsInSmoke[i] = false;
+		
+		// Bots are checked too: in mode 2 they are hidden like everyone else.
+		if (IsClientInGame(i) && IsPlayerAlive(i))
 		{
 			GetClientAbsOrigin(i, vClient);
-			g_bIsInSmoke[i] = false;
+			g_iTeam[i] = GetClientTeam(i);
 			
 			for (new idx = 0; idx < GetArraySize(g_hSmokes); idx++)
 			{
@@ -141,8 +166,15 @@ public Action:Timer_SmokeCheck(Handle:timer)
 
 public Action:Hook_SetTransmit(entity, client)
 {
+	if (entity == client)
+		return Plugin_Continue;
+	
 	/* Don't send client data to players that are immersed in smoke. */
-	if (entity != client && g_bIsInSmoke[client])
+	if (g_bIsInSmoke[client])
+		return Plugin_Handled;
+	
+	/* SMAC Ultr@ R52: a player inside a smoke is not sent to living players of the other team. */
+	if (g_iMode == 2 && g_bIsInSmoke[entity] && g_iTeam[client] > 1 && g_iTeam[client] != g_iTeam[entity] && IsPlayerAlive(client))
 		return Plugin_Handled;
 	
 	return Plugin_Continue;

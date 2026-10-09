@@ -12,9 +12,15 @@ public Plugin:myinfo =
 };
 
 
-#define AIM_ANGLE_CHANGE	45.0	// Max angle change that a player should snap
+// SMAC Ultr@ R52 values (stock SMAC: 45 degrees over 0.5 s, checked on kills only).
+#define AIM_ANGLE_CHANGE	35.0	// Max angle change that a player should snap
+// Informant AntiSMAC / Insomnia SnapLimiter cap per-tick snaps and split them into steps under the threshold.
+#define AIM_STEP_MIN		28.0	// Min per-tick step for staircase detection
+#define AIM_STEP_COUNT		2		// Consecutive near-threshold steps before a detection
+#define AIM_HISTORY_CMDS	45		// Usercmds of angle history that are analyzed
 #define AIM_BAN_MIN			3		// Minimum number of detections before an auto-ban is allowed
 #define AIM_MIN_DISTANCE	200.0	// Minimum distance acceptable for a detection.
+#define AIM_MIN_DAMAGE		10		// player_hurt: minimum dmg_health that is analyzed
 
 new Handle:g_hCvarAimbotBan = INVALID_HANDLE;
 new Handle:g_IgnoreWeapons = INVALID_HANDLE;
@@ -33,15 +39,25 @@ public OnPluginStart()
 	g_hCvarAimbotBan = SMAC_CreateConVar("smac_aimbot_ban", "3", "Number of aimbot detections before a player is banned. Minimum allowed is 3. (0 = Never ban)", _, true, 0.0);
 	OnSettingsChanged(g_hCvarAimbotBan, "", "");
 	HookConVarChange(g_hCvarAimbotBan, OnSettingsChanged);
-	if ((g_iMaxAngleHistory = TIME_TO_TICK(0.5)) > sizeof(g_fEyeAngles[]))
-	{
-		g_iMaxAngleHistory = sizeof(g_fEyeAngles[]);
-	}
+	g_iMaxAngleHistory = AIM_HISTORY_CMDS;
+	
+	// R52 trie 4104: knife, grenades and world damage.
 	g_IgnoreWeapons = CreateTrie();
-	SetTrieValue(g_IgnoreWeapons, "weapon_knife", 1);
+	new String:sIgnore[][] = {
+		"weapon_knife", "knife", "tknifehs", "tknife", "env_explosion",
+		"hegrenade", "flashbang", "smokegrenade",
+		"hegrenade_projectile", "flashbang_projectile", "smokegrenade_projectile",
+		"entityflame", "worldspawn", "world", "watermelon", "watermelon_projectile"
+	};
+	for (new i = 0; i < sizeof(sIgnore); i++)
+	{
+		SetTrieValue(g_IgnoreWeapons, sIgnore[i], 1);
+	}
+	
 	HookEntityOutput("trigger_teleport", "OnEndTouch", Teleport_OnEndTouch);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 }
 
 public OnClientPutInServer(client)
@@ -86,6 +102,15 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 		Aimbot_ClearAngles(client);
 		CreateTimer(0.1, Timer_ClearAngles, userid, TIMER_FLAG_NO_MAPCHANGE);
 	}
+}
+
+public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	// R52 analyzes hits too: the victim survived and took at least 10 damage.
+	if (GetEventInt(event, "health") <= 0 || GetEventInt(event, "dmg_health") < AIM_MIN_DAMAGE)
+		return;
+	
+	Event_PlayerDeath(event, name, dontBroadcast);
 }
 
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
@@ -155,6 +180,7 @@ Aimbot_AnalyzeAngles(client)
 	/* Analyze the client to see if their angles snapped. */
 	decl Float:vLastAngles[3], Float:vAngles[3], Float:fAngleDiff;
 	new idx = g_iEyeIndex[client];
+	new iStepStreak;
 	
 	for (new i = 0; i < g_iMaxAngleHistory; i++)
 	{
@@ -177,16 +203,22 @@ Aimbot_AnalyzeAngles(client)
 		}
 		
 		vAngles = g_fEyeAngles[client][idx];
-		fAngleDiff = GetVectorDistance(vLastAngles, vAngles);
-		
-		// If the difference is being reported higher than 180, get the 'real' value.
-		if (fAngleDiff > 180)
+		fAngleDiff = Aimbot_AngleDelta(vLastAngles, vAngles);
+
+		// Hard snap, or a snap split into steps just under the threshold.
+		if (fAngleDiff >= AIM_STEP_MIN)
 		{
-			fAngleDiff = FloatAbs(fAngleDiff - 360);
+			iStepStreak++;
+		}
+		else
+		{
+			iStepStreak = 0;
 		}
 
-		if (fAngleDiff > AIM_ANGLE_CHANGE)
+		if (fAngleDiff > AIM_ANGLE_CHANGE || iStepStreak >= AIM_STEP_COUNT)
 		{
+			// Count one snap once, not once per hit of the spray that follows it.
+			Aimbot_ClearAngles(client);
 			Aimbot_Detected(client, fAngleDiff);
 			break;
 		}
@@ -194,6 +226,21 @@ Aimbot_AnalyzeAngles(client)
 		vLastAngles = vAngles;
 		idx++;
 	}
+}
+
+Float:Aimbot_AngleDelta(const Float:vFrom[3], const Float:vTo[3])
+{
+	decl Float:dx, Float:dy;
+	dx = FloatAbs(vTo[0] - vFrom[0]);
+	dy = FloatAbs(vTo[1] - vFrom[1]);
+	
+	// Wrap each axis on its own, so a yaw crossing +-180 doesn't read as a snap.
+	if (dx > 180.0)
+		dx = 360.0 - dx;
+	if (dy > 180.0)
+		dy = 360.0 - dy;
+	
+	return SquareRoot(dx * dx + dy * dy);
 }
 
 Aimbot_Detected(client, const Float:deviation)

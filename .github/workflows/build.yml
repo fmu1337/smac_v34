@@ -73,8 +73,9 @@ jobs:
           mkdir -p package/addons/sourcemod/translations/ru
           cp addons/sourcemod/translations/smac.phrases.txt package/addons/sourcemod/translations/
           cp addons/sourcemod/translations/ru/smac.phrases.txt package/addons/sourcemod/translations/ru/
+          cp -r materials models package/
           cd package
-          zip -r "../smac_v34-SM${{ matrix.sm-version }}.zip" addons
+          zip -r "../smac_v34-SM${{ matrix.sm-version }}.zip" addons materials models
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

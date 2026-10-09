@@ -40,6 +40,7 @@ PLUGINS=(
 	smac_commands.sp
 	smac_css_antiflash.sp
 	smac_css_antismoke.sp
+	smac_css_smokefix.sp
 	smac_css_fixes.sp
 	smac_cvars.sp
 	smac_eyetest.sp
@@ -48,6 +49,15 @@ PLUGINS=(
 	smac_spinhack.sp
 	smac_status.sp
 	smac_wallhack.sp
+	smac_ultra_netcode.sp
+	smac_ultra_aimbot.sp
+	smac_ultra_movement.sp
+	smac_ultra_input.sp
+	smac_ultra_client.sp
+	smac_ultra_server.sp
+	smac_ultra_aimkill.sp
+	smac_ultra_protect.sp
+	smac_ultra_diag_norecoil.sp
 )
 
 mkdir -p "$OUT_DIR"

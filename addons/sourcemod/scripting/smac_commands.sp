@@ -33,7 +33,7 @@ public OnPluginStart()
 	
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
-	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "35", "Amount of commands allowed per second. (0 = Disabled)", _, true, 0.0);
+	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Amount of commands allowed per second, kick above it. (0 = Disabled; SMAC Ultr@ R52: -25, stock SMAC: 35; the sign is accepted for R52 configs)");
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 	
@@ -284,6 +284,30 @@ public Action:Command_Say(client, const String:command[], args)
 	decl String:sMsg[256], String:sChar;
 	new iLen = GetCmdArgString(sMsg, sizeof(sMsg));
 	
+	// SMAC Ultr@ R52: over 240 bytes, or nothing but spaces (and quotes).
+	if (iLen > 240)
+	{
+		PrintToChat(client, "%t", "SMAC_SayBlock");
+		return Plugin_Stop;
+	}
+	
+	new bool:bOnlySpaces = (iLen > 0);
+	
+	for (new i = 0; i < iLen; i++)
+	{
+		if (sMsg[i] != ' ' && sMsg[i] != '"')
+		{
+			bOnlySpaces = false;
+			break;
+		}
+	}
+	
+	if (bOnlySpaces)
+	{
+		PrintToChat(client, "%t", "SMAC_SayBlock");
+		return Plugin_Stop;
+	}
+	
 	for (new i = 0; i < iLen; i++)
 	{
 		sChar = sMsg[i];
@@ -400,7 +424,8 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 		return Plugin_Stop;
 	}
 	
-	if (g_iCmdSpamLimit && !GetTrieValue(g_hIgnoredCmds, command, cAction) && ++g_iCmdCount[client] > g_iCmdSpamLimit)
+	// R52 also never counts ucp_* (UCP anti-cheat client) commands.
+	if (g_iCmdSpamLimit && !GetTrieValue(g_hIgnoredCmds, command, cAction) && strncmp(command, "ucp_", 4) != 0 && ++g_iCmdCount[client] > g_iCmdSpamLimit)
 	{
 		decl String:sArgString[192];
 		GetCmdArgString(sArgString, sizeof(sArgString));
@@ -439,6 +464,11 @@ public Action:Timer_ResetCmdCount(Handle:timer)
 public OnSettingsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	g_iCmdSpamLimit = GetConVarInt(convar);
+	
+	if (g_iCmdSpamLimit < 0)
+	{
+		g_iCmdSpamLimit = -g_iCmdSpamLimit;
+	}
 }
 
 
