@@ -40,6 +40,7 @@ PLUGINS=(
 	smac_commands.sp
 	smac_css_antiflash.sp
 	smac_css_antismoke.sp
+	smac_css_smokefix.sp
 	smac_css_fixes.sp
 	smac_cvars.sp
 	smac_eyetest.sp

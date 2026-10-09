@@ -1,0 +1,7 @@
+"VertexlitGeneric"
+{
+	"$basetexture" "rxg/smokevol"
+	"$alphatest" 1
+	"%compileBlockLOS" 1
+	
+}

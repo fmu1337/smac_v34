@@ -64,6 +64,11 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_wallhack`, `smac_css_antismoke`, `smac_css_antiflash` — доработки anti-WH из R52: `smac_wallhack` 0/1/2 (FFA),
   `smac_wallhack_Level`, `smac_wallhack_Time` 0.2 с, хитбокс уже, трасса в голову; дым и флешка с режимом 2.
   Подробности — в [docs/ULTRA_WALLHACK.md](docs/ULTRA_WALLHACK.md).
+* `smac_css_smokefix` — Advanced Smoke Fix (DjAudition, forum.clientmod.ru, тема 1118) без своей копии wallhack:
+  дым плотнее (`smac_smokefix_density` доп. эмиттеров), а через `smac_smokefix_delay` с (5 с) в облако ставится
+  невидимая сфера `models/rxg/smokevol.mdl`. Клиентам она не отправляется и ни с чем не сталкивается, но перекрывает трассы
+  `smac_wallhack`, так что игроков в дыму и за ним не видно. Нужен включённый `smac_wallhack`. `smac_smokefix_mapfog 1`
+  убирает туман карты, `func_smokevolume` и `func_dustmotes`. `materials/rxg` и `models/rxg` выложить на FastDL.
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).
