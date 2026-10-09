@@ -34,6 +34,11 @@ new Handle:g_hCvarTime = INVALID_HANDLE;
 // SMAC Ultr@ R52 Anti-SoundESP: -1 = no sound handling, 0 = real sounds, 1-4 = faked for listeners who can't see the source.
 new g_iSoundESP = 0;
 new Handle:g_hCvarTickTime = INVALID_HANDLE;
+// Peek lookahead (CornerCulling, github.com/87andrewh/CornerCulling): max seconds of viewer movement to account for.
+new Float:g_fPeekTime = 0.1;
+new Handle:g_hCvarAccelerate = INVALID_HANDLE;
+new Handle:g_hCvarFriction = INVALID_HANDLE;
+new Handle:g_hCvarMaxSpeed = INVALID_HANDLE;
 
 new g_iDownloadTable = INVALID_STRING_TABLE;
 new Handle:g_hIgnoreSounds = INVALID_HANDLE;
@@ -53,6 +58,17 @@ new Float:g_vMaxs[MAXPLAYERS][3];
 new Float:g_vAbsCentre[MAXPLAYERS][3];
 new Float:g_vEyePos[MAXPLAYERS][3];
 new Float:g_vEyeAngles[MAXPLAYERS][3];
+new Float:g_fPeekDist[MAXPLAYERS];
+
+// Trace targets on a player: centre, outer rectangle, head, inner rectangle (in that order).
+#define SAMPLE_COUNT		10
+// Peek eyes only trace the centre, the outer rectangle and the head.
+#define SAMPLE_PEEK_COUNT	6
+// Real eye + two side-stepped peek eyes.
+#define EYE_COUNT			3
+
+// Last eye/sample pair that saw the entity (eye * SAMPLE_COUNT + sample + 1), 0 = none. Tried first next time.
+new g_iLastSample[MAXPLAYERS][MAXPLAYERS];
 
 new g_iTotalThreads = 1, g_iCurrentThread = 1, g_iThread[MAXPLAYERS] = { 1, ... };
 new g_iCacheTicks, g_iTraceCount;
@@ -88,6 +104,14 @@ public OnPluginStart()
 	g_hCvarTickTime = CreateConVar("smac_wallhack_ticktime", "0", "Legacy (stock SMAC, was 0.75): when above 0, used instead of smac_wallhack_Time.", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarTickTime, WallHack_TickOnSettingsChanged);
 	WallHack_TickOnSettingsChanged(INVALID_HANDLE, "", "");
+	
+	hCvar = CreateConVar("smac_wallhack_peek", "0.1", "Peek lookahead: also check from where a client could have side-stepped within its ping, up to this many seconds. Prevents enemies popping in late on peeks. (0:Disable)", _, true, 0.0, true, 0.3);
+	g_fPeekTime = GetConVarFloat(hCvar);
+	HookConVarChange(hCvar, OnPeekChanged);
+	
+	g_hCvarAccelerate = FindConVar("sv_accelerate");
+	g_hCvarFriction = FindConVar("sv_friction");
+	g_hCvarMaxSpeed = FindConVar("sv_maxspeed");
 	
 	g_iTickRate = RoundToFloor(1.0 / GetTickInterval());
 	
@@ -173,6 +197,11 @@ public OnSoundESPChanged(Handle:convar, const String:oldValue[], const String:ne
 	g_iSoundESP = GetConVarInt(convar);
 }
 
+public OnPeekChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_fPeekTime = GetConVarFloat(convar);
+}
+
 public OnLevelChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	g_fWideDivisor = 7.0 + GetConVarFloat(convar);
@@ -249,6 +278,7 @@ public OnClientDisconnect_Post(client)
 		g_iPVSCache[i][client] = 0;
 		g_iPVSSoundCache[i][client] = 0;
 		g_bIsVisible[i][client] = true;
+		g_iLastSample[i][client] = 0;
 	}
 }
 
@@ -724,6 +754,29 @@ UpdateClientData(client)
 			g_vMaxs[client][2] *= vTemp[2];
 		}
 	}
+	
+	// The client renders its own movement ahead of the server by about its ping, plus the ticks until its next check.
+	// In that time it can side-step at most 0.5*a*t^2 off the predicted path (from a standstill, or by reversing).
+	g_fPeekDist[client] = 0.0;
+	
+	if (g_fPeekTime > 0.0 && !g_bIsFake[client] && g_hCvarAccelerate != INVALID_HANDLE && g_hCvarFriction != INVALID_HANDLE && g_hCvarMaxSpeed != INVALID_HANDLE)
+	{
+		new Float:fMaxSpeed = GetConVarFloat(g_hCvarMaxSpeed);
+		new Float:fAccel = (GetConVarFloat(g_hCvarAccelerate) + GetConVarFloat(g_hCvarFriction)) * fMaxSpeed;
+		new Float:fTime = GetClientLatency(client, NetFlow_Both) + TICK_TO_TIME(g_iTotalThreads);
+		
+		if (fTime > g_fPeekTime)
+		{
+			fTime = g_fPeekTime;
+		}
+		
+		g_fPeekDist[client] = 0.5 * fAccel * fTime * fTime;
+		
+		if (g_fPeekDist[client] > fMaxSpeed * fTime)
+		{
+			g_fPeekDist[client] = fMaxSpeed * fTime;
+		}
+	}
 }
 
 /**
@@ -731,28 +784,129 @@ UpdateClientData(client)
  */
 bool:IsAbleToSee(entity, client)
 {
-	
 	// Skip all traces if the player isn't within the field of view.
-	if (IsInFieldOfView(g_vEyePos[client], g_vEyeAngles[client], g_vAbsCentre[entity]))
+	if (!IsInFieldOfView(g_vEyePos[client], g_vEyeAngles[client], g_vAbsCentre[entity]))
+		return false;
+	
+	decl Float:vSamples[SAMPLE_COUNT][3], Float:vOuter[4][3], Float:vInner[4][3];
+	
+	GetRectangleCorners(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 1.30, vOuter);
+	GetRectangleCorners(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 0.65, vInner);
+	
+	for (new i = 0; i < 3; i++)
 	{
-		// Check if centre is visible.
-		if (IsPointVisible(g_vEyePos[client], g_vAbsCentre[entity]))
-			return true;
+		vSamples[0][i] = g_vAbsCentre[entity][i];
+		// Head (SMAC Ultr@ R52; stock SMAC traced to a point 50 units in front of the eyes).
+		vSamples[5][i] = g_vEyePos[entity][i];
 		
-		// Check outer 4 corners of player.
-		if (IsRectangleVisible(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 1.30))
-			return true;
+		for (new j = 0; j < 4; j++)
+		{
+			vSamples[1 + j][i] = vOuter[j][i];
+			vSamples[6 + j][i] = vInner[j][i];
+		}
+	}
+	
+	decl Float:vEyes[EYE_COUNT][3], bool:bEyes[EYE_COUNT];
+	new bool:bPeekReady;
+	
+	vEyes[0] = g_vEyePos[client];
+	bEyes[0] = true;
+	
+	// Visible pairs usually stay visible along the same line: try it first.
+	new iCached = g_iLastSample[entity][client] - 1;
+	
+	if (iCached >= 0)
+	{
+		new iEye = iCached / SAMPLE_COUNT;
 		
-		// Check if head is visible (SMAC Ultr@ R52; stock SMAC traced to a point 50 units in front of the eyes).
-		if (IsPointVisible(g_vEyePos[client], g_vEyePos[entity]))
-			return true;
-
-		// Check inner 4 corners of player.
-		if (IsRectangleVisible(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 0.65))
+		if (iEye > 0)
+		{
+			GetPeekEyes(entity, client, vEyes, bEyes);
+			bPeekReady = true;
+		}
+		
+		if (bEyes[iEye] && IsPointVisible(vEyes[iEye], vSamples[iCached % SAMPLE_COUNT]))
 			return true;
 	}
 	
+	for (new iEye = 0; iEye < EYE_COUNT; iEye++)
+	{
+		if (iEye == 1 && !bPeekReady)
+		{
+			GetPeekEyes(entity, client, vEyes, bEyes);
+			bPeekReady = true;
+		}
+		
+		if (!bEyes[iEye])
+			continue;
+		
+		new iCount = (iEye == 0) ? SAMPLE_COUNT : SAMPLE_PEEK_COUNT;
+		
+		for (new i = 0; i < iCount; i++)
+		{
+			new iIndex = iEye * SAMPLE_COUNT + i;
+			
+			if (iIndex != iCached && IsPointVisible(vEyes[iEye], vSamples[i]))
+			{
+				g_iLastSample[entity][client] = iIndex + 1;
+				return true;
+			}
+		}
+	}
+	
+	g_iLastSample[entity][client] = 0;
 	return false;
+}
+
+/**
+ * Peek lookahead, after CornerCulling (github.com/87andrewh/CornerCulling): the client may already be up to
+ * g_fPeekDist units to either side of where the server thinks its eyes are, so also look from those two points.
+ * The side is perpendicular to the line towards the entity, where a side-step changes the most.
+ */
+GetPeekEyes(entity, client, Float:vEyes[][3], bool:bEyes[])
+{
+	bEyes[1] = false;
+	bEyes[2] = false;
+	
+	if (g_fPeekDist[client] < 1.0)
+		return;
+	
+	decl Float:vSide[3];
+	vSide[0] = g_vEyePos[client][1] - g_vAbsCentre[entity][1];
+	vSide[1] = g_vAbsCentre[entity][0] - g_vEyePos[client][0];
+	vSide[2] = 0.0;
+	
+	if (NormalizeVector(vSide, vSide) == 0.0)
+		return;
+	
+	// A trace starting inside a wall could come out on its other side (TR_StartSolid isn't in SM 1.6).
+	if (TR_GetPointContents(g_vEyePos[client]) & MASK_PLAYERSOLID)
+		return;
+	
+	ScaleVector(vSide, g_fPeekDist[client]);
+	
+	decl Float:vEnd[3];
+	
+	for (new i = 1; i < EYE_COUNT; i++)
+	{
+		if (i == 1)
+		{
+			AddVectors(g_vEyePos[client], vSide, vEnd);
+		}
+		else
+		{
+			SubtractVectors(g_vEyePos[client], vSide, vEnd);
+		}
+		
+		// Never step through a wall: stop where the client itself would be stopped.
+		TR_TraceHullFilter(g_vEyePos[client], vEnd, Float:{-4.0, -4.0, -4.0}, Float:{4.0, 4.0, 4.0}, MASK_PLAYERSOLID, Filter_NoPlayers);
+		g_iTraceCount++;
+		
+		TR_GetEndPosition(vEyes[i]);
+		
+		// Barely moved (against a wall): same view as the real eye, don't waste traces on it.
+		bEyes[i] = GetVectorDistance(g_vEyePos[client], vEyes[i], true) >= 1.0;
+	}
 }
 
 bool:IsInFieldOfView(const Float:start[3], const Float:angles[3], const Float:end[3])
@@ -783,7 +937,7 @@ bool:IsPointVisible(const Float:start[3], const Float:end[3])
 	return TR_GetFraction() == 1.0;
 }
 
-bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mins[3], const Float:maxs[3], Float:scale=1.0)
+GetRectangleCorners(const Float:start[3], const Float:end[3], const Float:mins[3], const Float:maxs[3], Float:scale, Float:vRectangle[4][3])
 {
 	new Float:ZpozOffset = maxs[2];
 	new Float:ZnegOffset = mins[2];
@@ -792,7 +946,12 @@ bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mi
 	// This rectangle is just a point!
 	if (ZpozOffset == 0.0 && ZnegOffset == 0.0 && WideOffset == 0.0)
 	{
-		return IsPointVisible(start, end);
+		for (new i = 0; i < 4; i++)
+		{
+			vRectangle[i] = end;
+		}
+		
+		return;
 	}
 
 	// Adjust to scale.
@@ -809,7 +968,7 @@ bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mi
 	GetVectorAngles(fwd, angles);
 	GetAngleVectors(angles, fwd, right, NULL_VECTOR);
 
-	decl Float:vRectangle[4][3], Float:vTemp[3];
+	decl Float:vTemp[3];
 
 	// If the player is on the same level as us, we can optimize by only rotating on the z-axis.
 	if (FloatAbs(fwd[2]) <= 0.7071)
@@ -895,17 +1054,6 @@ bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mi
 		SubtractVectors(vTemp, right, vTemp);
 		SubtractVectors(vTemp, fwd, vRectangle[3]);
 	}
-
-	// Run traces on all corners.
-	for (new i = 0; i < 4; i++)
-	{
-		if (IsPointVisible(start, vRectangle[i]))
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 new UserMsg:g_msgUpdateRadar = INVALID_MESSAGE_ID;

@@ -63,6 +63,7 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   [docs/ULTRA_DIAG_NORECOIL.md](docs/ULTRA_DIAG_NORECOIL.md).
 * `smac_wallhack`, `smac_css_antismoke`, `smac_css_antiflash` — доработки anti-WH из R52: `smac_wallhack` 0/1/2 (FFA),
   `smac_wallhack_Level`, `smac_wallhack_Time` 0.2 с, хитбокс уже, трасса в голову; дым и флешка с режимом 2.
+  Плюс (не из R52) упреждение пика по идее CornerCulling (`smac_wallhack_peek`) — против «поздно появляющихся» на пиках.
   Подробности — в [docs/ULTRA_WALLHACK.md](docs/ULTRA_WALLHACK.md).
 * `smac_css_smokefix` — Advanced Smoke Fix (DjAudition, forum.clientmod.ru, тема 1118) без своей копии wallhack:
   дым плотнее (`smac_smokefix_density` доп. эмиттеров), а через `smac_smokefix_delay` с (5 с) в облако ставится
