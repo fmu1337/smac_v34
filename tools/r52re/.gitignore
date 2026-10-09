@@ -1,0 +1,4 @@
+r52/
+*.pkl
+*.bin
+__pycache__/

@@ -2,7 +2,7 @@
 
 Большая часть R52 выросла из стокового SMAC 0.8.6, того же, что лежит в master. Здесь — что R52 в этих модулях сделал
 иначе и что из этого перенесено. Разбор — декомпиляция `001_SMAC_Global/Client/Cvars/Rcon.smx`
-(`tools/r52re/decomp.py`, ветка декода fmu1337/smac_v34#9).
+(`tools/r52re/decomp.py`, `docs/R52_SPEC.md`).
 
 ## `smac_aimbot` — стандартный детект снапа
 
