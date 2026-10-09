@@ -23,12 +23,20 @@ public Plugin:myinfo =
  * comes within EYE_DECAY seconds, checks pause for 5 s (not 30 s) after a violation, the roll
  * limit is 30 (was 90) and the reaction is set by smac_eyetest_reaction.
  * smac_NoS_NoR (R52) gives every +attack usercmd a new random seed.
+ * A large cmdnum skip on +attack is reported as nospread seed hunting (smac_eyetest_seed_ban),
+ * and illegal angles are clamped so anti-aim gains nothing even when the reaction is off.
  */
 
 #define EYE_MAX_PITCH	89.9
 #define EYE_MAX_ROLL	30.0
 #define EYE_DECAY		528.0	// R52: SetBan(..., 528) releases one violation
 #define EYE_PAUSE		5.0		// R52: checks pause for 5 s worth of cmds after a violation
+
+// ForceSeed / SeedHelp (insomnia, informant, 420hook): skip command_number until
+// (MD5_PseudoRandom(cmdnum) & 255) matches a desired seed. Average skip ~128.
+// Small gaps can be choke/lag; large gaps on IN_ATTACK are nospread seed hunting.
+#define SEED_SKIP_MIN_DELTA		16
+#define SEED_SKIP_DETECT_BAN	3
 
 #define ET_CMDNUM		0
 #define ET_TICKCOUNT	1
@@ -61,6 +69,7 @@ enum ResetStatus {
 new Handle:g_hCvarBan = INVALID_HANDLE;
 new Handle:g_hCvarReaction = INVALID_HANDLE;
 new Handle:g_hCvarNoSpread = INVALID_HANDLE;
+new Handle:g_hCvarSeedBan = INVALID_HANDLE;
 new g_iPauseCmds;
 
 new g_iPauseUntilCmd[MAXPLAYERS+1];
@@ -71,6 +80,7 @@ new g_iPrevCmdNum[MAXPLAYERS+1] = {-1, ...};
 new g_iPrevTickCount[MAXPLAYERS+1] = {-1, ...};
 new g_iCmdNumOffset[MAXPLAYERS+1] = {1, ...};
 new ResetStatus:g_TickStatus[MAXPLAYERS+1];
+new g_iSeedSkipDetections[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -80,6 +90,7 @@ public OnPluginStart()
 	g_hCvarReaction = SMAC_CreateConVar("smac_eyetest_reaction", "3", "Eye test 01-04 reaction: 0=off, 1=admin notice, 2=kick, 3=ban (SMAC Ultr@ R52: 3)", _, true, 0.0, true, 3.0);
 	g_hCvarNoSpread = SMAC_CreateConVar("smac_NoS_NoR", "1", "No Spread / No Recoil block (SMAC Ultr@ R52): a new random seed on every +attack usercmd. 0 = only when cmdnums are skipped (stock SMAC).", _, true, 0.0, true, 1.0);
 	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Legacy: 0 limits smac_eyetest_reaction to admin notices.", _, true, 0.0, true, 1.0);
+	g_hCvarSeedBan = SMAC_CreateConVar("smac_eyetest_seed_ban", "1", "Automatically ban players for nospread seed hunting (command_number skips on attack).", _, true, 0.0, true, 1.0);
 
 	g_iPauseCmds = TIME_TO_TICK(EYE_PAUSE);
 	
@@ -101,6 +112,7 @@ public OnClientDisconnect(client)
 	g_iPrevTickCount[client] = -1;
 	g_iCmdNumOffset[client] = 1;
 	g_TickStatus[client] = State_Okay;
+	g_iSeedSkipDetections[client] = 0;
 }
 
 public OnClientDisconnect_Post(client)
@@ -245,10 +257,19 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	}
 	else
 	{
-		// Passively block cheats from skipping to desired seeds.
-		if ((buttons & IN_ATTACK) && g_iPrevCmdNum[client] + g_iCmdNumOffset[client] != cmdnum && g_iPrevCmdNum[client] > 0)
+		new iExpected = g_iPrevCmdNum[client] + g_iCmdNumOffset[client];
+		new iSkipDelta = cmdnum - iExpected;
+
+		// Passively block cheats from skipping to desired seeds (ForceSeed / SeedHelp).
+		if ((buttons & IN_ATTACK) && iSkipDelta != 0 && g_iPrevCmdNum[client] > 0)
 		{
 			seed = GetURandomInt();
+
+			// Large skips while firing = nospread seed search (avg ~128 for &255 match).
+			if (iSkipDelta >= SEED_SKIP_MIN_DELTA)
+			{
+				EyeTest_SeedSkipDetected(client, cmdnum, iExpected, iSkipDelta, seed);
+			}
 		}
 
 		g_iCmdNumOffset[client] = 1;
@@ -297,7 +318,57 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	Eyetest_Violation(client, ET_ANGLES, info, sDetail);
 
 	CloseHandle(info);
-	return Plugin_Continue;
+
+	// Neutralize illegal AA / lisp even when the reaction is off or a forward blocked it.
+	if (fPitch > EYE_MAX_PITCH)
+		angles[0] = EYE_MAX_PITCH;
+	else if (fPitch < -EYE_MAX_PITCH)
+		angles[0] = -EYE_MAX_PITCH;
+	else
+		angles[0] = fPitch;
+	angles[2] = 0.0;
+
+	return Plugin_Changed;
+}
+
+EyeTest_SeedSkipDetected(client, cmdnum, expected, skipDelta, seed)
+{
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "cmdnum", cmdnum);
+	KvSetNum(info, "expected", expected);
+	KvSetNum(info, "skip", skipDelta);
+	KvSetNum(info, "seed", seed);
+	KvSetNum(info, "detection", g_iSeedSkipDetections[client] + 1);
+
+	if (SMAC_CheatDetected(client, Detection_SeedSkip, info) != Plugin_Continue)
+	{
+		CloseHandle(info);
+		return;
+	}
+
+	CloseHandle(info);
+
+	g_iSeedSkipDetections[client]++;
+	CreateTimer(600.0, Timer_DecreaseSeedSkip, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+
+	SMAC_PrintAdminNotice("%t", "SMAC_SeedSkipDetected", client, g_iSeedSkipDetections[client], skipDelta);
+	SMAC_LogAction(client, "is suspected of nospread seed hunting. (Detection #%i | CmdNum skip: %d | expected %d got %d)", g_iSeedSkipDetections[client], skipDelta, expected, cmdnum);
+
+	if (GetConVarBool(g_hCvarSeedBan) && g_iSeedSkipDetections[client] >= SEED_SKIP_DETECT_BAN)
+	{
+		SMAC_LogAction(client, "was banned for nospread seed hunting.");
+		SMAC_Ban(client, "Eye Test Violation => SeedSkip");
+	}
+}
+
+public Action:Timer_DecreaseSeedSkip(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	if (IS_CLIENT(client) && g_iSeedSkipDetections[client] > 0)
+	{
+		g_iSeedSkipDetections[client]--;
+	}
+	return Plugin_Stop;
 }
 
 Eyetest_Violation(client, check, Handle:info, const String:detail[])

@@ -123,6 +123,12 @@
 		"en"		"{1} is suspected of cheating with their eye angles."
 	}
 	
+	"SMAC_SeedSkipDetected"
+	{
+		"#format"	"{1:N},{2:i},{3:i}"
+		"en"		"{1} is suspected of nospread seed hunting. (Detection #{2} | CmdNum skip: {3})"
+	}
+	
 	"SMAC_WelcomeMsg"
 	{
 		"en"		"This server is protected by SMAC"

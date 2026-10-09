@@ -23,6 +23,7 @@ enum DetectionType {
 	Detection_UserCmdTamperingTickcount,
 	Detection_UserCmdTamperingButtons,
 	Detection_Eyeangles,
+	Detection_SeedSkip,
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
 

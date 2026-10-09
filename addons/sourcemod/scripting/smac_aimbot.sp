@@ -14,6 +14,9 @@ public Plugin:myinfo =
 
 // SMAC Ultr@ R52 values (stock SMAC: 45 degrees over 0.5 s, checked on kills only).
 #define AIM_ANGLE_CHANGE	35.0	// Max angle change that a player should snap
+// Informant AntiSMAC / Insomnia SnapLimiter cap per-tick snaps and split them into steps under the threshold.
+#define AIM_STEP_MIN		28.0	// Min per-tick step for staircase detection
+#define AIM_STEP_COUNT		2		// Consecutive near-threshold steps before a detection
 #define AIM_HISTORY_CMDS	45		// Usercmds of angle history that are analyzed
 #define AIM_BAN_MIN			3		// Minimum number of detections before an auto-ban is allowed
 #define AIM_MIN_DISTANCE	200.0	// Minimum distance acceptable for a detection.
@@ -177,6 +180,7 @@ Aimbot_AnalyzeAngles(client)
 	/* Analyze the client to see if their angles snapped. */
 	decl Float:vLastAngles[3], Float:vAngles[3], Float:fAngleDiff;
 	new idx = g_iEyeIndex[client];
+	new iStepStreak;
 	
 	for (new i = 0; i < g_iMaxAngleHistory; i++)
 	{
@@ -199,15 +203,19 @@ Aimbot_AnalyzeAngles(client)
 		}
 		
 		vAngles = g_fEyeAngles[client][idx];
-		fAngleDiff = GetVectorDistance(vLastAngles, vAngles);
-		
-		// If the difference is being reported higher than 180, get the 'real' value.
-		if (fAngleDiff > 180)
+		fAngleDiff = Aimbot_AngleDelta(vLastAngles, vAngles);
+
+		// Hard snap, or a snap split into steps just under the threshold.
+		if (fAngleDiff >= AIM_STEP_MIN)
 		{
-			fAngleDiff = FloatAbs(fAngleDiff - 360);
+			iStepStreak++;
+		}
+		else
+		{
+			iStepStreak = 0;
 		}
 
-		if (fAngleDiff > AIM_ANGLE_CHANGE)
+		if (fAngleDiff > AIM_ANGLE_CHANGE || iStepStreak >= AIM_STEP_COUNT)
 		{
 			// Count one snap once, not once per hit of the spray that follows it.
 			Aimbot_ClearAngles(client);
@@ -218,6 +226,21 @@ Aimbot_AnalyzeAngles(client)
 		vLastAngles = vAngles;
 		idx++;
 	}
+}
+
+Float:Aimbot_AngleDelta(const Float:vFrom[3], const Float:vTo[3])
+{
+	decl Float:dx, Float:dy;
+	dx = FloatAbs(vTo[0] - vFrom[0]);
+	dy = FloatAbs(vTo[1] - vFrom[1]);
+	
+	// Wrap each axis on its own, so a yaw crossing +-180 doesn't read as a snap.
+	if (dx > 180.0)
+		dx = 360.0 - dx;
+	if (dy > 180.0)
+		dy = 360.0 - dy;
+	
+	return SquareRoot(dx * dx + dy * dy);
 }
 
 Aimbot_Detected(client, const Float:deviation)
