@@ -59,7 +59,7 @@
 | Anti-Wallhack (`_Level`, `_Time`, FFA) | `smac_wallhack` | да | ядро R52 = стоковый SMAC; перенесены геометрия, время, FFA — `docs/ULTRA_WALLHACK.md` |
 | AntiFlash 1/2 | `smac_css_antiflash` | да | режим 2 (оверлей) не проверен в игре |
 | AntiSmoke 1/2 | `smac_css_antismoke` | да | константы R52; режим 2 не зависит от anti-WH |
-| SoundESP | — | нет | ложные координаты/данные звука; режим 0 = звуковой хук master |
+| SoundESP 0–4 | `smac_wallhack` | да | по умолчанию 0, как в R52; каждый звук сразу, без лимита R52 «один звук за тик» |
 | NoSpamWeapon | — | нет | код с кваром не найден |
 | Лицензионная обвязка, Ultr@Tools (таймеры, `SetBan`/`OnBanReleased`) | — | не нужно | заменено таймерами SourceMod |
 
@@ -81,5 +81,6 @@
 | #21 | Backtrack A, Changer Player Status, эта карта |
 | #22 | anti-WH, AntiFlash, AntiSmoke по R52 |
 | #23 | стоковые aimbot, eyetest, client, commands, rcon по R52 |
+| #24 | Anti-SoundESP |
 
 Каждый PR стоит на предыдущем; #10 — на master. Сливать по порядку.

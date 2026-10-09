@@ -31,6 +31,8 @@ new g_iMode = 1;
 // SMAC Ultr@ R52: rectangle width divisor = 7.0 + smac_wallhack_Level (master SMAC used 4.0).
 new Float:g_fWideDivisor = 7.0;
 new Handle:g_hCvarTime = INVALID_HANDLE;
+// SMAC Ultr@ R52 Anti-SoundESP: -1 = no sound handling, 0 = real sounds, 1-4 = faked for listeners who can't see the source.
+new g_iSoundESP = 0;
 new Handle:g_hCvarTickTime = INVALID_HANDLE;
 
 new g_iDownloadTable = INVALID_STRING_TABLE;
@@ -71,6 +73,10 @@ public OnPluginStart()
 	hCvar = CreateConVar("smac_wallhack_Level", "0.0", "Degree of rigidity of the Anti-Wallhack. (Easy < 0.0 > Hard; -3.0 = stock SMAC width)", _, true, -3.0, true, 3.0);
 	OnLevelChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnLevelChanged);
+	
+	hCvar = CreateConVar("smac_SoundESP", "0", "Anti-SoundESP for listeners who can't see the source. (-1:Disable sound handling, 0:Real sounds, 1:Fake position, 2:Fake position + level/pitch, 3:Volume by distance + level/pitch, 4:All)", _, true, -1.0, true, 4.0);
+	g_iSoundESP = GetConVarInt(hCvar);
+	HookConVarChange(hCvar, OnSoundESPChanged);
 	
 	hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", _, true, 1.0);
 	OnMaxTracesChanged(hCvar, "", "");
@@ -160,6 +166,11 @@ public WallHack_TickOnSettingsChanged(Handle:convar, const String:oldValue[], co
 	}
 	
 	g_iCacheTicks = TIME_TO_TICK(fTime);
+}
+
+public OnSoundESPChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_iSoundESP = GetConVarInt(convar);
 }
 
 public OnLevelChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -320,6 +331,9 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 	/* Emit sounds to clients who aren't being transmitted the entity. */
 	decl dummy;
 	
+	if (!g_iMode || g_iSoundESP < 0)
+		return Plugin_Continue;
+	
 	if (!entity || !IsValidEdict(entity) || GetTrieValue(g_hIgnoreSounds, sample, dummy))
 		return Plugin_Continue;
 
@@ -362,25 +376,97 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 		newTotal = 0;
 	}
 	
+	// R52 fakes weapon, item and body sounds only.
+	new bool:bFake = (g_iSoundESP > 0 && (channel == SNDCHAN_WEAPON || channel == SNDCHAN_ITEM || channel == SNDCHAN_BODY));
+	decl hiddenClients[MaxClients];
+	new hiddenTotal;
+	
 	// Determine which clients still need this sound.
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		// A client in the PVS will be expected to predict the sound even if we're blocking transmit.
 		if (bAddClient[i] || ((g_bProcess[i] || g_bIsObserver[i]) && !g_bIsVisible[iOwner][i] && g_iPVSSoundCache[iOwner][i] > g_iTickCount))
 		{
-			newClients[newTotal++] = i;
+			if (bFake && !g_bIsVisible[iOwner][i])
+			{
+				hiddenClients[hiddenTotal++] = i;
+			}
+			else
+			{
+				newClients[newTotal++] = i;
+			}
 		}
 	}
+	
+	decl Float:vOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vOrigin);
 	
 	// Emit without entity information.
 	if (newTotal)
 	{
-		decl Float:vOrigin[3];
-		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vOrigin);
 		EmitSound(newClients, newTotal, sample, SOUND_FROM_WORLD, channel, level, flags, volume, pitch, _, vOrigin);
 	}
 	
+	if (hiddenTotal)
+	{
+		SoundESP_Emit(hiddenClients, hiddenTotal, sample, channel, level, flags, volume, pitch, vOrigin);
+	}
+	
 	return Plugin_Stop;
+}
+
+/**
+ * Anti-SoundESP (SMAC Ultr@ R52, smac_SoundESP). For each listener who can't see the source:
+ *   1, 2, 4  the sound comes from a random point near the source (x/y -269.7..289, z -180..289);
+ *   2+       level 75 and pitch 100, so the weapon can't be told from them;
+ *   3, 4     volume 100000 / dist^2 limited to 0.7, nothing below 0.1 (about 1000 units).
+ * R52 replayed one sound per server tick from OnPlayerRunCmd and dropped the rest; here every sound
+ * is sent right away.
+ */
+SoundESP_Emit(const clients[], numClients, const String:sample[], channel, level, flags, Float:volume, pitch, const Float:vSource[3])
+{
+	decl Float:vPos[3], Float:vListener[3], players[1];
+	
+	for (new n = 0; n < numClients; n++)
+	{
+		new client = clients[n];
+		new iLevel = level, iPitch = pitch;
+		new Float:fVolume = volume;
+		
+		vPos[0] = vSource[0];
+		vPos[1] = vSource[1];
+		vPos[2] = vSource[2];
+		
+		if (g_iSoundESP != 3)
+		{
+			vPos[0] += GetRandomFloat(-269.7, 289.0);
+			vPos[1] += GetRandomFloat(-269.7, 289.0);
+			vPos[2] += GetRandomFloat(-180.0, 289.0);
+		}
+		
+		if (g_iSoundESP >= 2)
+		{
+			iLevel = SNDLEVEL_NORMAL;
+			iPitch = SNDPITCH_NORMAL;
+		}
+		
+		if (g_iSoundESP >= 3)
+		{
+			GetClientAbsOrigin(client, vListener);
+			new Float:fDist = GetVectorDistance(vListener, vSource, true);
+			
+			fVolume = (fDist > 0.0) ? 100000.0 / fDist : 0.7;
+			
+			if (fVolume < 0.1)
+				continue;
+			
+			if (fVolume > 0.7)
+				fVolume = 0.7;
+		}
+		
+		players[0] = client;
+		EmitSound(players, 1, sample, SOUND_FROM_WORLD, channel, iLevel, flags, fVolume, iPitch, _, vPos);
+	}
 }
 
 /**
