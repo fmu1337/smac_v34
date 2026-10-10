@@ -156,6 +156,11 @@
 		"en"		"Your Steam ID could not be validated. Please reconnect"
 	}
 
+	"SMAC_LerpKick"
+	{
+		"en"		"Your interpolation settings are out of range. Reset cl_interp and cl_interp_ratio to defaults"
+	}
+
 	"SMAC_SignatureKick"
 	{
 		"en"		"You were kicked by the anti-cheat (cheat signature)"

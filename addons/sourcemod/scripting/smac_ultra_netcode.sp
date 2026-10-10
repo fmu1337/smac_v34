@@ -23,6 +23,14 @@
  *   Backtrack A     - at the shot the client tickcount is lower than the previous cmd's (or the
  *                     previous one is negative). Counter from -1, each step decays in 300 s, the
  *                     4th such shot is a detection.
+ *   Backtrack Patch - not a detector (from Little Anti-Cheat, lilac_backtrack_patch): when the
+ *                     client tickcount stops following cmdnum (tickcount - prev != cmdnum - prev,
+ *                     so packet loss does not count), for smac_backtrack_patch_time seconds every
+ *                     cmd gets the tickcount the engine itself would fall back to in
+ *                     CLagCompensationManager::StartLagCompensation (server tick - latency - lerp).
+ *                     A backtrack cheat then rewinds nothing; a legit lossy player only loses
+ *                     the (<= 200 ms) tickcount lag compensation for that time. Off by default.
+ *                     Runs after the checks above, so they still see the raw tickcount.
  *   Changer Player Status - a client flagged as a bot (IsFakeClient) sends mouse input; real bots
  *                     never do. Reported once per connection.
  *   PSilent Active  - at the shot (weapon_fire = R52 FireBullets TE hook):
@@ -122,6 +130,8 @@ new Handle:g_hCvarCmdJump = INVALID_HANDLE;
 new Handle:g_hCvarTickAhead = INVALID_HANDLE;
 new Handle:g_hCvarFakeLag = INVALID_HANDLE;
 new Handle:g_hCvarMaxCmdRate = INVALID_HANDLE;
+new Handle:g_hCvarBtPatch = INVALID_HANDLE;
+new Handle:g_hCvarBtPatchTime = INVALID_HANDLE;
 
 /* Last 4 cmds: [3] = newest. */
 new g_iHistCmd[MAXPLAYERS+1][4];
@@ -175,6 +185,8 @@ new Float:g_fFlStart[MAXPLAYERS+1];
 new g_iFlStreak[MAXPLAYERS+1];
 new g_iFlDetects[MAXPLAYERS+1];
 
+new Float:g_fBtPatchUntil[MAXPLAYERS+1];
+
 new g_iPSilentState[MAXPLAYERS+1];
 new g_iPSilentDetects[MAXPLAYERS+1];
 new Float:g_fPSilentTime[MAXPLAYERS+1];
@@ -198,6 +210,8 @@ public OnPluginStart()
 	g_hCvarTickAhead = SMAC_CreateConVar("smac_TickAhead_reaction", "2", "Tick Ahead (client tickcount > 1 s ahead of the server, 420hook Airstuck): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarFakeLag = SMAC_CreateConVar("smac_FakeLag_reaction", "1", "Fake Lag (usercmds held and sent in large packets, log collection): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarMaxCmdRate = FindConVar("sv_maxcmdrate");
+	g_hCvarBtPatch = SMAC_CreateConVar("smac_backtrack_patch", "0", "Backtrack Patch (Little Anti-Cheat): replace a tampered client tickcount with the engine estimate for a while. Not a detector. 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarBtPatchTime = SMAC_CreateConVar("smac_backtrack_patch_time", "5.0", "Seconds the Backtrack Patch stays on after the last tampered tickcount.", _, true, 0.5, true, 60.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
@@ -257,6 +271,7 @@ public OnClientPutInServer(client)
 	ResetFakeLag(client);
 	g_iFlStreak[client] = 0;
 	g_iFlDetects[client] = 0;
+	g_fBtPatchUntil[client] = 0.0;
 
 	g_iPSilentState[client] = 0;
 	g_iPSilentDetects[client] = 0;
@@ -452,7 +467,39 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	g_fPrevAng[client][0] = angles[0];
 	g_fPrevAng[client][1] = angles[1];
 
+	if (bHasPrev && PatchBacktrack(client, cmdnum, tickcount, prevCmd, prevTick))
+		return Plugin_Changed;
+
 	return Plugin_Continue;
+}
+
+/* Backtrack Patch (Little Anti-Cheat). The history above keeps the raw tickcount. */
+bool:PatchBacktrack(client, cmdnum, &tickcount, prevCmd, prevTick)
+{
+	if (!GetConVarBool(g_hCvarBtPatch))
+		return false;
+
+	new Float:now = GetGameTime();
+
+	/* Lost cmds move cmdnum and tickcount by the same step; a backtrack only moves tickcount.
+	   Fake lag still triggers it, so client loss/choke is not a reason to skip (unlike the detectors). */
+	if (cmdnum > prevCmd && tickcount - prevTick != cmdnum - prevCmd
+		&& now >= g_fIgnoreUntil[client] && (g_fServerLagUntil <= 0.0 || now >= g_fServerLagUntil))
+	{
+		g_fBtPatchUntil[client] = now + GetConVarFloat(g_hCvarBtPatchTime);
+	}
+
+	if (now >= g_fBtPatchUntil[client])
+		return false;
+
+	/* CLagCompensationManager::StartLagCompensation fallback: target tick =
+	   server tick - TIME_TO_TICKS(latency + lerp), tick_count = target + lerp ticks. */
+	new iLerpTicks = TIME_TO_TICK(GetEntPropFloat(client, Prop_Data, "m_fLerpTime"));
+	new Float:fCorrect = GetClientLatency(client, NetFlow_Outgoing) + TICK_TO_TIME(iLerpTicks);
+	fCorrect = ClampValue(fCorrect, 0.0, 1.0);
+
+	tickcount = GetGameTickCount() - TIME_TO_TICK(fCorrect) + iLerpTicks;
+	return true;
 }
 
 CheckAirstuck(client, buttons, const Float:angles[3], cmdnum, tickcount, const mouse[2], prevCmd, prevTick)

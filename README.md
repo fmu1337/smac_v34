@@ -69,6 +69,14 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   невидимая сфера `models/rxg/smokevol.mdl`. Клиентам она не отправляется и ни с чем не сталкивается, но перекрывает трассы
   `smac_wallhack`, так что игроков в дыму и за ним не видно. Нужен включённый `smac_wallhack`. `smac_smokefix_mapfog 1`
   убирает туман карты, `func_smokevolume` и `func_dustmotes`. `materials/rxg` и `models/rxg` выложить на FastDL.
+* `smac_cvar_trap` — ловушка против «антибана» Insomnia: через команду закрытия MOTD (`VGUIMenu "info"`, ключ `cmd`)
+  игроку пишется случайный `xbox_throttlebias`, через 2 с он читается обратно. Insomnia каждый кадр возвращает `xbox_*` к
+  значениям по умолчанию, чтобы стереть метки NoSteamBans/SteamID Protect, — 100 вместо нашего значения и есть детект.
+  Только CSS v34, по умолчанию уведомления (`smac_cvar_trap_action`). Подробности — в [docs/CVAR_TRAP.md](docs/CVAR_TRAP.md).
+* `smac_usercmd` — **только уведомления админам, без наказаний**: MoveGrid (движение повёрнуто под углы — FixMove /
+  автострейф, клавиатура так не умеет), SnapBack (взгляд прыгает на одну команду и возвращается — silent aim, jitter),
+  FakeLag (пачки по 8+ команд за тик) и Roll (roll ≠ 0 — nospread через `viewangles.z`). Лог —
+  `logs/smac_usercmd_diag.log`. Подробности — в [docs/USERCMD.md](docs/USERCMD.md).
 * Детекты по исходникам 420hook (не из R52): CmdNum Jump, Tick Ahead и Fake Lag в `smac_ultra_netcode`; FastWalk,
   AutoStrafe, CircleStrafe и Move Fix в `smac_ultra_movement`; Name stealer, текст отключения и реклама в чате в
   `smac_client`; `mat_fullbright` в `smac_cvars`. Спорные по умолчанию только пишут в лог и уведомляют.
@@ -76,3 +84,18 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).
+* `smac_eyetest` ловит ещё lisp-yaw (04L: |yaw| > 100000, insomnia шлёт ~697000; угол сворачивается в ±180) и Eyetest 05 —
+  углы ровно `(0, 0, 0)` 16 команд подряд при движущейся мыши (режим «AntiSMAC» в insomnia). Реакция у них своя —
+  `smac_eyetest_new_reaction`, по умолчанию 1 (уведомление). `smac_cvars` проверяет, что `cl_interpolate` — целое 0 или 1
+  (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), по умолчанию уведомление.
+
+## Из Cheat-Acid (LilAC, Oryx, Cow AC)
+
+Что взято, ревью пересечений и разбор SauRay — [docs/CHEAT_ACID.md](docs/CHEAT_ACID.md). Отложенные идеи — [docs/PLANS.md](docs/PLANS.md).
+
+* `smac_lerp` — NoLerp (`m_fLerpTime` меньше `1 / sv_maxupdaterate`) и max lerp (`smac_lerp_max`, 105 мс) из Little Anti-Cheat,
+  плюс `smac_lerp_fix`: lerp зажимается в допустимые пределы перед лагкомпенсацией. По умолчанию уведомления и fix.
+* `smac_ultra_netcode` — Backtrack Patch из Little Anti-Cheat: при подмене tickcount на время ставится tickcount движка.
+  `smac_backtrack_patch` 0 (выкл) по умолчанию.
+* `smac_strafe` — **опциональный**, лежит в `plugins/disabled`: Strafe Sync (BASH), Perfect/Steady Turn (Oryx),
+  Silent Strafe и AHK Mouse (Cow AC). По умолчанию только лог и уведомления.
