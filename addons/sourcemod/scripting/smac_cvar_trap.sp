@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * Cvar canary via the MOTD (VGUIMenu "info") exit command.
+ * Cvar trap via the MOTD (VGUIMenu "info") exit command.
  *
  * Insomnia (CSS v34) and cheats built on it reset xbox_autothrottle / xbox_throttlebias /
  * xbox_throttlespoof to 1 / 100 / 200 every frame (Hooked_PaintTraverse, "leet ruski antiban"):
@@ -13,11 +13,11 @@
  *   1. On connect the client's xbox_throttlebias is queried. Anything but 100 means nothing
  *      resets it, so the check is skipped.
  *   2. The MOTD sent at connect (VGUIMenu "info") is held until that answer arrives
- *      (CANARY_HOLD at most) and is then sent again with the exit command
- *          xbox_throttlebias <random>;smac_canary_ack <token>;<original cmd>
+ *      (TRAP_HOLD at most) and is then sent again with the exit command
+ *          xbox_throttlebias <random>;smac_cvar_trap_ack <token>;<original cmd>
  *      The client runs it through engine->ClientCmd when the player presses OK.
- *   3. smac_canary_ack is unknown on the client and is forwarded to the server: the line has
- *      run, so the cvar was set before it. smac_canary_delay seconds later the cvar is queried
+ *   3. smac_cvar_trap_ack is unknown on the client and is forwarded to the server: the line has
+ *      run, so the cvar was set before it. smac_cvar_trap_delay seconds later the cvar is queried
  *      again. Back to 100 = something reset it (Insomnia antiban).
  *
  * The random value is left in place (xbox_* do nothing on PC): on the next map the first query
@@ -30,24 +30,24 @@
 
 public Plugin:myinfo =
 {
-	name = "SMAC: Cvar Canary",
+	name = "SMAC: Cvar Trap",
 	author = SMAC_AUTHOR,
 	description = "Detects cheats that reset the xbox_* marker cvars (Insomnia antiban) through the MOTD exit command",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
 
-#define CANARY_CVAR			"xbox_throttlebias"
-#define CANARY_DEFAULT		100.0
-#define CANARY_ACK			"smac_canary_ack"
-#define CANARY_HOLD			5.0
-#define CANARY_MAX_CMD		128
+#define TRAP_CVAR			"xbox_throttlebias"
+#define TRAP_DEFAULT		100.0
+#define TRAP_ACK			"smac_cvar_trap_ack"
+#define TRAP_HOLD			5.0
+#define TRAP_MAX_CMD		128
 
-enum CanaryState {
+enum TrapState {
 	State_None = 0,
 	State_Query,		/* waiting for the first answer */
 	State_Armed,		/* the cvar is at its default, waiting for the MOTD */
-	State_Sent,		/* the MOTD with the canary was sent, waiting for the ack */
+	State_Sent,		/* the MOTD with the trap was sent, waiting for the ack */
 	State_Check,		/* ack received, waiting for the second answer */
 	State_Done
 };
@@ -59,29 +59,29 @@ new Handle:g_hCvarDelay = INVALID_HANDLE;
 new bool:g_bSupported;
 new bool:g_bResending;
 
-new CanaryState:g_iState[MAXPLAYERS+1];
+new TrapState:g_iState[MAXPLAYERS+1];
 new Handle:g_hMotd[MAXPLAYERS+1] = {INVALID_HANDLE, ...};
-new g_iCanary[MAXPLAYERS+1];
+new g_iTrap[MAXPLAYERS+1];
 new g_iToken[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarEnable = SMAC_CreateConVar("smac_canary", "1", "xbox_throttlebias canary through the MOTD exit command (CSS v34 only): 0=off, 1=on", _, true, 0.0, true, 1.0);
-	g_hCvarAction = SMAC_CreateConVar("smac_canary_action", "0", "Reaction when the canary was reset: 0=admin notice and log, 1=kick, 2=ban", _, true, 0.0, true, 2.0);
-	g_hCvarDelay = SMAC_CreateConVar("smac_canary_delay", "2.0", "Seconds between the ack and the check query", _, true, 0.5, true, 30.0);
+	g_hCvarEnable = SMAC_CreateConVar("smac_cvar_trap", "1", "xbox_throttlebias trap through the MOTD exit command (CSS v34 only): 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarAction = SMAC_CreateConVar("smac_cvar_trap_action", "0", "Reaction when the trap was reset: 0=admin notice and log, 1=kick, 2=ban", _, true, 0.0, true, 2.0);
+	g_hCvarDelay = SMAC_CreateConVar("smac_cvar_trap_delay", "2.0", "Seconds between the ack and the check query", _, true, 0.5, true, 30.0);
 
 	new EngineVersion:engine = GetEngineVersion();
 	g_bSupported = (engine == Engine_SourceSDK2006 || engine == Engine_Original);
 	if (!g_bSupported)
 	{
-		SMAC_Log("smac_canary: engine %d is not CSS v34 (2006), the canary is disabled.", engine);
+		SMAC_Log("smac_cvar_trap: engine %d is not CSS v34 (2006), the trap is disabled.", engine);
 		return;
 	}
 
 	HookUserMessage(GetUserMessageId("VGUIMenu"), Hook_VGUIMenu, true);
-	RegConsoleCmd(CANARY_ACK, Command_Ack);
+	RegConsoleCmd(TRAP_ACK, Command_Ack);
 }
 
 /* The game sends the connect MOTD from its own ClientPutInServer, before ours: arm here. */
@@ -98,8 +98,8 @@ public OnClientPutInServer(client)
 	if (g_iState[client] != State_Query)
 		return;
 
-	QueryClientConVar(client, CANARY_CVAR, Query_First, GetClientUserId(client));
-	CreateTimer(CANARY_HOLD, Timer_Hold, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+	QueryClientConVar(client, TRAP_CVAR, Query_First, GetClientUserId(client));
+	CreateTimer(TRAP_HOLD, Timer_Hold, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public OnClientDisconnect(client)
@@ -125,7 +125,7 @@ public Query_First(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 	if (GetClientOfUserId(userid) != client || g_iState[client] != State_Query)
 		return;
 
-	if (result != ConVarQuery_Okay || StringToFloat(cvarValue) != CANARY_DEFAULT)
+	if (result != ConVarQuery_Okay || StringToFloat(cvarValue) != TRAP_DEFAULT)
 	{
 		/* Not at the default: nothing resets it right now. */
 		g_iState[client] = State_Done;
@@ -150,7 +150,7 @@ public Action:Timer_Hold(Handle:timer, any:userid)
 }
 
 /**
- * Step 2: hold the MOTD until the first answer, then add the canary to its exit command.
+ * Step 2: hold the MOTD until the first answer, then add the trap to its exit command.
  */
 public Action:Hook_VGUIMenu(UserMsg:msg_id, Handle:bf, const players[], playersNum, bool:reliable, bool:init)
 {
@@ -194,29 +194,29 @@ public Action:Timer_SendArmed(Handle:timer, any:userid)
 	return Plugin_Stop;
 }
 
-SendHeldMotd(client, bool:bCanary)
+SendHeldMotd(client, bool:bTrap)
 {
 	new Handle:kv = g_hMotd[client];
 	if (kv == INVALID_HANDLE || !IsClientInGame(client))
 		return;
 	g_hMotd[client] = INVALID_HANDLE;
 
-	if (bCanary)
+	if (bTrap)
 	{
-		decl String:sCmd[CANARY_MAX_CMD], String:sNew[256];
+		decl String:sCmd[TRAP_MAX_CMD], String:sNew[256];
 		KvGetString(kv, "cmd", sCmd, sizeof(sCmd));
 
 		/* The 2006 client keeps a 255-char exit command; a numeric one is the Orange Box format. */
-		if (strlen(sCmd) >= CANARY_MAX_CMD - 1 || (sCmd[0] && IsNumeric(sCmd)))
+		if (strlen(sCmd) >= TRAP_MAX_CMD - 1 || (sCmd[0] && IsNumeric(sCmd)))
 		{
 			g_iState[client] = State_Done;
 		}
 		else
 		{
-			g_iCanary[client] = GetRandomInt(101, 9999);
+			g_iTrap[client] = GetRandomInt(101, 9999);
 			g_iToken[client] = GetRandomInt(100000, 999999999);
 
-			FormatEx(sNew, sizeof(sNew), "%s %d;%s %d", CANARY_CVAR, g_iCanary[client], CANARY_ACK, g_iToken[client]);
+			FormatEx(sNew, sizeof(sNew), "%s %d;%s %d", TRAP_CVAR, g_iTrap[client], TRAP_ACK, g_iToken[client]);
 			if (sCmd[0])
 				Format(sNew, sizeof(sNew), "%s;%s", sNew, sCmd);
 
@@ -264,7 +264,7 @@ public Action:Timer_Check(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
 	if (client && g_iState[client] == State_Check)
-		QueryClientConVar(client, CANARY_CVAR, Query_Check, userid);
+		QueryClientConVar(client, TRAP_CVAR, Query_Check, userid);
 	return Plugin_Stop;
 }
 
@@ -278,16 +278,16 @@ public Query_Check(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 		return;
 
 	new Float:fValue = StringToFloat(cvarValue);
-	if (fValue == float(g_iCanary[client]))
+	if (fValue == float(g_iTrap[client]))
 		return;
 
 	decl String:sDetail[128];
-	FormatEx(sDetail, sizeof(sDetail), "%s set to %d, read back \"%s\"", CANARY_CVAR, g_iCanary[client], cvarValue);
+	FormatEx(sDetail, sizeof(sDetail), "%s set to %d, read back \"%s\"", TRAP_CVAR, g_iTrap[client], cvarValue);
 
 	/* Something else wrote it (another plugin, a config): log only. */
-	if (fValue != CANARY_DEFAULT)
+	if (fValue != TRAP_DEFAULT)
 	{
-		SMAC_LogAction(client, "Cvar Canary: changed by something else | %s", sDetail);
+		SMAC_LogAction(client, "Cvar Trap: changed by something else | %s", sDetail);
 		return;
 	}
 
@@ -296,12 +296,12 @@ public Query_Check(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 
 React(client, const String:detail[])
 {
-	new String:sName[] = "Cvar Canary (xbox_* reset)";
+	new String:sName[] = "Cvar Trap (xbox_* reset)";
 
 	new Handle:info = CreateKeyValues("");
 	KvSetString(info, "check", sName);
 	KvSetString(info, "detail", detail);
-	new Action:result = SMAC_CheatDetected(client, Detection_CvarCanary, info);
+	new Action:result = SMAC_CheatDetected(client, Detection_CvarTrap, info);
 	CloseHandle(info);
 
 	if (result != Plugin_Continue)
