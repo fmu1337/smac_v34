@@ -2,6 +2,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <smac>
+#include <smac_wallhack_occ>
 
 
 /**
@@ -70,6 +71,16 @@ new Float:g_fPeekDist[MAXPLAYERS];
 // Last eye/sample pair that saw the entity (eye * SAMPLE_COUNT + sample + 1), 0 = none. Tried first next time.
 new g_iLastSample[MAXPLAYERS][MAXPLAYERS];
 
+// Map brush that proved the entity hidden last time (brush + 1), 0 = none. See smac_wallhack_occ.inc.
+new g_iOccCache[MAXPLAYERS][MAXPLAYERS];
+new bool:g_bOccEnabled = true;
+new g_iBeamSprite = -1;
+
+// smac_wallhack_occ statistics, reset by the command.
+// A brush proof counts as one trace towards smac_wallhack_maxtraces; the stats keep them apart.
+new g_iStatChecks, g_iStatTraces, g_iStatProofs, g_iStatOccCached, g_iStatOccFound;
+new Float:g_fStatTime;
+
 new g_iTotalThreads = 1, g_iCurrentThread = 1, g_iThread[MAXPLAYERS] = { 1, ... };
 new g_iCacheTicks, g_iTraceCount;
 new g_iTickCount, g_iCmdTickCount[MAXPLAYERS], g_iTickRate;
@@ -108,6 +119,12 @@ public OnPluginStart()
 	hCvar = CreateConVar("smac_wallhack_peek", "0.1", "Peek lookahead: also check from where a client could have side-stepped within its ping, up to this many seconds. Prevents enemies popping in late on peeks. (0:Disable)", _, true, 0.0, true, 0.3);
 	g_fPeekTime = GetConVarFloat(hCvar);
 	HookConVarChange(hCvar, OnPeekChanged);
+	
+	hCvar = CreateConVar("smac_wallhack_occluders", "1", "Use the map's own brushes (read from the .bsp) to prove players hidden without engine traces. Same result, fewer traces. (0:Disable)", _, true, 0.0, true, 1.0);
+	g_bOccEnabled = GetConVarBool(hCvar);
+	HookConVarChange(hCvar, OnOccChanged);
+	
+	RegAdminCmd("smac_wallhack_occ", Command_Occ, ADMFLAG_GENERIC, "Anti-Wallhack occluder status and stats. \"reset\" clears the stats, \"show\" draws the brushes hiding enemies from you.");
 	
 	g_hCvarAccelerate = FindConVar("sv_accelerate");
 	g_hCvarFriction = FindConVar("sv_friction");
@@ -197,6 +214,11 @@ public OnSoundESPChanged(Handle:convar, const String:oldValue[], const String:ne
 	g_iSoundESP = GetConVarInt(convar);
 }
 
+public OnOccChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_bOccEnabled = GetConVarBool(convar);
+}
+
 public OnPeekChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	g_fPeekTime = GetConVarFloat(convar);
@@ -279,6 +301,7 @@ public OnClientDisconnect_Post(client)
 		g_iPVSSoundCache[i][client] = 0;
 		g_bIsVisible[i][client] = true;
 		g_iLastSample[i][client] = 0;
+		g_iOccCache[i][client] = 0;
 	}
 }
 
@@ -598,7 +621,15 @@ public Action:Hook_SetTransmit(entity, client)
 				UpdateClientData(client);
 				UpdateClientData(entity);
 				
-				if (IsAbleToSee(entity, client))
+				new Float:fStart = GetEngineTime();
+				new iTraces = g_iTraceCount;
+				new bool:bVisible = IsAbleToSee(entity, client);
+				
+				g_fStatTime += GetEngineTime() - fStart;
+				g_iStatTraces += g_iTraceCount - iTraces;
+				g_iStatChecks++;
+				
+				if (bVisible)
 				{
 					g_bIsVisible[entity][client] = true;
 					g_iPVSCache[entity][client] = g_iTickCount + g_iCacheTicks;
@@ -812,6 +843,8 @@ bool:IsAbleToSee(entity, client)
 	vEyes[0] = g_vEyePos[client];
 	bEyes[0] = true;
 	
+	new bool:bOcc = g_bOccEnabled && g_bOccLoaded;
+	
 	// Visible pairs usually stay visible along the same line: try it first.
 	new iCached = g_iLastSample[entity][client] - 1;
 	
@@ -827,6 +860,34 @@ bool:IsAbleToSee(entity, client)
 		
 		if (bEyes[iEye] && IsPointVisible(vEyes[iEye], vSamples[iCached % SAMPLE_COUNT]))
 			return true;
+		
+		if (iCached == 0 && bOcc && Occ_FindFromTrace(entity, client, vEyes, bEyes, vSamples, bPeekReady))
+		{
+			g_iLastSample[entity][client] = 0;
+			return false;
+		}
+	}
+	
+	// A wall that hid this pair last time usually still does.
+	if (bOcc && g_iOccCache[entity][client])
+	{
+		if (!bPeekReady)
+		{
+			GetPeekEyes(entity, client, vEyes, bEyes);
+			bPeekReady = true;
+		}
+		
+		g_iTraceCount++;
+		g_iStatProofs++;
+		
+		if (Occ_Proves(g_iOccCache[entity][client] - 1, vEyes, bEyes, vSamples))
+		{
+			g_iStatOccCached++;
+			g_iLastSample[entity][client] = 0;
+			return false;
+		}
+		
+		g_iOccCache[entity][client] = 0;
 	}
 	
 	for (new iEye = 0; iEye < EYE_COUNT; iEye++)
@@ -846,16 +907,238 @@ bool:IsAbleToSee(entity, client)
 		{
 			new iIndex = iEye * SAMPLE_COUNT + i;
 			
-			if (iIndex != iCached && IsPointVisible(vEyes[iEye], vSamples[i]))
+			if (iIndex == iCached)
+				continue;
+			
+			if (IsPointVisible(vEyes[iEye], vSamples[i]))
 			{
 				g_iLastSample[entity][client] = iIndex + 1;
 				return true;
+			}
+			
+			// The first blocked trace to the centre tells which wall is in the way: if it hides everything, stop here.
+			if (iIndex == 0 && bOcc && Occ_FindFromTrace(entity, client, vEyes, bEyes, vSamples, bPeekReady))
+			{
+				g_iLastSample[entity][client] = 0;
+				return false;
 			}
 		}
 	}
 	
 	g_iLastSample[entity][client] = 0;
 	return false;
+}
+
+/**
+ * Right after a blocked trace from the real eye to the centre: look up the world brushes at the hit point and keep
+ * the first one that hides the entity from every eye. The trace result must still be the current one.
+ */
+bool:Occ_FindFromTrace(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3], &bool:bPeekReady)
+{
+	if (TR_GetEntityIndex() != 0)
+		return false;
+	
+	decl Float:vHit[3], Float:vDir[3];
+	TR_GetEndPosition(vHit);
+	
+	SubtractVectors(vSamples[0], vEyes[0], vDir);
+	NormalizeVector(vDir, vDir);
+	
+	// Step a little into the wall so the point lands in the solid leaf behind the surface.
+	ScaleVector(vDir, 2.0);
+	AddVectors(vHit, vDir, vHit);
+	
+	new iLeaf = Occ_PointLeaf(vHit);
+	
+	if (iLeaf < 0)
+		return false;
+	
+	new iFirst = g_iOccLeaf[iLeaf * 2];
+	new iCount = g_iOccLeaf[iLeaf * 2 + 1];
+	
+	if (iCount > 16)
+	{
+		iCount = 16;
+	}
+	
+	for (new i = iFirst; i < iFirst + iCount; i++)
+	{
+		new iBrush = g_iOccLeafBrush[i];
+		
+		if (!g_iOccBrushCount[iBrush])
+			continue;
+		
+		if (!bPeekReady)
+		{
+			GetPeekEyes(entity, client, vEyes, bEyes);
+			bPeekReady = true;
+		}
+		
+		g_iTraceCount++;
+		g_iStatProofs++;
+		
+		if (Occ_Proves(iBrush, vEyes, bEyes, vSamples))
+		{
+			g_iOccCache[entity][client] = iBrush + 1;
+			g_iStatOccFound++;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+/**
+ * Does the brush block every segment the visibility traces would test? The real eye and the peek eyes lie on one
+ * line, and the points from which a segment to a fixed sample hits a convex brush form a convex set, so checking
+ * from the two outermost eyes covers every eye between them. All 10 samples are checked from both.
+ */
+bool:Occ_Proves(brush, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3])
+{
+	new iEyeA = bEyes[1] ? 1 : 0;
+	new iEyeB = bEyes[2] ? 2 : 0;
+	
+	for (new i = 0; i < SAMPLE_COUNT; i++)
+	{
+		if (!Occ_SegmentBlocked(brush, vEyes[iEyeA], vSamples[i]))
+			return false;
+		
+		if (iEyeB != iEyeA && !Occ_SegmentBlocked(brush, vEyes[iEyeB], vSamples[i]))
+			return false;
+	}
+	
+	return true;
+}
+
+Occ_MapStart()
+{
+	for (new i = 0; i < MAXPLAYERS; i++)
+	{
+		for (new j = 0; j < MAXPLAYERS; j++)
+		{
+			g_iOccCache[i][j] = 0;
+		}
+	}
+	
+	g_iBeamSprite = PrecacheModel("materials/sprites/laserbeam.vmt");
+	
+	decl String:sMap[PLATFORM_MAX_PATH], String:sError[128];
+	GetCurrentMap(sMap, sizeof(sMap));
+	
+	if (Occ_Load(sMap, sError, sizeof(sError)))
+	{
+		LogMessage("Occluders for %s: %d of %d brushes.", sMap, g_iOccKept, g_iOccNumBrushes);
+	}
+	else
+	{
+		LogMessage("No occluders for %s (%s), traces only.", sMap, sError);
+	}
+}
+
+public Action:Command_Occ(client, args)
+{
+	decl String:sArg[16];
+	GetCmdArg(1, sArg, sizeof(sArg));
+	
+	if (StrEqual(sArg, "reset"))
+	{
+		g_iStatChecks = g_iStatTraces = g_iStatProofs = g_iStatOccCached = g_iStatOccFound = 0;
+		g_fStatTime = 0.0;
+		ReplyToCommand(client, "[SMAC] Anti-Wallhack stats reset.");
+		return Plugin_Handled;
+	}
+	
+	if (StrEqual(sArg, "show"))
+	{
+		Occ_Show(client);
+		return Plugin_Handled;
+	}
+	
+	if (g_bOccLoaded)
+	{
+		ReplyToCommand(client, "[SMAC] Occluders: %s, %d of %d brushes (%d failed the plane check), %d nodes, %d leafs.", g_bOccEnabled ? "on" : "off (smac_wallhack_occluders 0)", g_iOccKept, g_iOccNumBrushes, g_iOccRejected, g_iOccNumNodes, g_iOccNumLeafs);
+	}
+	else
+	{
+		ReplyToCommand(client, "[SMAC] Occluders: not loaded for this map (see the log), traces only.");
+	}
+	
+	if (g_iStatChecks)
+	{
+		ReplyToCommand(client, "[SMAC] Checks: %d, per check: %.2f engine traces, %.2f brush proofs, %.2f us.", g_iStatChecks, float(g_iStatTraces - g_iStatProofs) / float(g_iStatChecks), float(g_iStatProofs) / float(g_iStatChecks), g_fStatTime * 1000000.0 / float(g_iStatChecks));
+		ReplyToCommand(client, "[SMAC] Hidden by occluder: %d from cache, %d newly found (%.1f%% of checks).", g_iStatOccCached, g_iStatOccFound, float(g_iStatOccCached + g_iStatOccFound) * 100.0 / float(g_iStatChecks));
+	}
+	
+	return Plugin_Handled;
+}
+
+/**
+ * Draws the bounding box of each brush that currently hides an enemy from the client, for 5 seconds.
+ */
+Occ_Show(client)
+{
+	if (!IS_CLIENT(client) || !IsClientInGame(client))
+	{
+		ReplyToCommand(client, "[SMAC] In game only.");
+		return;
+	}
+	
+	new iShown;
+	
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		new iBrush = g_iOccCache[i][client] - 1;
+		
+		if (iBrush < 0 || !IsClientInGame(i))
+			continue;
+		
+		decl Float:vMins[3], Float:vMaxs[3];
+		
+		for (new k = 0; k < 3; k++)
+		{
+			vMins[k] = g_fOccBrushMins[iBrush * 3 + k];
+			vMaxs[k] = g_fOccBrushMaxs[iBrush * 3 + k];
+		}
+		
+		if (vMins[0] > vMaxs[0] || vMins[1] > vMaxs[1] || vMins[2] > vMaxs[2])
+			continue;
+		
+		Occ_DrawBox(client, vMins, vMaxs);
+		ReplyToCommand(client, "[SMAC] %N is behind brush #%d.", i, iBrush);
+		iShown++;
+	}
+	
+	if (!iShown)
+	{
+		ReplyToCommand(client, "[SMAC] Nobody is hidden from you by an occluder right now.");
+	}
+}
+
+Occ_DrawBox(client, const Float:vMins[3], const Float:vMaxs[3])
+{
+	decl Float:vCorner[8][3];
+	
+	for (new i = 0; i < 8; i++)
+	{
+		vCorner[i][0] = (i & 1) ? vMaxs[0] : vMins[0];
+		vCorner[i][1] = (i & 2) ? vMaxs[1] : vMins[1];
+		vCorner[i][2] = (i & 4) ? vMaxs[2] : vMins[2];
+	}
+	
+	new iColor[4] = { 255, 64, 0, 255 };
+	
+	// The 12 edges: corners that differ in exactly one bit.
+	for (new i = 0; i < 8; i++)
+	{
+		for (new iBit = 1; iBit < 8; iBit <<= 1)
+		{
+			if (i & iBit)
+				continue;
+			
+			TE_SetupBeamPoints(vCorner[i], vCorner[i | iBit], g_iBeamSprite, 0, 0, 0, 5.0, 1.0, 1.0, 0, 0.0, iColor, 0);
+			TE_SendToClient(client);
+		}
+	}
 }
 
 /**
@@ -1132,6 +1415,8 @@ public OnForceCameraChanged(Handle:convar, const String:oldValue[], const String
 
 public OnMapStart()
 {
+	Occ_MapStart();
+	
 	if (g_iMode && !g_bFarEspEnabled)
 	{
 		FarESP_Enable();
