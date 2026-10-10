@@ -69,6 +69,10 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   невидимая сфера `models/rxg/smokevol.mdl`. Клиентам она не отправляется и ни с чем не сталкивается, но перекрывает трассы
   `smac_wallhack`, так что игроков в дыму и за ним не видно. Нужен включённый `smac_wallhack`. `smac_smokefix_mapfog 1`
   убирает туман карты, `func_smokevolume` и `func_dustmotes`. `materials/rxg` и `models/rxg` выложить на FastDL.
+* Детекты по исходникам 420hook (не из R52): CmdNum Jump, Tick Ahead и Fake Lag в `smac_ultra_netcode`; FastWalk,
+  AutoStrafe, CircleStrafe и Move Fix в `smac_ultra_movement`; Name stealer, текст отключения и реклама в чате в
+  `smac_client`; `mat_fullbright` в `smac_cvars`. Спорные по умолчанию только пишут в лог и уведомляют.
+  Подробности — в [docs/HOOK_420.md](docs/HOOK_420.md).
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).

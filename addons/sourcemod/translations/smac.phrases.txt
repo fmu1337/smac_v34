@@ -155,4 +155,9 @@
 	{
 		"en"		"Your Steam ID could not be validated. Please reconnect"
 	}
+
+	"SMAC_SignatureKick"
+	{
+		"en"		"You were kicked by the anti-cheat (cheat signature)"
+	}
 }
