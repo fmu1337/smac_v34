@@ -69,9 +69,21 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   невидимая сфера `models/rxg/smokevol.mdl`. Клиентам она не отправляется и ни с чем не сталкивается, но перекрывает трассы
   `smac_wallhack`, так что игроков в дыму и за ним не видно. Нужен включённый `smac_wallhack`. `smac_smokefix_mapfog 1`
   убирает туман карты, `func_smokevolume` и `func_dustmotes`. `materials/rxg` и `models/rxg` выложить на FastDL.
+* `smac_cvar_trap` — ловушка против «антибана» Insomnia: через команду закрытия MOTD (`VGUIMenu "info"`, ключ `cmd`)
+  игроку пишется случайный `xbox_throttlebias`, через 2 с он читается обратно. Insomnia каждый кадр возвращает `xbox_*` к
+  значениям по умолчанию, чтобы стереть метки NoSteamBans/SteamID Protect, — 100 вместо нашего значения и есть детект.
+  Только CSS v34, по умолчанию уведомления (`smac_cvar_trap_action`). Подробности — в [docs/CVAR_TRAP.md](docs/CVAR_TRAP.md).
+* `smac_usercmd` — **только уведомления админам, без наказаний**: MoveGrid (движение повёрнуто под углы — FixMove /
+  автострейф, клавиатура так не умеет), SnapBack (взгляд прыгает на одну команду и возвращается — silent aim, jitter),
+  FakeLag (пачки по 8+ команд за тик) и Roll (roll ≠ 0 — nospread через `viewangles.z`). Лог —
+  `logs/smac_usercmd_diag.log`. Подробности — в [docs/USERCMD.md](docs/USERCMD.md).
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).
+* `smac_eyetest` ловит ещё lisp-yaw (04L: |yaw| > 100000, insomnia шлёт ~697000; угол сворачивается в ±180) и Eyetest 05 —
+  углы ровно `(0, 0, 0)` 16 команд подряд при движущейся мыши (режим «AntiSMAC» в insomnia). Реакция у них своя —
+  `smac_eyetest_new_reaction`, по умолчанию 1 (уведомление). `smac_cvars` проверяет, что `cl_interpolate` — целое 0 или 1
+  (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), по умолчанию уведомление.
 
 ## Из Cheat-Acid (LilAC, Oryx, Cow AC)
 

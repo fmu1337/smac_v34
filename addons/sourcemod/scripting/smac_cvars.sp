@@ -147,6 +147,8 @@ public OnPluginStart()
 	AddCvar(Order_Last, "r_drawentities",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawmodelstatsoverlay", Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "r_drawopaqueworld",	Comp_Equal, Action_Ban, "1.0");
+	// pizzahook writes the string "0.937" into this boolean every CreateMove.
+	AddCvar(Order_Last, "cl_interpolate",		Comp_Integer, Action_Warn, "0", "1");
 	AddCvar(Order_Last, "r_drawothermodels", 	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawparticles",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawrenderboxes",	Comp_Equal, Action_Ban, "0.0");
@@ -590,6 +592,14 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 			case Comp_Between:
 			{
 				if (StringToFloat(cvarValue) >= StringToFloat(sValue) && StringToFloat(cvarValue) <= StringToFloat(sValue2))
+					return;
+				
+				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeBetween", client, sCvar, sValue, sValue2, cvarValue);
+			}
+			case Comp_Integer:
+			{
+				new Float:fValue = StringToFloat(cvarValue);
+				if (fValue == float(RoundToFloor(fValue)) && fValue >= StringToFloat(sValue) && fValue <= StringToFloat(sValue2))
 					return;
 				
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeBetween", client, sCvar, sValue, sValue2, cvarValue);

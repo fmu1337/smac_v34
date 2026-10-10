@@ -60,6 +60,8 @@ PLUGINS=(
 	smac_ultra_aimkill.sp
 	smac_ultra_protect.sp
 	smac_ultra_diag_norecoil.sp
+	smac_cvar_trap.sp
+	smac_usercmd.sp
 )
 
 # Optional modules: compiled into plugins/disabled, so SourceMod does not load them

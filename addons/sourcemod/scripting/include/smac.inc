@@ -42,6 +42,10 @@ enum DetectionType {
 	/* Ports from other anti-cheats (see docs/CHEAT_ACID.md). */
 	Detection_Lerp = 7800,			/* smac_lerp: NoLerp, max lerp (Little Anti-Cheat) */
 	Detection_Strafe = 7900,		/* smac_strafe: strafe sync, perfect turn, steady turn, silent strafe, AHK mouse (Oryx / BASH / Cow AC) */
+
+	/* Detections from the CSS v34 cheat sources (insomnia, pizzahook, sega). */
+	Detection_CvarTrap = 8000,		/* smac_cvar_trap: xbox_throttlebias reset to its default (Insomnia antiban) */
+	Detection_Usercmd = 8100,		/* smac_usercmd: MoveGrid, SnapBack, FakeLag, Roll (notices only) */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
