@@ -1,7 +1,7 @@
 # smac_usercmd — проверки usercmd (только уведомления админам)
 
 Модуль никого не наказывает. Когда проверка за окно в 30 с набирает порог, админам приходит уведомление
-(`SMAC_PrintAdminNotice`), запись идёт в лог SMAC и вызывается `SMAC_CheatDetected` с `Detection_Usercmd` (7900).
+(`SMAC_PrintAdminNotice`), запись идёт в лог SMAC и вызывается `SMAC_CheatDetected` с `Detection_Usercmd` (8100).
 Сырые примеры и сводки — в `logs/smac_usercmd_diag.log`, чтобы подобрать пороги на живых игроках.
 Идеи взяты из разбора читов CSS v34 (insomnia, pizzahook, sega).
 

@@ -38,12 +38,14 @@ PLUGINS=(
 	smac_autotrigger.sp
 	smac_client.sp
 	smac_commands.sp
+	smac_cmdspam.sp
 	smac_css_antiflash.sp
 	smac_css_antismoke.sp
 	smac_css_smokefix.sp
 	smac_css_fixes.sp
 	smac_cvars.sp
 	smac_eyetest.sp
+	smac_lerp.sp
 	smac_rcon.sp
 	smac_speedhack.sp
 	smac_spinhack.sp
@@ -62,6 +64,12 @@ PLUGINS=(
 	smac_usercmd.sp
 )
 
+# Optional modules: compiled into plugins/disabled, so SourceMod does not load them
+# until they are moved to plugins/.
+OPTIONAL_PLUGINS=(
+	smac_strafe.sp
+)
+
 mkdir -p "$OUT_DIR"
 
 echo "Using spcomp: $SPCOMP"
@@ -71,10 +79,17 @@ echo "SM include:      $SM_INCLUDE_DIR"
 echo "Output:          $OUT_DIR"
 echo
 
+mkdir -p "$OUT_DIR/disabled"
+
 failed=0
-for plugin in "${PLUGINS[@]}"; do
+for plugin in "${PLUGINS[@]}" "${OPTIONAL_PLUGINS[@]}"; do
 	src="$SCRIPTING/$plugin"
 	out="$OUT_DIR/${plugin%.sp}.smx"
+	for optional in "${OPTIONAL_PLUGINS[@]}"; do
+		if [[ "$plugin" == "$optional" ]]; then
+			out="$OUT_DIR/disabled/${plugin%.sp}.smx"
+		fi
+	done
 	echo "Compiling $plugin ..."
 	if ! "$SPCOMP" \
 		"-i$PROJECT_INCLUDE" \
@@ -92,4 +107,4 @@ if [[ "$failed" -ne 0 ]]; then
 	exit 1
 fi
 
-echo "All ${#PLUGINS[@]} plugins compiled successfully."
+echo "All $(( ${#PLUGINS[@]} + ${#OPTIONAL_PLUGINS[@]} )) plugins compiled successfully."

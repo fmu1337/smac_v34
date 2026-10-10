@@ -67,8 +67,13 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 {
 	static iPrevButtons[MAXPLAYERS];
 	static Float:fCheckTime[MAXPLAYERS];
-	if (!(buttons & IN_JUMP) && (GetEntityFlags(client) & FL_ONGROUND) && fCheckTime[client] > 0.0){fCheckTime[client] = 0.0;}
-	if ((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP))
+	// Jumping off a ladder is not a bunnyhop (VIP/ladder false positive, xMaZax/SMAC).
+	if (GetEntityMoveType(client) == MOVETYPE_LADDER)
+	{
+		fCheckTime[client] = 0.0;
+	}
+	else if (!(buttons & IN_JUMP) && (GetEntityFlags(client) & FL_ONGROUND) && fCheckTime[client] > 0.0){fCheckTime[client] = 0.0;}
+	else if ((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP))
 	{
 		if (GetEntityFlags(client) & FL_ONGROUND)
 		{

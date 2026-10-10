@@ -84,3 +84,14 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   углы ровно `(0, 0, 0)` 16 команд подряд при движущейся мыши (режим «AntiSMAC» в insomnia). Реакция у них своя —
   `smac_eyetest_new_reaction`, по умолчанию 1 (уведомление). `smac_cvars` проверяет, что `cl_interpolate` — целое 0 или 1
   (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), по умолчанию уведомление.
+
+## Из Cheat-Acid (LilAC, Oryx, Cow AC)
+
+Что взято, ревью пересечений и разбор SauRay — [docs/CHEAT_ACID.md](docs/CHEAT_ACID.md). Отложенные идеи — [docs/PLANS.md](docs/PLANS.md).
+
+* `smac_lerp` — NoLerp (`m_fLerpTime` меньше `1 / sv_maxupdaterate`) и max lerp (`smac_lerp_max`, 105 мс) из Little Anti-Cheat,
+  плюс `smac_lerp_fix`: lerp зажимается в допустимые пределы перед лагкомпенсацией. По умолчанию уведомления и fix.
+* `smac_ultra_netcode` — Backtrack Patch из Little Anti-Cheat: при подмене tickcount на время ставится tickcount движка.
+  `smac_backtrack_patch` 0 (выкл) по умолчанию.
+* `smac_strafe` — **опциональный**, лежит в `plugins/disabled`: Strafe Sync (BASH), Perfect/Steady Turn (Oryx),
+  Silent Strafe и AHK Mouse (Cow AC). По умолчанию только лог и уведомления.
