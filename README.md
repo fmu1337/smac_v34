@@ -73,6 +73,12 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   игроку пишется случайный `xbox_throttlebias`, через 2 с он читается обратно. Insomnia каждый кадр возвращает `xbox_*` к
   значениям по умолчанию, чтобы стереть метки NoSteamBans/SteamID Protect, — 100 вместо нашего значения и есть детект.
   Только CSS v34, по умолчанию уведомления (`smac_cvar_trap_action`). Подробности — в [docs/CVAR_TRAP.md](docs/CVAR_TRAP.md).
+* `smac_usercmd` — **диагностика, без наказаний**: MoveGrid (движение повёрнуто под углы — FixMove / автострейф, клавиатура
+  так не умеет) и SnapBack (взгляд прыгает на одну команду и возвращается — silent aim, jitter). Лог —
+  `logs/smac_usercmd_diag.log`. Подробности — в [docs/USERCMD.md](docs/USERCMD.md).
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).
+* `smac_eyetest` ловит ещё lisp-yaw (|yaw| > 100000, insomnia шлёт ~697000; угол сворачивается в ±180) и Eyetest 05 —
+  углы ровно `(0, 0, 0)` 16 команд подряд при движущейся мыши (режим «AntiSMAC» в insomnia). `smac_cvars` проверяет,
+  что `cl_interpolate` — целое 0 или 1 (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), реакция — кик.
