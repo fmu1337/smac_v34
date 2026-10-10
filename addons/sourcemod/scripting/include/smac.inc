@@ -39,6 +39,7 @@ enum DetectionType {
 	Detection_UltraServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
 	Detection_UltraFakeStatus = 7700,	/* Changer Player Status: a client flagged as a bot sends mouse input */
 	Detection_CvarTrap = 7800,		/* smac_cvar_trap: xbox_throttlebias reset to its default (Insomnia antiban) */
+	Detection_Usercmd = 7900,			/* smac_usercmd: MoveGrid, SnapBack, FakeLag, Roll (notices only) */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

@@ -19,9 +19,12 @@ public Plugin:myinfo =
  *   02  cmdnum repeated, tickcount is not prev or prev+1  (Detection_UserCmdTamperingTickcount)
  *   03  cmdnum repeated, movement/score buttons changed   (Detection_UserCmdTamperingButtons)
  *   04  pitch outside +-89.9 or roll outside +-30         (Detection_Eyeangles)
- *       or |yaw| above 100000 (lisp yaw: insomnia sends ~697000; the yaw is wrapped to +-180)
+ *   04L |yaw| above 100000 with legal pitch and roll (lisp yaw: insomnia sends ~697000;
+ *       the yaw is wrapped to +-180)
  *   05  angles exactly (0, 0, 0) for 16 cmds in a row while the mouse moves
  *       (insomnia "AntiSMAC": zero angles between shots, the aim only on the shot cmd)
+ *   04L and 05 react by smac_eyetest_new_reaction (default 1 = admin notice) until checked on
+ *   live servers.
  * Differences from stock SMAC: a violation is reported only when a second one of the same kind
  * comes within EYE_DECAY seconds, checks pause for 5 s (not 30 s) after a violation, the roll
  * limit is 30 (was 90) and the reaction is set by smac_eyetest_reaction.
@@ -48,7 +51,8 @@ public Plugin:myinfo =
 #define ET_BUTTONS		2
 #define ET_ANGLES		3
 #define ET_ZERO			4
-#define ET_COUNT		5
+#define ET_LISP			5
+#define ET_COUNT		6
 
 new const String:g_sCheck[ET_COUNT][] =
 {
@@ -56,7 +60,8 @@ new const String:g_sCheck[ET_COUNT][] =
 	"Eye Test Violation => UserCmdTamperingTickcount",
 	"Eye Test Violation => UserCmdTamperingButtons",
 	"Eye Test Violation => Eye Angle",
-	"Eye Test Violation => Zero Angles"
+	"Eye Test Violation => Zero Angles",
+	"Eye Test Violation => Lisp Yaw"
 };
 
 new const DetectionType:g_iDetection[ET_COUNT] =
@@ -64,6 +69,7 @@ new const DetectionType:g_iDetection[ET_COUNT] =
 	Detection_UserCmdReuse,
 	Detection_UserCmdTamperingTickcount,
 	Detection_UserCmdTamperingButtons,
+	Detection_Eyeangles,
 	Detection_Eyeangles,
 	Detection_Eyeangles
 };
@@ -76,6 +82,7 @@ enum ResetStatus {
 
 new Handle:g_hCvarBan = INVALID_HANDLE;
 new Handle:g_hCvarReaction = INVALID_HANDLE;
+new Handle:g_hCvarNewReaction = INVALID_HANDLE;
 new Handle:g_hCvarNoSpread = INVALID_HANDLE;
 new Handle:g_hCvarSeedBan = INVALID_HANDLE;
 new g_iPauseCmds;
@@ -97,6 +104,7 @@ public OnPluginStart()
 
 	// Convars.
 	g_hCvarReaction = SMAC_CreateConVar("smac_eyetest_reaction", "3", "Eye test 01-04 reaction: 0=off, 1=admin notice, 2=kick, 3=ban (SMAC Ultr@ R52: 3)", _, true, 0.0, true, 3.0);
+	g_hCvarNewReaction = SMAC_CreateConVar("smac_eyetest_new_reaction", "1", "Reaction for lisp yaw (04L) and zero angles (05): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarNoSpread = SMAC_CreateConVar("smac_NoS_NoR", "1", "No Spread / No Recoil block (SMAC Ultr@ R52): a new random seed on every +attack usercmd. 0 = only when cmdnums are skipped (stock SMAC).", _, true, 0.0, true, 1.0);
 	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Legacy: 0 limits smac_eyetest_reaction to admin notices.", _, true, 0.0, true, 1.0);
 	g_hCvarSeedBan = SMAC_CreateConVar("smac_eyetest_seed_ban", "1", "Automatically ban players for nospread seed hunting (command_number skips on attack).", _, true, 0.0, true, 1.0);
@@ -342,7 +350,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	decl String:sDetail[128];
 	FormatEx(sDetail, sizeof(sDetail), "Eye Angles: %.0f %.0f %.0f", angles[0], angles[1], angles[2]);
-	Eyetest_Violation(client, ET_ANGLES, info, sDetail);
+
+	// Only the yaw is out of range: lisp yaw (04L).
+	new bool:bOnlyLisp = (fPitch >= -EYE_MAX_PITCH && fPitch <= EYE_MAX_PITCH && fRoll >= -EYE_MAX_ROLL && fRoll <= EYE_MAX_ROLL);
+	Eyetest_Violation(client, bOnlyLisp ? ET_LISP : ET_ANGLES, info, sDetail);
 
 	CloseHandle(info);
 
@@ -422,7 +433,7 @@ public Action:Timer_DecreaseSeedSkip(Handle:timer, any:userid)
 
 Eyetest_Violation(client, check, Handle:info, const String:detail[])
 {
-	new level = GetConVarInt(g_hCvarReaction);
+	new level = GetConVarInt((check == ET_ZERO || check == ET_LISP) ? g_hCvarNewReaction : g_hCvarReaction);
 
 	if (level <= 0)
 		return;

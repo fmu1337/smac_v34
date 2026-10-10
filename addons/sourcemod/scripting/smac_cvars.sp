@@ -148,7 +148,7 @@ public OnPluginStart()
 	AddCvar(Order_Last, "r_drawmodelstatsoverlay", Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "r_drawopaqueworld",	Comp_Equal, Action_Ban, "1.0");
 	// pizzahook writes the string "0.937" into this boolean every CreateMove.
-	AddCvar(Order_Last, "cl_interpolate",		Comp_Integer, Action_Kick, "0", "1");
+	AddCvar(Order_Last, "cl_interpolate",		Comp_Integer, Action_Warn, "0", "1");
 	AddCvar(Order_Last, "r_drawothermodels", 	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawparticles",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawrenderboxes",	Comp_Equal, Action_Ban, "0.0");
