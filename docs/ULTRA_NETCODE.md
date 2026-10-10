@@ -19,6 +19,7 @@
 | **Backtrack Exploit-Mode:A** | на выстреле client tickcount последнего cmd меньше прошлого (или прошлый отрицательный). Счётчик с −1, каждый шаг затухает за 300 с; 4-й такой выстрел — детект, счётчик −2 | `smac_eyetest_reaction_Advanced` (1) |
 | **PSilent [Active Mode]** | см. ниже | `smac_PSilent_Warning` (1), `smac_PSilent_Ban` (0) |
 | **Changer Player Status** | клиент с флагом бота (`IsFakeClient`) присылает движение мыши: у настоящих ботов мыши нет, так выглядит чит, выдающий себя за бота, чтобы античит его пропускал. Один раз за заход. В R52 — бан (кик для 127.0.0.1) | `smac_ultra_fake_status` (1: 0 выкл, 1 уведомление, 2 кик, 3 бан) |
+| **Backtrack Patch** (не детект, из Little Anti-Cheat) | tickcount перестал идти вровень с cmdnum — на `smac_backtrack_patch_time` с каждому cmd ставится tickcount, который выбрал бы сам движок (тик сервера − задержка − lerp). Идёт после детектов, они видят сырой tickcount. Подробности — в [CHEAT_ACID.md](CHEAT_ACID.md#backtrack-patch-в-smac_ultra_netcode-из-lilac) | `smac_backtrack_patch` (0), `smac_backtrack_patch_time` (5.0) |
 
 **PSilent [Active Mode]**, как в R52:
 1. На выстреле стрелок «взводится» на 2, если у последних 4 cmd cmdnum и tickcount растут ровно на 1, серверные тики
