@@ -74,6 +74,10 @@ new g_iLastSample[MAXPLAYERS][MAXPLAYERS];
 // Map brush that proved the entity hidden last time (brush + 1), 0 = none. See smac_wallhack_occ.inc.
 new g_iOccCache[MAXPLAYERS][MAXPLAYERS];
 new bool:g_bOccEnabled = true;
+// Test mode: re-check every "hidden by occluder" with the engine traces and count disagreements.
+new bool:g_bOccVerify;
+new bool:g_bLastByOcc;
+new g_iStatVerifyOk, g_iStatVerifyFail;
 new g_iBeamSprite = -1;
 
 // smac_wallhack_occ statistics, reset by the command.
@@ -123,6 +127,10 @@ public OnPluginStart()
 	hCvar = CreateConVar("smac_wallhack_occluders", "1", "Use the map's own brushes (read from the .bsp) to prove players hidden without engine traces. Same result, fewer traces. (0:Disable)", _, true, 0.0, true, 1.0);
 	g_bOccEnabled = GetConVarBool(hCvar);
 	HookConVarChange(hCvar, OnOccChanged);
+	
+	hCvar = CreateConVar("smac_wallhack_occ_verify", "0", "Test mode: every player hidden by an occluder is re-checked with engine traces; disagreements are counted (smac_wallhack_occ) and logged. Costs the traces it would save. (0:Off, 1:On)", _, true, 0.0, true, 1.0);
+	g_bOccVerify = GetConVarBool(hCvar);
+	HookConVarChange(hCvar, OnOccVerifyChanged);
 	
 	RegAdminCmd("smac_wallhack_occ", Command_Occ, ADMFLAG_GENERIC, "Anti-Wallhack occluder status and stats. \"reset\" clears the stats, \"show\" draws the brushes hiding enemies from you.");
 	
@@ -212,6 +220,11 @@ public WallHack_TickOnSettingsChanged(Handle:convar, const String:oldValue[], co
 public OnSoundESPChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	g_iSoundESP = GetConVarInt(convar);
+}
+
+public OnOccVerifyChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_bOccVerify = GetConVarBool(convar);
 }
 
 public OnOccChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -629,6 +642,11 @@ public Action:Hook_SetTransmit(entity, client)
 				g_iStatTraces += g_iTraceCount - iTraces;
 				g_iStatChecks++;
 				
+				if (g_bOccVerify && !bVisible && g_bLastByOcc)
+				{
+					bVisible = Occ_Verify(entity, client);
+				}
+				
 				if (bVisible)
 				{
 					g_bIsVisible[entity][client] = true;
@@ -813,8 +831,10 @@ UpdateClientData(client)
 /**
  * Calculations
  */
-bool:IsAbleToSee(entity, client)
+bool:IsAbleToSee(entity, client, bool:bUseOcc=true)
 {
+	g_bLastByOcc = false;
+	
 	// Skip all traces if the player isn't within the field of view.
 	if (!IsInFieldOfView(g_vEyePos[client], g_vEyeAngles[client], g_vAbsCentre[entity]))
 		return false;
@@ -843,7 +863,7 @@ bool:IsAbleToSee(entity, client)
 	vEyes[0] = g_vEyePos[client];
 	bEyes[0] = true;
 	
-	new bool:bOcc = g_bOccEnabled && g_bOccLoaded;
+	new bool:bOcc = bUseOcc && g_bOccEnabled && g_bOccLoaded;
 	
 	// Visible pairs usually stay visible along the same line: try it first.
 	new iCached = g_iLastSample[entity][client] - 1;
@@ -883,6 +903,7 @@ bool:IsAbleToSee(entity, client)
 		if (Occ_Proves(g_iOccCache[entity][client] - 1, vEyes, bEyes, vSamples))
 		{
 			g_iStatOccCached++;
+			g_bLastByOcc = true;
 			g_iLastSample[entity][client] = 0;
 			return false;
 		}
@@ -956,6 +977,7 @@ bool:Occ_FindAlongRay(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSam
 		{
 			g_iOccCache[entity][client] = iCandidates[i] + 1;
 			g_iStatOccFound++;
+			g_bLastByOcc = true;
 			return true;
 		}
 	}
@@ -1018,6 +1040,7 @@ public Action:Command_Occ(client, args)
 	if (StrEqual(sArg, "reset"))
 	{
 		g_iStatChecks = g_iStatTraces = g_iStatProofs = g_iStatOccCached = g_iStatOccFound = 0;
+		g_iStatVerifyOk = g_iStatVerifyFail = 0;
 		g_fStatTime = 0.0;
 		ReplyToCommand(client, "[SMAC] Anti-Wallhack stats reset.");
 		return Plugin_Handled;
@@ -1044,7 +1067,42 @@ public Action:Command_Occ(client, args)
 		ReplyToCommand(client, "[SMAC] Hidden by occluder: %d from cache, %d newly found (%.1f%% of checks).", g_iStatOccCached, g_iStatOccFound, float(g_iStatOccCached + g_iStatOccFound) * 100.0 / float(g_iStatChecks));
 	}
 	
+	if (g_bOccVerify || g_iStatVerifyOk || g_iStatVerifyFail)
+	{
+		ReplyToCommand(client, "[SMAC] Verify: %d occluder decisions re-checked by engine traces, %d disagreed%s.", g_iStatVerifyOk + g_iStatVerifyFail, g_iStatVerifyFail, g_iStatVerifyFail ? " (see the log)" : "");
+	}
+	
 	return Plugin_Handled;
+}
+
+/**
+ * smac_wallhack_occ_verify: the occluder said "hidden"; ask the engine traces too. Their answer is the one used, so
+ * the test mode can't hide anyone by mistake. A disagreement means the brush data doesn't match the engine.
+ */
+bool:Occ_Verify(entity, client)
+{
+	new iBrush = g_iOccCache[entity][client] - 1;
+	
+	if (!IsAbleToSee(entity, client, false))
+	{
+		g_iStatVerifyOk++;
+		return false;
+	}
+	
+	g_iStatVerifyFail++;
+	
+	// Keep the log readable: the first few cases in detail, then only the counter.
+	if (g_iStatVerifyFail <= 20)
+	{
+		decl String:sMap[PLATFORM_MAX_PATH];
+		GetCurrentMap(sMap, sizeof(sMap));
+		
+		LogMessage("Occluder disagrees with traces on %s: brush #%d, %N eye %.1f %.1f %.1f peek %.1f, %N centre %.1f %.1f %.1f.", sMap, iBrush, client, g_vEyePos[client][0], g_vEyePos[client][1], g_vEyePos[client][2], g_fPeekDist[client], entity, g_vAbsCentre[entity][0], g_vAbsCentre[entity][1], g_vAbsCentre[entity][2]);
+	}
+	
+	// Don't trust that brush again for this pair.
+	g_iOccCache[entity][client] = 0;
+	return true;
 }
 
 /**
