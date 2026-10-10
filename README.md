@@ -69,6 +69,10 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   невидимая сфера `models/rxg/smokevol.mdl`. Клиентам она не отправляется и ни с чем не сталкивается, но перекрывает трассы
   `smac_wallhack`, так что игроков в дыму и за ним не видно. Нужен включённый `smac_wallhack`. `smac_smokefix_mapfog 1`
   убирает туман карты, `func_smokevolume` и `func_dustmotes`. `materials/rxg` и `models/rxg` выложить на FastDL.
+* `smac_canary` — ловушка против «антибана» Insomnia: через команду закрытия MOTD (`VGUIMenu "info"`, ключ `cmd`)
+  игроку пишется случайный `xbox_throttlebias`, через 2 с он читается обратно. Insomnia каждый кадр возвращает `xbox_*` к
+  значениям по умолчанию, чтобы стереть метки NoSteamBans/SteamID Protect, — 100 вместо нашего значения и есть детект.
+  Только CSS v34, по умолчанию уведомления (`smac_canary_action`). Подробности — в [docs/CANARY.md](docs/CANARY.md).
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).
