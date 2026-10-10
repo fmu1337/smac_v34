@@ -72,3 +72,14 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/ULTRA_STOCK.md](docs/ULTRA_STOCK.md).
+
+## Из Cheat-Acid (LilAC, Oryx, Cow AC)
+
+Что взято, ревью пересечений и разбор SauRay — [docs/CHEAT_ACID.md](docs/CHEAT_ACID.md). Отложенные идеи — [docs/PLANS.md](docs/PLANS.md).
+
+* `smac_lerp` — NoLerp (`m_fLerpTime` меньше `1 / sv_maxupdaterate`) и max lerp (`smac_lerp_max`, 105 мс) из Little Anti-Cheat,
+  плюс `smac_lerp_fix`: lerp зажимается в допустимые пределы перед лагкомпенсацией. По умолчанию уведомления и fix.
+* `smac_ultra_netcode` — Backtrack Patch из Little Anti-Cheat: при подмене tickcount на время ставится tickcount движка.
+  `smac_backtrack_patch` 0 (выкл) по умолчанию.
+* `smac_strafe` — **опциональный**, лежит в `plugins/disabled`: Strafe Sync (BASH), Perfect/Steady Turn (Oryx),
+  Silent Strafe и AHK Mouse (Cow AC). По умолчанию только лог и уведомления.
