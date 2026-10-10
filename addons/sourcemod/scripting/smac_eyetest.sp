@@ -19,6 +19,9 @@ public Plugin:myinfo =
  *   02  cmdnum repeated, tickcount is not prev or prev+1  (Detection_UserCmdTamperingTickcount)
  *   03  cmdnum repeated, movement/score buttons changed   (Detection_UserCmdTamperingButtons)
  *   04  pitch outside +-89.9 or roll outside +-30         (Detection_Eyeangles)
+ *       or |yaw| above 100000 (lisp yaw: insomnia sends ~697000; the yaw is wrapped to +-180)
+ *   05  angles exactly (0, 0, 0) for 16 cmds in a row while the mouse moves
+ *       (insomnia "AntiSMAC": zero angles between shots, the aim only on the shot cmd)
  * Differences from stock SMAC: a violation is reported only when a second one of the same kind
  * comes within EYE_DECAY seconds, checks pause for 5 s (not 30 s) after a violation, the roll
  * limit is 30 (was 90) and the reaction is set by smac_eyetest_reaction.
@@ -29,6 +32,8 @@ public Plugin:myinfo =
 
 #define EYE_MAX_PITCH	89.9
 #define EYE_MAX_ROLL	30.0
+#define EYE_MAX_YAW		100000.0	// lisp yaw; a real client never gets near it
+#define EYE_ZERO_STREAK	16
 #define EYE_DECAY		528.0	// R52: SetBan(..., 528) releases one violation
 #define EYE_PAUSE		5.0		// R52: checks pause for 5 s worth of cmds after a violation
 
@@ -42,14 +47,16 @@ public Plugin:myinfo =
 #define ET_TICKCOUNT	1
 #define ET_BUTTONS		2
 #define ET_ANGLES		3
-#define ET_COUNT		4
+#define ET_ZERO			4
+#define ET_COUNT		5
 
 new const String:g_sCheck[ET_COUNT][] =
 {
 	"Eye Test Violation => UserCmdReuse",
 	"Eye Test Violation => UserCmdTamperingTickcount",
 	"Eye Test Violation => UserCmdTamperingButtons",
-	"Eye Test Violation => Eye Angle"
+	"Eye Test Violation => Eye Angle",
+	"Eye Test Violation => Zero Angles"
 };
 
 new const DetectionType:g_iDetection[ET_COUNT] =
@@ -57,6 +64,7 @@ new const DetectionType:g_iDetection[ET_COUNT] =
 	Detection_UserCmdReuse,
 	Detection_UserCmdTamperingTickcount,
 	Detection_UserCmdTamperingButtons,
+	Detection_Eyeangles,
 	Detection_Eyeangles
 };
 
@@ -81,6 +89,7 @@ new g_iPrevTickCount[MAXPLAYERS+1] = {-1, ...};
 new g_iCmdNumOffset[MAXPLAYERS+1] = {1, ...};
 new ResetStatus:g_TickStatus[MAXPLAYERS+1];
 new g_iSeedSkipDetections[MAXPLAYERS+1];
+new g_iZeroStreak[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -113,6 +122,7 @@ public OnClientDisconnect(client)
 	g_iCmdNumOffset[client] = 1;
 	g_TickStatus[client] = State_Okay;
 	g_iSeedSkipDetections[client] = 0;
+	g_iZeroStreak[client] = 0;
 }
 
 public OnClientDisconnect_Post(client)
@@ -290,22 +300,39 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	if (flags & (FL_FROZEN|FL_ATCONTROLS))
 		return Plugin_Continue;
 
+	// Eyetest 05: moving the mouse always changes the view, so (0, 0, 0) can't repeat while it moves.
+	if (angles[0] == 0.0 && angles[1] == 0.0 && angles[2] == 0.0 && (mouse[0] != 0 || mouse[1] != 0))
+	{
+		if (++g_iZeroStreak[client] >= EYE_ZERO_STREAK && !IsBotAuth(client))
+		{
+			g_iZeroStreak[client] = 0;
+			g_iPauseUntilCmd[client] = cmdnum + g_iPauseCmds;
+
+			new Handle:zinfo = CreateKeyValues("");
+			KvSetNum(zinfo, "streak", EYE_ZERO_STREAK);
+
+			decl String:sZero[128];
+			FormatEx(sZero, sizeof(sZero), "Zero Angles: %d cmds, mouse %d %d", EYE_ZERO_STREAK, mouse[0], mouse[1]);
+			Eyetest_Violation(client, ET_ZERO, zinfo, sZero);
+
+			CloseHandle(zinfo);
+		}
+	}
+	else
+	{
+		g_iZeroStreak[client] = 0;
+	}
+
 	new Float:fPitch = angles[0], Float:fRoll = angles[2];
+	new bool:bLisp = (angles[1] > EYE_MAX_YAW || angles[1] < -EYE_MAX_YAW);
 
 	if (fPitch > 180.0)	fPitch -= 360.0;
 	if (fRoll > 180.0)	fRoll -= 360.0;
 
-	if (fPitch >= -EYE_MAX_PITCH && fPitch <= EYE_MAX_PITCH && fRoll >= -EYE_MAX_ROLL && fRoll <= EYE_MAX_ROLL)
+	if (!bLisp && fPitch >= -EYE_MAX_PITCH && fPitch <= EYE_MAX_PITCH && fRoll >= -EYE_MAX_ROLL && fRoll <= EYE_MAX_ROLL)
 		return Plugin_Continue;
 
-	// Strict bot checking - https://bugs.alliedmods.net/show_bug.cgi?id=5294
-	decl String:sAuthID[MAX_AUTHID_LENGTH];
-
-	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-	if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false) || StrEqual(sAuthID, "BOT"))
-	#else
-	if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), false) || StrEqual(sAuthID, "BOT"))
-	#endif
+	if (IsBotAuth(client))
 		return Plugin_Continue;
 
 	g_iPauseUntilCmd[client] = cmdnum + g_iPauseCmds;
@@ -328,7 +355,29 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		angles[0] = fPitch;
 	angles[2] = 0.0;
 
+	if (bLisp)
+	{
+		angles[1] -= 360.0 * float(RoundToFloor(angles[1] / 360.0));
+		if (angles[1] > 180.0)
+			angles[1] -= 360.0;
+	}
+
 	return Plugin_Changed;
+}
+
+// Strict bot checking - https://bugs.alliedmods.net/show_bug.cgi?id=5294
+bool:IsBotAuth(client)
+{
+	decl String:sAuthID[MAX_AUTHID_LENGTH];
+
+	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+	if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false) || StrEqual(sAuthID, "BOT"))
+	#else
+	if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), false) || StrEqual(sAuthID, "BOT"))
+	#endif
+		return true;
+
+	return false;
 }
 
 EyeTest_SeedSkipDetected(client, cmdnum, expected, skipDelta, seed)
@@ -381,7 +430,7 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 	// R52: the first violation only arms a decay, the next one of the same kind is reported.
 	if (++g_iViolations[client][check] <= 0)
 	{
-		CreateTimer(EYE_DECAY, Timer_Decay, (GetClientUserId(client) << 2) | check, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(EYE_DECAY, Timer_Decay, (GetClientUserId(client) << 3) | check, TIMER_FLAG_NO_MAPCHANGE);
 		return;
 	}
 
@@ -422,8 +471,8 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 
 public Action:Timer_Decay(Handle:timer, any:data)
 {
-	new client = GetClientOfUserId(data >> 2);
-	new check = data & 3;
+	new client = GetClientOfUserId(data >> 3);
+	new check = data & 7;
 
 	if (IS_CLIENT(client) && g_iViolations[client][check] > -1)
 	{
