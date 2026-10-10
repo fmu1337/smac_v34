@@ -14,6 +14,8 @@
 - Исправлен буфер `GeoipCode3` в `smac.sp` (на SM 1.11 нужно 4 символа, было 3).
 - Добавлены модули на основе декомпиляции SMAC Ultr@ R52 (`smac_ultra_*`), доработки штатных модулей,
   Anti-SoundESP в `smac_wallhack`, `smac_css_smokefix`. Подробности — в `docs/ULTRA_*.md` и `docs/R52_*.md`.
+- Детекты по исходникам 420hook: CmdNum Jump, Tick Ahead, FastWalk, AutoStrafe, CircleStrafe,
+  Name stealer, текст отключения, реклама в чате, `mat_fullbright`. Подробности — в `docs/HOOK_420.md`.
 
 ### 2020-12-28
 - Попытка починить сборку и работу на SM 1.11 (`smac_cvars`, `smac_cvars.inc`).

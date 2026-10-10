@@ -16,6 +16,27 @@ public Plugin:myinfo =
 // SMAC Ultr@ R52: cl_autobuy longer than this is blocked (stock SMAC checked > 255 on a 256 buffer).
 #define AUTOBUY_MAX_LEN		240
 
+/* smac_v34, from the 420hook source (docs/HOOK_420.md). */
+#define SIGNATURE_NOTICE_COOLDOWN	30.0
+
+// 420hook "disconnect reason" options (the client sends its own drop text).
+new String:g_sDisconnectSignatures[][] =
+{
+	"420hook",
+	"VAC BAN!!!",
+	"Gay Shit"
+};
+
+// 420hook / Ikaros kill-say and round-say adverts.
+new String:g_sChatSignatures[][] =
+{
+	"420hook",
+	"999hook",
+	"bennyhook.pw",
+	"polenware.pw",
+	"game bandit 1.1"
+};
+
 new Handle:g_hCvarConnectSpam = INVALID_HANDLE;
 new Handle:g_hCvarLockAdm = INVALID_HANDLE;
 new g_iLockAdm;
@@ -23,6 +44,10 @@ new bool:g_bLockAdmLocked;
 new Handle:g_hClientConnections = INVALID_HANDLE;
 new Float:g_fTeamJoinTime[MAXPLAYERS+1][6];
 new g_iNameChanges[MAXPLAYERS+1];
+new Handle:g_hCvarNameSteal = INVALID_HANDLE;
+new Handle:g_hCvarDisconnectSig = INVALID_HANDLE;
+new Handle:g_hCvarChatSig = INVALID_HANDLE;
+new Float:g_fNextChatNotice[MAXPLAYERS+1];
 new g_iAchievements[MAXPLAYERS+1];
 new bool:g_bMapStarted = false;
 
@@ -50,6 +75,13 @@ public OnPluginStart()
 	HookEventEx("player_team", Event_PlayerTeam, EventHookMode_Pre);
 	HookEvent("player_changename", Event_PlayerChangeName, EventHookMode_Post);
 	AddCommandListener(Command_Autobuy, "autobuy");
+
+	g_hCvarNameSteal = SMAC_CreateConVar("smac_namesteal_action", "2", "Name stealer: a new name equal to another player's name plus spaces (420hook). 0=off, 1=admin notice, 2=kick, 3=ban. Other copies of a name (\"(1)name\") only notify.", _, true, 0.0, true, 3.0);
+	g_hCvarDisconnectSig = SMAC_CreateConVar("smac_disconnect_signature_action", "3", "Cheat disconnect text (420hook: \"420hook\", \"VAC BAN!!!\", \"Gay Shit\"). 0=off, 1=log and admin notice, 3=ban the SteamID after the player left.", _, true, 0.0, true, 3.0);
+	g_hCvarChatSig = SMAC_CreateConVar("smac_chat_signature_action", "1", "Cheat adverts in chat (420hook kill say: 420hook, bennyhook.pw, ...). 0=off, 1=admin notice, 2=kick, 3=ban.", _, true, 0.0, true, 3.0);
+	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Pre);
+	AddCommandListener(Command_Say, "say");
+	AddCommandListener(Command_Say, "say_team");
 
 	// Check all clients.
 	if (g_bMapStarted)
@@ -151,6 +183,7 @@ public OnClientSettingsChanged(client)
 
 public OnClientDisconnect_Post(client)
 {
+	g_fNextChatNotice[client] = 0.0;
 	for (new i = 0; i < sizeof(g_fTeamJoinTime[]); i++)
 	{
 		g_fTeamJoinTime[client][i] = 0.0;
@@ -228,6 +261,11 @@ public Event_PlayerChangeName(Handle:event, const String:name[], bool:dontBroadc
 	
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client))
 		return;
+
+	decl String:sNewName[MAX_NAME_LENGTH];
+	GetEventString(event, "newname", sNewName, sizeof(sNewName));
+	if (CheckNameSteal(client, sNewName))
+		return;
 	
 	if (++g_iNameChanges[client] > NAME_CHANGE_LIMIT)
 	{
@@ -242,6 +280,210 @@ public Event_PlayerChangeName(Handle:event, const String:name[], bool:dontBroadc
 	}
 	
 	CreateTimer(NAME_CHANGE_DECAY, Timer_DecreaseCount, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+}
+
+/**
+ * Cheat signatures (smac_v34, from the 420hook source).
+ */
+
+/* Copies the name without surrounding spaces and without the engine's "(N)" duplicate prefix. */
+NormalizeName(const String:name[], String:out[], maxlen)
+{
+	decl String:sTmp[MAX_NAME_LENGTH];
+	strcopy(sTmp, sizeof(sTmp), name);
+	TrimString(sTmp);
+
+	new start = 0;
+	if (sTmp[0] == '(')
+	{
+		new i = 1;
+		while (sTmp[i] >= '0' && sTmp[i] <= '9')
+			i++;
+		if (i > 1 && sTmp[i] == ')')
+			start = i + 1;
+	}
+
+	strcopy(out, maxlen, sTmp[start]);
+	TrimString(out);
+}
+
+/* 420hook name stealer: setinfo name "<other player's name> ". Returns true if the client was kicked/banned. */
+bool:CheckNameSteal(client, const String:newname[])
+{
+	new level = GetConVarInt(g_hCvarNameSteal);
+	if (level <= 0)
+		return false;
+
+	decl String:sBase[MAX_NAME_LENGTH], String:sTrimmed[MAX_NAME_LENGTH];
+	NormalizeName(newname, sBase, sizeof(sBase));
+	if (strlen(sBase) < 3 || StrEqual(sBase, "unnamed", false) || StrEqual(sBase, "Player", false))
+		return false;
+
+	strcopy(sTrimmed, sizeof(sTrimmed), newname);
+	TrimString(sTrimmed);
+	new bool:bPadded = !StrEqual(sTrimmed, newname);
+
+	decl String:sOther[MAX_NAME_LENGTH], String:sOtherBase[MAX_NAME_LENGTH];
+	new victim = 0;
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (i == client || !IsClientInGame(i) || !GetClientName(i, sOther, sizeof(sOther)))
+			continue;
+
+		NormalizeName(sOther, sOtherBase, sizeof(sOtherBase));
+		if (StrEqual(sBase, sOtherBase))
+		{
+			victim = i;
+			break;
+		}
+	}
+
+	if (!victim)
+		return false;
+
+	/* Only the exact 420hook form (trailing/leading spaces) is punished; other copies notify. */
+	if (!bPadded && level > 1)
+		level = 1;
+
+	new Handle:info = CreateKeyValues("");
+	KvSetString(info, "newname", newname);
+	KvSetNum(info, "victim", GetClientUserId(victim));
+	new Action:result = SMAC_CheatDetected(client, Detection_NameChangeSpam, info);
+	CloseHandle(info);
+
+	if (result != Plugin_Continue)
+		return false;
+
+	SMAC_LogAction(client, "Name stealer: new name \"%s\" copies %N%s.", newname, victim, bPadded ? " (padded with spaces, 420hook)" : "");
+	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, "Name stealer", 1);
+
+	return Punish(client, level, "Name stealer");
+}
+
+bool:Punish(client, level, const String:name[])
+{
+	if (level == 3)
+	{
+		SMAC_LogAction(client, "was banned for %s.", name);
+		SMAC_Ban(client, "%s Detection", name);
+		return true;
+	}
+
+	if (level == 2)
+	{
+		SMAC_LogAction(client, "was kicked for %s.", name);
+		KickClient(client, "%t", "SMAC_SignatureKick");
+		return true;
+	}
+
+	return false;
+}
+
+public Action:Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new level = GetConVarInt(g_hCvarDisconnectSig);
+	if (level <= 0)
+		return Plugin_Continue;
+
+	decl String:sReason[128];
+	GetEventString(event, "reason", sReason, sizeof(sReason));
+
+	new bool:bMatch = false;
+	for (new i = 0; i < sizeof(g_sDisconnectSignatures); i++)
+	{
+		if (StrEqual(sReason, g_sDisconnectSignatures[i]))
+		{
+			bMatch = true;
+			break;
+		}
+	}
+
+	if (!bMatch)
+		return Plugin_Continue;
+
+	decl String:sName[MAX_NAME_LENGTH], String:sAuth[64];
+	GetEventString(event, "name", sName, sizeof(sName));
+	GetEventString(event, "networkid", sAuth, sizeof(sAuth));
+
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if (IS_CLIENT(client) && IsClientConnected(client))
+	{
+		if (IsFakeClient(client))
+			return Plugin_Continue;
+
+		new Handle:info = CreateKeyValues("");
+		KvSetString(info, "reason", sReason);
+		new Action:result = SMAC_CheatDetected(client, Detection_BannedCommand, info);
+		CloseHandle(info);
+
+		if (result != Plugin_Continue)
+			return Plugin_Continue;
+	}
+
+	SMAC_Log("%s (%s) left with the cheat disconnect text \"%s\" (420hook).", sName, sAuth, sReason);
+	SMAC_PrintAdminNotice("%s (%s): cheat disconnect text \"%s\"", sName, sAuth, sReason);
+
+	if (level >= 3)
+	{
+		/* No ban for shared placeholder IDs, it would hit every such player. */
+		if (strncmp(sAuth, "STEAM_", 6) != 0 || StrContains(sAuth, "STEAM_ID_", false) == 0)
+		{
+			SMAC_Log("%s: no ban, \"%s\" is not a unique SteamID.", sName, sAuth);
+			return Plugin_Continue;
+		}
+
+		new Handle:hDuration = FindConVar("smac_ban_duration");
+		new duration = (hDuration != INVALID_HANDLE) ? GetConVarInt(hDuration) : 1440;
+
+		decl String:sBanReason[160];
+		FormatEx(sBanReason, sizeof(sBanReason), "SMAC: cheat disconnect text \"%s\"", sReason);
+		BanIdentity(sAuth, duration, BANFLAG_AUTHID, sBanReason, "smac_disconnect_signature");
+		SMAC_Log("%s (%s) was banned for the cheat disconnect text.", sName, sAuth);
+	}
+
+	return Plugin_Continue;
+}
+
+public Action:Command_Say(client, const String:command[], args)
+{
+	new level = GetConVarInt(g_hCvarChatSig);
+	if (level <= 0 || !IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client))
+		return Plugin_Continue;
+
+	decl String:sText[192];
+	GetCmdArgString(sText, sizeof(sText));
+
+	new match = -1;
+	for (new i = 0; i < sizeof(g_sChatSignatures); i++)
+	{
+		if (StrContains(sText, g_sChatSignatures[i], false) != -1)
+		{
+			match = i;
+			break;
+		}
+	}
+
+	if (match == -1)
+		return Plugin_Continue;
+
+	new Float:now = GetGameTime();
+	if (level == 1 && now < g_fNextChatNotice[client])
+		return Plugin_Continue;
+	g_fNextChatNotice[client] = now + SIGNATURE_NOTICE_COOLDOWN;
+
+	new Handle:info = CreateKeyValues("");
+	KvSetString(info, "text", sText);
+	new Action:result = SMAC_CheatDetected(client, Detection_CommandSpamming, info);
+	CloseHandle(info);
+
+	if (result != Plugin_Continue)
+		return Plugin_Continue;
+
+	SMAC_LogAction(client, "Cheat advert in chat (\"%s\"): %s", g_sChatSignatures[match], sText);
+	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, "Cheat advert in chat", 1);
+	Punish(client, level, "Cheat advert in chat");
+
+	return Plugin_Continue;
 }
 
 public Action:Command_Autobuy(client, const String:command[], args)
