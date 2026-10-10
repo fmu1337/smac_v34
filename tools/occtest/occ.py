@@ -2,7 +2,7 @@
 import struct, sys, random
 
 SOLID, WINDOW, GRATE, WATER, SLIME, TRANSLUCENT = 0x1, 0x2, 0x8, 0x20, 0x10, 0x10000000
-SURF_TRANS, SURF_NODRAW = 0x10, 0x80
+SURF_TRANS, SURF_NODRAW, SURF_TRIGGER = 0x10, 0x80, 0x40
 SHRINK = 1.0
 
 class BSP:
@@ -37,7 +37,7 @@ class BSP:
             if tex >= 0x8000: tex -= 0x10000
             sides.append((a & 0xFFFF, tex, (b >> 16) & 0xFFFF))
         s.headnode = struct.unpack_from('<i', d, s.lumps[14][0] + 36)[0]
-        s.occ = {}
+        s.occ = {}; s.rejected = 0; s.odd = 0
         for bi, (first, num, cont) in enumerate(brushes):
             if not (cont & SOLID) or cont & (WINDOW | GRATE | WATER | SLIME | TRANSLUCENT): continue
             planes = []; visible = False; bad = False
@@ -46,10 +46,45 @@ class BSP:
                 if bevel: continue
                 f = s.texflags[tex] if tex >= 0 else SURF_NODRAW
                 if f & SURF_TRANS: bad = True
-                if not f & SURF_NODRAW: visible = True
+                if not f & (SURF_NODRAW | SURF_TRIGGER): visible = True
                 planes.append(p)
             if bad or not visible or len(planes) < 4: continue
+            # Same sanity check as Occ_AddBrush: full axial box (bevels included) required; centre outside = wedge.
+            mins = [1, 1, 1]; maxs = [-1, -1, -1]
+            for k in range(first, first + num):
+                n = s.planes[sides[k][0]]
+                for a in range(3):
+                    if n[a] == 1.0: maxs[a] = n[3]
+                    elif n[a] == -1.0: mins[a] = -n[3]
+            if any(mins[a] > maxs[a] for a in range(3)):
+                s.rejected += 1; continue
             s.occ[bi] = planes
+            if not s.inside(bi, [(mins[a] + maxs[a]) / 2 for a in range(3)], -0.01): s.odd += 1
+    def ray_candidates(s, a, b, limit):
+        # Opaque world brushes in solid leaves along a-b, nearest first, no repeats (mirror of Occ_RayCandidates).
+        out = []; d = [b[i] - a[i] for i in range(3)]
+        stack = [(s.headnode, 0.0, 1.0)]
+        while stack:
+            n, t0, t1 = stack.pop()
+            if n < 0:
+                c, fb, nb = s.leafs[-1 - n]
+                if not c & SOLID: continue
+                for x in s.leafbrush[fb:fb + nb]:
+                    if x in s.occ and x not in out:
+                        out.append(x)
+                        if len(out) >= limit: return out
+                continue
+            pl, c0, c1 = s.nodes[n]; p = s.planes[pl]
+            def dist(t):
+                return sum(p[i] * (a[i] + d[i] * t) for i in range(3)) - p[3]
+            d0, d1 = dist(t0), dist(t1)
+            if d0 >= 0 and d1 >= 0: stack.append((c0, t0, t1))
+            elif d0 < 0 and d1 < 0: stack.append((c1, t0, t1))
+            else:
+                tm = t0 + (t1 - t0) * d0 / (d0 - d1)
+                near, far = (c0, c1) if d0 >= 0 else (c1, c0)
+                stack.append((far, tm, t1)); stack.append((near, t0, tm))
+        return out
     def leaf(s, p):
         n = s.headnode
         while n >= 0:

@@ -17,6 +17,7 @@ stock ReadFile(Handle:h, items[], num, size)
 	return i;
 }
 stock strcopy(String:dest[], maxlen, const String:src[]) { new i; for (; i < maxlen - 1 && src[i]; i++) dest[i] = src[i]; dest[i] = 0; return i; }
+stock SubtractVectors(const Float:a[3], const Float:b[3], Float:c[3]) { c[0] = a[0] - b[0]; c[1] = a[1] - b[1]; c[2] = a[2] - b[2]; }
 stock Format(String:buf[], maxlen, const String:fmt[], any:...) { strcopy(buf, maxlen, fmt); }
 
 #include <smac_wallhack_occ>
@@ -25,7 +26,7 @@ public main()
 {
 	decl String:sError[128];
 	if (!Occ_Load("x", sError, sizeof(sError))) { printf("load failed: %s\n", sError); return; }
-	printf("kept %d rejected %d (python %d)\n", g_iOccKept, g_iOccRejected, g_iExpectKept);
+	printf("kept %d rejected %d wedges %d (python %d)\n", g_iOccKept, g_iOccRejected, g_iOccOdd, g_iExpectKept);
 	new iBad;
 	for (new i = 0; i < g_iExpectKept; i++) if (!g_iOccBrushCount[g_iExpectBrush[i]]) iBad++;
 	printf("python brushes missing in SP: %d\n", iBad);
@@ -41,4 +42,17 @@ public main()
 		if (b) iBlocked++;
 	}
 	printf("segment mismatches: %d of %d (%d blocked)\n", iBad, g_iNumQ, iBlocked);
+	iBad = 0;
+	new iFound;
+	decl iOut[8];
+	for (new i = 0; i < g_iNumQ; i++)
+	{
+		new n = Occ_RayCandidates(g_fQ[i], g_fQ[g_iRayEnd[i]], iOut, 8);
+		iFound += n;
+		for (new k = 0; k < 8; k++)
+		{
+			if ((k < n ? iOut[k] : -1) != g_iRayExpect[i][k]) { iBad++; break; }
+		}
+	}
+	printf("ray candidate mismatches: %d of %d (%d candidates)\n", iBad, g_iNumQ, iFound);
 }

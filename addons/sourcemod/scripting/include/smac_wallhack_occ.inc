@@ -40,6 +40,7 @@
 #define OCC_CONTENTS_GRATE			0x8
 #define OCC_SURF_TRANS				0x10
 #define OCC_SURF_NODRAW				0x80
+#define OCC_SURF_TRIGGER			0x40	// tools/toolstrigger: never drawn in game
 
 // Brushes are shrunk by this much, so a line that only grazes an edge never counts as blocked.
 #define OCC_SHRINK				1.0
@@ -51,10 +52,11 @@ new g_iOccNumLeafs;
 new g_iOccNumBrushes;
 new g_iOccKept;
 new g_iOccRejected;
+new g_iOccOdd;
 
 new Float:g_fOccPlane[OCC_MAX_PLANES * 4];		// normal xyz, dist
 new g_iOccNode[OCC_MAX_NODES * 3];				// plane, front child, back child (< 0: leaf -1 - n)
-new g_iOccLeaf[OCC_MAX_LEAFS * 2];				// first leafbrush, leafbrush count
+new g_iOccLeaf[OCC_MAX_LEAFS * 3];				// contents, first leafbrush, leafbrush count
 new g_iOccLeafBrush[OCC_MAX_LEAFBRUSHES];
 new g_iOccBrushFirst[OCC_MAX_BRUSHES];			// into g_iOccSidePlane
 new g_iOccBrushCount[OCC_MAX_BRUSHES];			// 0 = not an occluder
@@ -76,6 +78,7 @@ stock bool:Occ_Load(const String:map[], String:error[], maxlen)
 	g_bOccLoaded = false;
 	g_iOccKept = 0;
 	g_iOccRejected = 0;
+	g_iOccOdd = 0;
 	
 	decl String:sPath[PLATFORM_MAX_PATH];
 	Format(sPath, sizeof(sPath), "maps/%s.bsp", map);
@@ -196,8 +199,9 @@ stock bool:Occ_Parse(Handle:hFile, String:error[], maxlen)
 		for (j = 0; j < iWords; j++)
 		{
 			base = g_iOccBuf[j * iLeafWords + 6];
-			g_iOccLeaf[(i + j) * 2] = base & 0xFFFF;
-			g_iOccLeaf[(i + j) * 2 + 1] = (base >> 16) & 0xFFFF;
+			g_iOccLeaf[(i + j) * 3] = g_iOccBuf[j * iLeafWords];
+			g_iOccLeaf[(i + j) * 3 + 1] = base & 0xFFFF;
+			g_iOccLeaf[(i + j) * 3 + 2] = (base >> 16) & 0xFFFF;
 		}
 	}
 	
@@ -273,7 +277,7 @@ stock bool:Occ_Parse(Handle:hFile, String:error[], maxlen)
 	
 	for (i = 0; i < g_iOccNumLeafs; i++)
 	{
-		if (g_iOccLeaf[i * 2] + g_iOccLeaf[i * 2 + 1] > iNumLeafBrushes)
+		if (g_iOccLeaf[i * 3 + 1] + g_iOccLeaf[i * 3 + 2] > iNumLeafBrushes)
 			return Occ_Fail(error, maxlen, "leaf brushes");
 	}
 	
@@ -316,10 +320,10 @@ stock bool:Occ_Parse(Handle:hFile, String:error[], maxlen)
 		}
 	}
 	
-	// Every brush has its axial planes and the centre of its box inside it. Many failures mean a misread file.
-	if (g_iOccRejected * 10 > g_iOccKept + g_iOccRejected)
+	// Real maps: a handful of wedges per few thousand brushes. Many failures mean a misread file.
+	if ((g_iOccRejected + g_iOccOdd) * 10 > g_iOccKept + g_iOccRejected)
 	{
-		Format(error, maxlen, "%d of %d brushes failed the plane check", g_iOccRejected, g_iOccKept + g_iOccRejected);
+		Format(error, maxlen, "%d of %d brushes failed the plane check", g_iOccRejected + g_iOccOdd, g_iOccKept + g_iOccRejected);
 		g_iOccKept = 0;
 		return false;
 	}
@@ -376,7 +380,7 @@ stock Occ_AddBrush(brush, first, num, next, numPlanes, numTexinfo)
 		if (iFlags & OCC_SURF_TRANS)
 			return start;
 		
-		if (!(iFlags & OCC_SURF_NODRAW))
+		if (!(iFlags & (OCC_SURF_NODRAW | OCC_SURF_TRIGGER)))
 		{
 			bDrawn = true;
 		}
@@ -388,11 +392,12 @@ stock Occ_AddBrush(brush, first, num, next, numPlanes, numTexinfo)
 		iPlanes++;
 	}
 	
-	// All-nodraw solids (tools/toolsinvisible and the like) can be see-through: never use them.
+	// Solids with no drawn side (tools/toolsinvisible, all-toolstrigger blockers) are see-through: never use them.
 	if (!bDrawn || iPlanes < 4)
 		return start;
 	
-	// Sanity check: a complete box from the axial planes, and its centre inside every side.
+	// Sanity check: a complete box from the axial planes (the compiler always adds them as bevels), and its centre
+	// inside every side. Wedges can fail the second part legitimately, so it only feeds the misread-file check.
 	decl Float:vCentre[3];
 	
 	for (new k = 0; k < 3; k++)
@@ -412,8 +417,8 @@ stock Occ_AddBrush(brush, first, num, next, numPlanes, numTexinfo)
 		
 		if (g_fOccPlane[iPlane] * vCentre[0] + g_fOccPlane[iPlane + 1] * vCentre[1] + g_fOccPlane[iPlane + 2] * vCentre[2] - g_fOccPlane[iPlane + 3] > 0.01)
 		{
-			g_iOccRejected++;
-			return start;
+			g_iOccOdd++;
+			break;
 		}
 	}
 	
@@ -501,6 +506,102 @@ stock Occ_PointLeaf(const Float:pos[3])
 	}
 	
 	return (iNode < 0) ? -1 - iNode : -1;
+}
+
+#define OCC_STACK		128
+
+/**
+ * Opaque world brushes in the solid leaves the segment a-b passes through, nearest first, without repeats.
+ * Walks the BSP tree front to back like the engine's own ray trace. Returns how many were written to out[].
+ */
+stock Occ_RayCandidates(const Float:a[3], const Float:b[3], out[], max)
+{
+	decl iNode[OCC_STACK], Float:fFrom[OCC_STACK], Float:fTo[OCC_STACK];
+	decl Float:vDelta[3];
+	SubtractVectors(b, a, vDelta);
+	
+	new iTop = 1, iCount, n, iPlane, iFront, iBack, iFirst, iEnd, iBrush, k;
+	new Float:t0, Float:t1, Float:d0, Float:d1, Float:tm;
+	
+	iNode[0] = g_iOccHeadNode;
+	fFrom[0] = 0.0;
+	fTo[0] = 1.0;
+	
+	while (iTop > 0)
+	{
+		iTop--;
+		n = iNode[iTop];
+		t0 = fFrom[iTop];
+		t1 = fTo[iTop];
+		
+		if (n < 0)
+		{
+			n = -1 - n;
+			
+			if (!(g_iOccLeaf[n * 3] & OCC_CONTENTS_SOLID))
+				continue;
+			
+			iFirst = g_iOccLeaf[n * 3 + 1];
+			iEnd = iFirst + g_iOccLeaf[n * 3 + 2];
+			
+			for (new i = iFirst; i < iEnd; i++)
+			{
+				iBrush = g_iOccLeafBrush[i];
+				
+				if (!g_iOccBrushCount[iBrush])
+					continue;
+				
+				for (k = 0; k < iCount && out[k] != iBrush; k++) {}
+				
+				if (k < iCount)
+					continue;
+				
+				out[iCount++] = iBrush;
+				
+				if (iCount >= max)
+					return iCount;
+			}
+			
+			continue;
+		}
+		
+		iPlane = g_iOccNode[n * 3] * 4;
+		d0 = g_fOccPlane[iPlane] * (a[0] + vDelta[0] * t0) + g_fOccPlane[iPlane + 1] * (a[1] + vDelta[1] * t0) + g_fOccPlane[iPlane + 2] * (a[2] + vDelta[2] * t0) - g_fOccPlane[iPlane + 3];
+		d1 = g_fOccPlane[iPlane] * (a[0] + vDelta[0] * t1) + g_fOccPlane[iPlane + 1] * (a[1] + vDelta[1] * t1) + g_fOccPlane[iPlane + 2] * (a[2] + vDelta[2] * t1) - g_fOccPlane[iPlane + 3];
+		iFront = g_iOccNode[n * 3 + 1];
+		iBack = g_iOccNode[n * 3 + 2];
+		
+		if (iTop + 2 > OCC_STACK)
+			break;
+		
+		if (d0 >= 0.0 && d1 >= 0.0)
+		{
+			iNode[iTop] = iFront;
+			fFrom[iTop] = t0;
+			fTo[iTop++] = t1;
+		}
+		else if (d0 < 0.0 && d1 < 0.0)
+		{
+			iNode[iTop] = iBack;
+			fFrom[iTop] = t0;
+			fTo[iTop++] = t1;
+		}
+		else
+		{
+			// Split: push the far side first so the near side is walked first.
+			tm = t0 + (t1 - t0) * d0 / (d0 - d1);
+			
+			iNode[iTop] = (d0 >= 0.0) ? iBack : iFront;
+			fFrom[iTop] = tm;
+			fTo[iTop++] = t1;
+			
+			iNode[iTop] = (d0 >= 0.0) ? iFront : iBack;
+			fFrom[iTop] = t0;
+			fTo[iTop++] = tm;
+		}
+	}
+	
+	return iCount;
 }
 
 /**

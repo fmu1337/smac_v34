@@ -861,7 +861,7 @@ bool:IsAbleToSee(entity, client)
 		if (bEyes[iEye] && IsPointVisible(vEyes[iEye], vSamples[iCached % SAMPLE_COUNT]))
 			return true;
 		
-		if (iCached == 0 && bOcc && Occ_FindFromTrace(entity, client, vEyes, bEyes, vSamples, bPeekReady))
+		if (iCached == 0 && bOcc && Occ_FindAlongRay(entity, client, vEyes, bEyes, vSamples, bPeekReady))
 		{
 			g_iLastSample[entity][client] = 0;
 			return false;
@@ -916,8 +916,8 @@ bool:IsAbleToSee(entity, client)
 				return true;
 			}
 			
-			// The first blocked trace to the centre tells which wall is in the way: if it hides everything, stop here.
-			if (iIndex == 0 && bOcc && Occ_FindFromTrace(entity, client, vEyes, bEyes, vSamples, bPeekReady))
+			// The centre is blocked: look for one wall that hides everything, and stop here if there is one.
+			if (iIndex == 0 && bOcc && Occ_FindAlongRay(entity, client, vEyes, bEyes, vSamples, bPeekReady))
 			{
 				g_iLastSample[entity][client] = 0;
 				return false;
@@ -929,45 +929,20 @@ bool:IsAbleToSee(entity, client)
 	return false;
 }
 
+#define OCC_CANDIDATES	8
+
 /**
- * Right after a blocked trace from the real eye to the centre: look up the world brushes at the hit point and keep
- * the first one that hides the entity from every eye. The trace result must still be the current one.
+ * After the trace from the real eye to the centre was blocked: walk the world BSP along that line and keep the first
+ * of the nearest few brushes that hides the entity from every eye. The wall that hides a player is not always the
+ * first brush on the line (trims, ledges); on de_dust2 the nearest 8 find 96-98% of what any single brush could.
  */
-bool:Occ_FindFromTrace(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3], &bool:bPeekReady)
+bool:Occ_FindAlongRay(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3], &bool:bPeekReady)
 {
-	if (TR_GetEntityIndex() != 0)
-		return false;
+	decl iCandidates[OCC_CANDIDATES];
+	new iCount = Occ_RayCandidates(vEyes[0], vSamples[0], iCandidates, sizeof(iCandidates));
 	
-	decl Float:vHit[3], Float:vDir[3];
-	TR_GetEndPosition(vHit);
-	
-	SubtractVectors(vSamples[0], vEyes[0], vDir);
-	NormalizeVector(vDir, vDir);
-	
-	// Step a little into the wall so the point lands in the solid leaf behind the surface.
-	ScaleVector(vDir, 2.0);
-	AddVectors(vHit, vDir, vHit);
-	
-	new iLeaf = Occ_PointLeaf(vHit);
-	
-	if (iLeaf < 0)
-		return false;
-	
-	new iFirst = g_iOccLeaf[iLeaf * 2];
-	new iCount = g_iOccLeaf[iLeaf * 2 + 1];
-	
-	if (iCount > 16)
+	for (new i = 0; i < iCount; i++)
 	{
-		iCount = 16;
-	}
-	
-	for (new i = iFirst; i < iFirst + iCount; i++)
-	{
-		new iBrush = g_iOccLeafBrush[i];
-		
-		if (!g_iOccBrushCount[iBrush])
-			continue;
-		
 		if (!bPeekReady)
 		{
 			GetPeekEyes(entity, client, vEyes, bEyes);
@@ -977,9 +952,9 @@ bool:Occ_FindFromTrace(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSa
 		g_iTraceCount++;
 		g_iStatProofs++;
 		
-		if (Occ_Proves(iBrush, vEyes, bEyes, vSamples))
+		if (Occ_Proves(iCandidates[i], vEyes, bEyes, vSamples))
 		{
-			g_iOccCache[entity][client] = iBrush + 1;
+			g_iOccCache[entity][client] = iCandidates[i] + 1;
 			g_iStatOccFound++;
 			return true;
 		}
@@ -1056,7 +1031,7 @@ public Action:Command_Occ(client, args)
 	
 	if (g_bOccLoaded)
 	{
-		ReplyToCommand(client, "[SMAC] Occluders: %s, %d of %d brushes (%d failed the plane check), %d nodes, %d leafs.", g_bOccEnabled ? "on" : "off (smac_wallhack_occluders 0)", g_iOccKept, g_iOccNumBrushes, g_iOccRejected, g_iOccNumNodes, g_iOccNumLeafs);
+		ReplyToCommand(client, "[SMAC] Occluders: %s, %d of %d brushes (%d without a full box, %d wedges), %d nodes, %d leafs.", g_bOccEnabled ? "on" : "off (smac_wallhack_occluders 0)", g_iOccKept, g_iOccNumBrushes, g_iOccRejected, g_iOccOdd, g_iOccNumNodes, g_iOccNumLeafs);
 	}
 	else
 	{
