@@ -2,6 +2,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <smac>
+#include <smac_smokevol_assets>
 
 /* Plugin Info */
 public Plugin:myinfo =
@@ -53,6 +54,11 @@ new Handle:g_hCvarMapFog = INVALID_HANDLE;
 
 public OnPluginStart()
 {
+	// The rxg/smokevol material and model are baked into this .smx (see
+	// smac_smokevol_assets.inc). Write them to the game directory on load so the
+	// plugin ships as a single file; OnMapStart can then precache and offer them.
+	SmokeVol_ExtractAssets();
+
 	g_hCvarEnable = SMAC_CreateConVar("smac_smokefix", "1", "Smoke fix: denser smoke and an invisible blocker that hides players in smoke from smac_wallhack. (0:Disabled, 1:Enabled)", _, true, 0.0, true, 1.0);
 	g_hCvarDelay = SMAC_CreateConVar("smac_smokefix_delay", "5.0", "Seconds after detonation until the blocker is placed. Too low and players vanish before the cloud has grown.", _, true, 0.0, true, 15.0);
 	g_hCvarDensity = SMAC_CreateConVar("smac_smokefix_density", "2", "Extra smoke emitters per grenade.", _, true, 0.0, true, float(SMOKE_MAX_DENSITY));
