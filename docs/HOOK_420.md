@@ -13,7 +13,6 @@
 |---|---|---|---|
 | **CmdNum Jump** | Lag Exploit: `command_number += 450` на каждой команде (`Client.cpp:868`) | cmdnum вырос больше чем на 90 (`MULTIPLAYER_BACKUP`); 3 таких скачка за 10 с. Настоящий обрыв связи даёт один скачок | `smac_CmdNumJump_reaction` (2, кик) |
 | **Tick Ahead** | Airstuck: `tick_count = INT_MAX` (`Client.cpp:1114`), FakeWalk: `tick_count += 10` | client tickcount больше чем на 1 с впереди серверного тика на 3 cmd подряд. Часы клиента всегда отстают от сервера | `smac_TickAhead_reaction` (2, кик) |
-| **Fake Lag** | fake lag: держит до 14 команд и шлёт их одним пакетом (`Client.cpp:1191`) | в среднем ≥ 7 команд на пакет 5 секунд подряд, больше чем вдвое против `cl_cmdrate` клиента (из userinfo, с учётом `sv_maxcmdrate`), без потерь. После детекта 25 с тишины | `smac_FakeLag_reaction` (1, лог) |
 
 CmdNum Jump и Tick Ahead работают **до** проверки на потери пакетов, и действие у них не понижается за плохую сеть.
 Lag Exploit сдвигает номер исходящего пакета, поэтому сервер видит у клиента почти 100 % потерь, а остальные детекты
@@ -24,16 +23,18 @@ Lag Exploit сдвигает номер исходящего пакета, по�
 
 ## smac_ultra_movement
 
-Только для `MOVETYPE_WALK`, без `FL_FROZEN`/`FL_ATCONTROLS`, после спавна и телепорта — пауза. Все четыре — уведомления.
+Только для `MOVETYPE_WALK`, без `FL_FROZEN`/`FL_ATCONTROLS`, после спавна и телепорта — пауза. Все три — уведомления.
 
 | Детект | Что ловит | Условие | Квар (по умолчанию) |
 |---|---|---|---|
 | **FastWalk** | FastWalk: ±0.5065·400 к forward/side, знак меняется каждую команду (`Client.cpp:877`) | на земле без +jump изменение forwardmove или sidemove меняет знак на каждом cmd при одинаковой величине (≥ 100), 20 cmd подряд. Клавиатура так не может. Сюда же попадёт anti-aim с дёрганьем yaw каждую команду (movement fix крутит вектор туда-сюда) | `smac_FastWalk_reaction` (1) |
 | **AutoStrafe** | `sidemove = ±400` без клавиш стрейфа (`cBhop.cpp:41`) | в воздухе \|sidemove\| = `cl_sidespeed` клиента, нет +moveleft/+moveright, знак против поворота yaw; 60 таких cmd за жизнь. Fast Run из R52 ловит это только на скорости > 289 | `smac_AutoStrafe_reaction` (1) |
 | **CircleStrafe** | forward/side = cos/sin × 450 (`Client.cpp:925`) | forwardmove или sidemove больше `cl_forwardspeed` / `cl_backspeed` / `cl_sidespeed` клиента (+1); 10 таких cmd за жизнь. Пока квары клиента не известны, проверка молчит | `smac_CircleStrafe_reaction` (1) |
-| **Move Fix** | movement fix silent aim / anti-aim (`CL_FixMove`) | на земле зажата одна клавиша хода, по второй оси значение не ноль, а длина вектора равна скорости клавиши (или ×0.52 для +speed) с точностью 1 %. Так выглядит вектор, повёрнутый под другие углы. Отпущенная в кадре клавиша даёт другую длину и не считается. 30 таких cmd за 60 с | `smac_MoveFix_reaction` (1, лог) |
 
 Квары `cl_forwardspeed`, `cl_backspeed`, `cl_sidespeed` запрашиваются при заходе и раз в минуту, вместе с `sensitivity`.
+
+Fake lag 420hook (держит до 14 команд, `Client.cpp:1191`) и movement fix под silent aim / anti-aim (`CL_FixMove`)
+отдельных детектов здесь не получили: их уже считают FakeLag и MoveGrid в `smac_usercmd` ([USERCMD.md](USERCMD.md)).
 
 ## smac_client
 

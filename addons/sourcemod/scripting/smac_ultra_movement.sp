@@ -42,9 +42,7 @@
  *                       to the yaw turn; 60 such cmds in one life.
  *   CircleStrafe        forwardmove / sidemove above the client's cl_forwardspeed, cl_backspeed or
  *                       cl_sidespeed; 10 such cmds in one life.
- *   Move Fix            (log collection) on the ground one movement key is held, the other axis is not 0
- *                       and the vector keeps the key's full length: the wishmove was rotated to a
- *                       different view angle (silent aim / anti-aim). 30 such cmds within 60 s.
+ *   (a wishmove rotated by a movement fix is counted by smac_usercmd MoveGrid)
  *
  * Cvars keep the Ultr@ names. Defaults are admin-notice only.
  */
@@ -53,7 +51,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Ultr@: Movement",
 	author = SMAC_AUTHOR,
-	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack from SMAC Ultr@ R52; FastWalk, AutoStrafe, CircleStrafe, Move Fix",
+	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack from SMAC Ultr@ R52; FastWalk, AutoStrafe, CircleStrafe",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -72,8 +70,7 @@ public Plugin:myinfo =
 #define M_FASTWALK		10
 #define M_AUTOSTRAFE	11
 #define M_CIRCLE		12
-#define M_MOVEFIX		13
-#define M_COUNT			14
+#define M_COUNT			13
 
 new String:g_sCheck[M_COUNT][] =
 {
@@ -89,8 +86,7 @@ new String:g_sCheck[M_COUNT][] =
 	"Spinhack",
 	"FastWalk",
 	"AutoStrafe",
-	"CircleStrafe",
-	"Move Fix"
+	"CircleStrafe"
 };
 
 #define MAX_RUN_SPEED		289.0
@@ -127,10 +123,6 @@ new String:g_sCheck[M_COUNT][] =
 #define FASTWALK_CMDS		20
 #define AUTOSTRAFE_CMDS		60
 #define CIRCLE_CMDS			10
-#define MOVEFIX_CMDS		30
-#define MOVEFIX_WINDOW		60.0
-#define MOVEFIX_LEN_TOL		0.01
-#define SPEED_KEY_SCALE		0.52	/* cl_movespeedkey default */
 
 #define MAX_PING			0.15
 #define MIN_PACKET_FRAC		0.7
@@ -145,22 +137,19 @@ new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
 new Handle:g_hCvarFastWalk = INVALID_HANDLE;
 new Handle:g_hCvarAutoStrafe = INVALID_HANDLE;
 new Handle:g_hCvarCircle = INVALID_HANDLE;
-new Handle:g_hCvarMoveFix = INVALID_HANDLE;
 
 new Float:g_fSens[MAXPLAYERS+1];
 
 /* Client move speeds (cl_forwardspeed, cl_backspeed, cl_sidespeed); 0.0 = not known yet. */
 new Float:g_fMoveSpeed[MAXPLAYERS+1][3];
 
-/* FastWalk, AutoStrafe, CircleStrafe, Move Fix */
+/* FastWalk, AutoStrafe, CircleStrafe */
 new Float:g_fPrevMove[MAXPLAYERS+1][2];
 new Float:g_fPrevMoveDelta[MAXPLAYERS+1][2];
 new bool:g_bHasPrevMove[MAXPLAYERS+1];
 new g_iFastWalk[MAXPLAYERS+1];
 new g_iAutoStrafe[MAXPLAYERS+1];
 new g_iCircle[MAXPLAYERS+1];
-new g_iMoveFix[MAXPLAYERS+1];
-new Float:g_fMoveFixStart[MAXPLAYERS+1];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 new g_iDetects[MAXPLAYERS+1][M_COUNT];
 new Float:g_fNextNotice[MAXPLAYERS+1][M_COUNT];
@@ -207,7 +196,6 @@ public OnPluginStart()
 	g_hCvarFastWalk = SMAC_CreateConVar("smac_FastWalk_reaction", "1", "FastWalk (on-ground move zigzag every cmd, 420hook): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarAutoStrafe = SMAC_CreateConVar("smac_AutoStrafe_reaction", "1", "AutoStrafe (air sidemove without strafe keys, following the turn): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarCircle = SMAC_CreateConVar("smac_CircleStrafe_reaction", "1", "CircleStrafe (wishmove above the client's cl_forwardspeed/cl_backspeed/cl_sidespeed): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarMoveFix = SMAC_CreateConVar("smac_MoveFix_reaction", "1", "Move Fix (wishmove rotated to another view angle, silent aim / anti-aim; log collection): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
@@ -230,8 +218,6 @@ public OnClientPutInServer(client)
 	g_fSens[client] = 0.0;
 	g_fMoveSpeed[client][0] = g_fMoveSpeed[client][1] = g_fMoveSpeed[client][2] = 0.0;
 	g_fIgnoreUntil[client] = 0.0;
-	g_iMoveFix[client] = 0;
-	g_fMoveFixStart[client] = 0.0;
 	for (new i = 0; i < M_COUNT; i++)
 	{
 		g_iDetects[client][i] = 0;
@@ -696,7 +682,7 @@ CheckMotion(client)
 }
 
 /**
- * FastWalk, AutoStrafe, CircleStrafe and Move Fix (smac_v34, from the 420hook source).
+ * FastWalk, AutoStrafe and CircleStrafe (smac_v34, from the 420hook source).
  */
 CheckMoveInput(client, buttons, flags, const Float:vel[3], const Float:angles[3])
 {
@@ -724,9 +710,6 @@ CheckMoveInput(client, buttons, flags, const Float:vel[3], const Float:angles[3]
 	}
 
 	CheckCircleStrafe(client, vel);
-
-	if (bOnGround)
-		CheckMoveFix(client, buttons, vel);
 
 	for (new i = 0; i < 2; i++)
 	{
@@ -819,61 +802,6 @@ CheckCircleStrafe(client, const Float:vel[3])
 	React(client, M_CIRCLE, level, sDetail);
 }
 
-/* Keys give each axis 0 or the key speed; a movement fix rotates the vector and keeps its length. */
-CheckMoveFix(client, buttons, const Float:vel[3])
-{
-	new level = GetConVarInt(g_hCvarMoveFix);
-	if (level <= 0 || g_fMoveSpeed[client][0] <= 0.0 || g_fMoveSpeed[client][1] <= 0.0 || g_fMoveSpeed[client][2] <= 0.0)
-		return;
-
-	new kf = ((buttons & IN_FORWARD) ? 1 : 0) - ((buttons & IN_BACK) ? 1 : 0);
-	new ks = ((buttons & IN_MOVERIGHT) ? 1 : 0) - ((buttons & IN_MOVELEFT) ? 1 : 0);
-	new bool:bSideKeys = (buttons & (IN_MOVELEFT | IN_MOVERIGHT)) != 0;
-	new bool:bFwdKeys = (buttons & (IN_FORWARD | IN_BACK)) != 0;
-
-	new Float:keySpeed, Float:onAxis, Float:offAxis;
-	if (kf != 0 && !bSideKeys)
-	{
-		keySpeed = (kf > 0) ? g_fMoveSpeed[client][0] : g_fMoveSpeed[client][1];
-		onAxis = vel[0] * float(kf);
-		offAxis = vel[1];
-	}
-	else if (ks != 0 && !bFwdKeys)
-	{
-		keySpeed = g_fMoveSpeed[client][2];
-		onAxis = vel[1] * float(ks);
-		offAxis = vel[0];
-	}
-	else
-	{
-		return;
-	}
-
-	if (FloatAbs(offAxis) < 1.0 || onAxis <= 0.0)
-		return;
-
-	new Float:len = SquareRoot(vel[0] * vel[0] + vel[1] * vel[1]);
-	if (FloatAbs(len - keySpeed) > keySpeed * MOVEFIX_LEN_TOL
-		&& FloatAbs(len - keySpeed * SPEED_KEY_SCALE) > keySpeed * SPEED_KEY_SCALE * MOVEFIX_LEN_TOL)
-		return;
-
-	new Float:now = GetGameTime();
-	if (g_iMoveFix[client] == 0 || now - g_fMoveFixStart[client] > MOVEFIX_WINDOW)
-	{
-		g_iMoveFix[client] = 0;
-		g_fMoveFixStart[client] = now;
-	}
-
-	if (++g_iMoveFix[client] < MOVEFIX_CMDS)
-		return;
-
-	g_iMoveFix[client] = 0;
-
-	decl String:sDetail[160];
-	FormatEx(sDetail, sizeof(sDetail), "one key held, wishmove %.1f %.1f rotated (length %.1f, key speed %.0f), %i cmds in %.0f s",
-		vel[0], vel[1], len, keySpeed, MOVEFIX_CMDS, now - g_fMoveFixStart[client]);
-	React(client, M_MOVEFIX, level, sDetail);
-}
 
 TeleportLevel(Float:teleport)
 {

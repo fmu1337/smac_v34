@@ -77,8 +77,8 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   автострейф, клавиатура так не умеет), SnapBack (взгляд прыгает на одну команду и возвращается — silent aim, jitter),
   FakeLag (пачки по 8+ команд за тик) и Roll (roll ≠ 0 — nospread через `viewangles.z`). Лог —
   `logs/smac_usercmd_diag.log`. Подробности — в [docs/USERCMD.md](docs/USERCMD.md).
-* Детекты по исходникам 420hook (не из R52): CmdNum Jump, Tick Ahead и Fake Lag в `smac_ultra_netcode`; FastWalk,
-  AutoStrafe, CircleStrafe и Move Fix в `smac_ultra_movement`; Name stealer, текст отключения и реклама в чате в
+* Детекты по исходникам 420hook (не из R52): CmdNum Jump и Tick Ahead в `smac_ultra_netcode`; FastWalk,
+  AutoStrafe и CircleStrafe в `smac_ultra_movement`; Name stealer, текст отключения и реклама в чате в
   `smac_client`; `mat_fullbright` в `smac_cvars`. Спорные по умолчанию только пишут в лог и уведомляют.
   Подробности — в [docs/HOOK_420.md](docs/HOOK_420.md).
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей из R52:
