@@ -165,4 +165,27 @@
 	{
 		"en"		"You were kicked by the anti-cheat (cheat signature)"
 	}
+
+	"SMAC_AutopunishNotice"
+	{
+		"#format"	"{1:N},{2:s},{3:s}"
+		"en"		"{1} detected: {2} [{3}] (no auto-punish: admin online)"
+	}
+
+	"SMAC_AutopunishNoticeCheck"
+	{
+		"#format"	"{1:N},{2:s},{3:s},{4:s}"
+		"en"		"{1} detected: {2} ({3}) [{4}] (no auto-punish: admin online)"
+	}
+
+	"SMAC_AutopunishNoticeDetail"
+	{
+		"#format"	"{1:N},{2:s},{3:s},{4:s},{5:s}"
+		"en"		"{1} detected: {2} ({3}: {4}) [{5}] (no auto-punish: admin online)"
+	}
+
+	"SMAC_AutopunishKick"
+	{
+		"en"		"You were kicked by the anti-cheat (no admins online)"
+	}
 }

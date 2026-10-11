@@ -89,6 +89,17 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   `smac_eyetest_new_reaction`, по умолчанию 1 (уведомление). `smac_cvars` проверяет, что `cl_interpolate` — целое 0 или 1
   (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), по умолчанию уведомление.
 
+## Autopunish (kick/ban без админов)
+
+* `smac_autopunish` — слушает `SMAC_OnCheatDetected`: если на сервере есть админ с `smac_admin_notices` /
+  `ADMFLAG_GENERIC`, только уведомляет и **не** перехватывает реакцию детектора; если админов нет —
+  кикает (`1`) или банит (`2`) по квару на каждый `DetectionType` (`smac_autopunish_aimbot`,
+  `smac_autopunish_airstuck`, `smac_autopunish_ultra_movement`, …). Глобально: `smac_autopunish` 0/1,
+  иммунитет подозреваемого с ban/root: `smac_autopunish_immune`. **Все типы по умолчанию 0 (выкл)** —
+  включайте нужные сами. Модуль не меняет `*_reaction` детекторов: для автокика/бана держите их на
+  notice, иначе при пустом сервере стоковый модуль с kick/ban и autopunish могут пересечься
+  (autopunish при наказании возвращает `Plugin_Handled` и блокирует повтор).
+
 ## Из Cheat-Acid (LilAC, Oryx, Cow AC)
 
 Что взято, ревью пересечений и разбор SauRay — [docs/CHEAT_ACID.md](docs/CHEAT_ACID.md). Отложенные идеи — [docs/PLANS.md](docs/PLANS.md).
