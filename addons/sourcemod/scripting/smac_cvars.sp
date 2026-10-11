@@ -131,6 +131,7 @@ public OnPluginStart()
 	AddCvar(Order_Last, "host_timescale",		Comp_Replicated, Action_Ban);
 	AddCvar(Order_Last, "mat_dxlevel",			Comp_Greater, Action_Kick, "80.0");
 	AddCvar(Order_Last, "mat_fillrate",			Comp_Equal, Action_Ban, "0.0");
+	AddCvar(Order_Last, "mat_fullbright",		Comp_Equal, Action_Ban, "0.0");	// 420hook Fullbright (docs/HOOK_420.md)
 	AddCvar(Order_Last, "mat_measurefillrate",	Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_proxy",			Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_showlowresimage",	Comp_Equal, Action_Ban, "0.0");
