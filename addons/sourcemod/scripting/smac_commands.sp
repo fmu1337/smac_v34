@@ -15,7 +15,8 @@ public Plugin:myinfo =
 enum ActionType {
 	Action_Block = 0,
 	Action_Ban,
-	Action_Kick
+	Action_Kick,
+	Action_Notice	/* block, log and notify admins */
 };
 
 new Handle:g_hBlockedCmds = INVALID_HANDLE;
@@ -88,6 +89,9 @@ public OnPluginStart()
 	SetTrieValue(g_hBlockedCmds, "wc_update_entity", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "changelevel", Action_Ban);
 	SetTrieValue(g_hBlockedCmds, "speed.toggle", Action_Kick);
+	// Calls to rcon-leaking backdoors of old server plugins (Kigen-AC-Redux). A real client never sends them.
+	SetTrieValue(g_hBlockedCmds, "q_sndrcn", Action_Notice);
+	SetTrieValue(g_hBlockedCmds, "send_me_rcon", Action_Notice);
 	
 
 	
@@ -167,6 +171,10 @@ public Action:Command_AddCmd(client, args)
 			case 2:
 			{
 				cAction = Action_Kick;
+			}
+			case 3:
+			{
+				cAction = Action_Notice;
 			}
 		}
 		
@@ -334,7 +342,12 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 			
 			if (SMAC_CheatDetected(client, Detection_BannedCommand, info) == Plugin_Continue)
 			{
-				if (cAction == Action_Ban)
+				if (cAction == Action_Notice)
+				{
+					SMAC_PrintAdminNotice("%N used blocked command: %s %s", client, command, sArgString);
+					SMAC_LogAction(client, "used blocked command (notice only): %s %s", command, sArgString);
+				}
+				else if (cAction == Action_Ban)
 				{
 					SMAC_PrintAdminNotice("%N was banned for command: %s %s", client, command, sArgString);
 					SMAC_LogAction(client, "was banned for command: %s %s", command, sArgString);

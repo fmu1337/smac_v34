@@ -89,6 +89,13 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   `smac_eyetest_new_reaction`, по умолчанию 1 (уведомление). `smac_cvars` проверяет, что `cl_interpolate` — целое 0 или 1
   (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), по умолчанию уведомление.
 
+## Из Kigen-AC-Redux
+
+* `smac_cvars`: `cl_cmdrate` должен быть просто числом (новый тип сравнения `numeric`). Текст после числа подделывает пинг
+  в таблице (ping masking). По умолчанию уведомление.
+* `smac_commands`: команды `q_sndrcn` и `send_me_rcon` (вызовы старых бэкдоров с утечкой rcon) блокируются,
+  пишутся в лог и показываются админам. Новое действие `smac_addcmd <cmd> 3` — блок с уведомлением.
+
 ## Из Cheat-Acid (LilAC, Oryx, Cow AC)
 
 Что взято, ревью пересечений и разбор SauRay — [docs/CHEAT_ACID.md](docs/CHEAT_ACID.md). Отложенные идеи — [docs/PLANS.md](docs/PLANS.md).

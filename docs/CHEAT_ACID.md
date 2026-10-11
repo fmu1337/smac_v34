@@ -80,6 +80,7 @@ LilAC, Oryx и Cow AC выпущены под GPLv3, как и SMAC, автор�
 | Rcon, status, eyetest | `smac_rcon`, `smac_status`, `smac_eyetest` | KAC rcon, status, eyetest | У нас то же или больше. KAC network — сервис банлиста, он мёртв |
 
 Итого стоит сделать отдельно: снап к жертве и A-B-A pSilent в `smac_aimbot`, `mat_fullbright` и ping masking в `smac_cvars`.
+(`mat_fullbright` добавлен по 420hook, ping masking — по Kigen-AC-Redux.)
 
 ## SauRay
 

@@ -72,6 +72,12 @@
 		"en"		"Your convar {1} should be between {2} and {3} but was set to {4}. Please correct this before rejoining"
 	}
 	
+	"SMAC_ShouldBeNumeric"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"Your convar {1} should be a plain number but was set to {2}. Please correct this before rejoining"
+	}
+	
 	"SMAC_ShouldBeOutside"
 	{
 		"#format"	"{1:s},{2:s},{3:s},{4:s}"

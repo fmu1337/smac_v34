@@ -150,6 +150,8 @@ public OnPluginStart()
 	AddCvar(Order_Last, "r_drawopaqueworld",	Comp_Equal, Action_Ban, "1.0");
 	// pizzahook writes the string "0.937" into this boolean every CreateMove.
 	AddCvar(Order_Last, "cl_interpolate",		Comp_Integer, Action_Warn, "0", "1");
+	// Ping masking: text after the number fakes the scoreboard ping (StAC, Kigen-AC-Redux #44).
+	AddCvar(Order_Last, "cl_cmdrate",			Comp_Numeric, Action_Warn);
 	AddCvar(Order_Last, "r_drawothermodels", 	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawparticles",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawrenderboxes",	Comp_Equal, Action_Ban, "0.0");
@@ -605,6 +607,13 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 				
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeBetween", client, sCvar, sValue, sValue2, cvarValue);
 			}
+			case Comp_Numeric:
+			{
+				if (IsPlainNumber(cvarValue))
+					return;
+				
+				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeNumeric", client, sCvar, cvarValue);
+			}
 			case Comp_Outside:
 			{
 				if (StringToFloat(cvarValue) < StringToFloat(sValue) || StringToFloat(cvarValue) > StringToFloat(sValue2))
@@ -785,4 +794,32 @@ bool:IsReplicating(Handle:hDataTrie)
 	GetTrieValue(hDataTrie, Cvar_ReplicatedTime, iReplicatedTime);
 	
 	return (iReplicatedTime > GetTime());
+}
+
+// Optional minus, digits, at most one dot and at least one digit. Nothing else.
+bool:IsPlainNumber(const String:sValue[])
+{
+	new i = 0, iDigits = 0;
+	new bool:bDot = false;
+	
+	if (sValue[0] == '-')
+		i++;
+	
+	for (; sValue[i] != '\0'; i++)
+	{
+		if (IsCharNumeric(sValue[i]))
+		{
+			iDigits++;
+		}
+		else if (sValue[i] == '.' && !bDot)
+		{
+			bDot = true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	
+	return (iDigits > 0);
 }

@@ -16,6 +16,8 @@
   Anti-SoundESP в `smac_wallhack`, `smac_css_smokefix`. Подробности — в `docs/ULTRA_*.md` и `docs/R52_*.md`.
 - Детекты по исходникам 420hook: CmdNum Jump, Tick Ahead, FastWalk, AutoStrafe, CircleStrafe,
   Name stealer, текст отключения, реклама в чате, `mat_fullbright`. Подробности — в `docs/HOOK_420.md`.
+- Из Kigen-AC-Redux: проверка ping masking (`cl_cmdrate` не число) в `smac_cvars`, блок команд-бэкдоров
+  `q_sndrcn` и `send_me_rcon` в `smac_commands`. Обе в режиме уведомления.
 
 ### 2020-12-28
 - Попытка починить сборку и работу на SM 1.11 (`smac_cvars`, `smac_cvars.inc`).
