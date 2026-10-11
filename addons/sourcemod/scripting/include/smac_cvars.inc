@@ -30,7 +30,8 @@ enum CvarComp {
 	Comp_Between,
 	Comp_Outside,
 	Comp_NonExist,
-	Comp_Integer		/* a whole number between value and value2 */
+	Comp_Integer,		/* a whole number between value and value2 */
+	Comp_Numeric		/* a plain decimal number, no other characters */
 }
 
 enum CvarAction {
@@ -137,6 +138,9 @@ stock CvarComp:GetCompTypeInt(const String:sCompType[])
 		
 	if (StrEqual(sCompType, "integer"))
 		return Comp_Integer;
+		
+	if (StrEqual(sCompType, "numeric"))
+		return Comp_Numeric;
 	
 	return Comp_Invalid;
 }
@@ -180,6 +184,10 @@ stock GetCompTypeString(CvarComp:CCompType, String:sCompType[], iSize)
 		case Comp_Integer:
 		{
 			strcopy(sCompType, iSize, "integer");
+		}
+		case Comp_Numeric:
+		{
+			strcopy(sCompType, iSize, "numeric");
 		}
 		default:
 		{
