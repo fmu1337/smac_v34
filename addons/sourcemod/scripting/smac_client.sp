@@ -57,8 +57,8 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarConnectSpam = SMAC_CreateConVar("smac_antispam_connect", "2", "Block reconnection attempts for X seconds. (0 = Disabled)", _, true, 0.0);
-	g_hCvarLockAdm = SMAC_CreateConVar("smac_Lock_Adm", "4", "Blocking the execution of some commands using sm_cvar and sm_rcon. (0:Disabled, 1:Admin notices, 2:Kick, 3:Ban, 4:Admin notices + SMAC, 5:Kick + SMAC, 6:Ban + SMAC). Only the config sets it.", _, true, 0.0, true, 6.0);
+	g_hCvarConnectSpam = SMAC_CreateConVar("smac_antispam_connect", "2", "Seconds to block reconnect spam (0 = off)", _, true, 0.0);
+	g_hCvarLockAdm = SMAC_CreateConVar("smac_Lock_Adm", "4", "Block sm_cvar/sm_rcon misuse: 0=off, 1=notice, 2=kick, 3=ban, 4=notice+log, 5=kick+log, 6=ban+log", _, true, 0.0, true, 6.0);
 	g_iLockAdm = GetConVarInt(g_hCvarLockAdm);
 	HookConVarChange(g_hCvarLockAdm, OnLockAdmChanged);
 	AddCommandListener(Command_LockAdm, "sm_rcon");
@@ -70,9 +70,9 @@ public OnPluginStart()
 	HookEvent("player_changename", Event_PlayerChangeName, EventHookMode_Post);
 	AddCommandListener(Command_Autobuy, "autobuy");
 
-	g_hCvarNameSteal = SMAC_CreateConVar("smac_namesteal_action", "2", "Name stealer: a new name equal to another player's name plus spaces (420hook). 0=off, 1=admin notice, 2=kick, 3=ban. Other copies of a name (\"(1)name\") only notify.", _, true, 0.0, true, 3.0);
-	g_hCvarDisconnectSig = SMAC_CreateConVar("smac_disconnect_signature_action", "3", "Cheat disconnect text (420hook: \"420hook\", \"VAC BAN!!!\", \"Gay Shit\"). 0=off, 1=log and admin notice, 3=ban the SteamID after the player left.", _, true, 0.0, true, 3.0);
-	g_hCvarChatSig = SMAC_CreateConVar("smac_chat_signature_action", "1", "Cheat adverts in chat (420hook kill say: 420hook, bennyhook.pw, ...). 0=off, 1=admin notice, 2=kick, 3=ban.", _, true, 0.0, true, 3.0);
+	g_hCvarNameSteal = SMAC_CreateConVar("smac_namesteal_action", "2", "Name equal to another player plus spaces: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarDisconnectSig = SMAC_CreateConVar("smac_disconnect_signature_action", "3", "Known cheat disconnect text: 0=off, 1=notice, 3=ban SteamID after leave", _, true, 0.0, true, 3.0);
+	g_hCvarChatSig = SMAC_CreateConVar("smac_chat_signature_action", "1", "Known cheat ads in chat: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Pre);
 	AddCommandListener(Command_Say, "say");
 	AddCommandListener(Command_Say, "say_team");

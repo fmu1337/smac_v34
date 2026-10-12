@@ -120,17 +120,17 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarLag = SMAC_CreateConVar("smac_LagExploit_reaction", "1", "Lag Exploit (tickcount shift): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarBacktrack = SMAC_CreateConVar("smac_eyetest_reaction_Advanced", "1", "Backtrack Exploit-Mode:A (tickcount rollback on a shot) and B (cmdnum rollback): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarPSilentWarn = SMAC_CreateConVar("smac_PSilent_Warning", "1", "PSilent [Active Mode] detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarPSilentBan = SMAC_CreateConVar("smac_PSilent_Ban", "0", "PSilent [Active Mode] detections before punish: -N = kick, +N = ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarFakeStatus = SMAC_CreateConVar("smac_plus_fake_status", "1", "Changer Player Status (a client flagged as a bot sends mouse input): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarCmdJump = SMAC_CreateConVar("smac_CmdNumJump_reaction", "2", "CmdNum Jump (cmdnum skips > 90 commands, 420hook Lag Exploit): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarTickAhead = SMAC_CreateConVar("smac_TickAhead_reaction", "2", "Tick Ahead (client tickcount > 1 s ahead of the server, 420hook Airstuck): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarBtPatch = SMAC_CreateConVar("smac_backtrack_patch", "0", "Backtrack Patch (Little Anti-Cheat): replace a tampered client tickcount with the engine estimate for a while. Not a detector. 0=off, 1=on", _, true, 0.0, true, 1.0);
-	g_hCvarBtPatchTime = SMAC_CreateConVar("smac_backtrack_patch_time", "5.0", "Seconds the Backtrack Patch stays on after the last tampered tickcount.", _, true, 0.5, true, 60.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarLag = SMAC_CreateConVar("smac_LagExploit_reaction", "1", "Lag Exploit (tickcount shift): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarBacktrack = SMAC_CreateConVar("smac_eyetest_reaction_Advanced", "1", "Backtrack A (tick on shot) / B (cmdnum): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarPSilentWarn = SMAC_CreateConVar("smac_PSilent_Warning", "1", "PSilent: notify after N detections (0 = never)", _, true, 0.0);
+	g_hCvarPSilentBan = SMAC_CreateConVar("smac_PSilent_Ban", "0", "PSilent: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarFakeStatus = SMAC_CreateConVar("smac_plus_fake_status", "1", "Fake bot that sends mouse: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarCmdJump = SMAC_CreateConVar("smac_CmdNumJump_reaction", "2", "CmdNum Jump (skip > 90): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarTickAhead = SMAC_CreateConVar("smac_TickAhead_reaction", "2", "Tick Ahead (>1 s ahead of server): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarBtPatch = SMAC_CreateConVar("smac_backtrack_patch", "0", "Patch tampered tickcount with engine estimate: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarBtPatchTime = SMAC_CreateConVar("smac_backtrack_patch_time", "5.0", "Seconds the backtrack patch stays on after a bad tickcount", _, true, 0.5, true, 60.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);

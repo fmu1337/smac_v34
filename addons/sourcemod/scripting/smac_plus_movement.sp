@@ -135,16 +135,16 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run and BunnyHop: Fast Detect (speed > 289): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only", _, true, -1.0, true, 4.0);
-	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarTeleport = SMAC_CreateConVar("smac_SpeedTeleport", "-1500.0", "Teleport Hack: max distance per second, +N = ban, -N = kick, 0 = off (also Teleport Hack: Fast Detect)", _, true, -50000.0, true, 50000.0);
-	g_hCvarTeleportNotice = SMAC_CreateConVar("smac_SpeedTeleport_notice_only", "1", "Teleport Hack: only notify admins instead of the kick/ban set by smac_SpeedTeleport.", _, true, 0.0, true, 1.0);
-	g_hCvarSpin = SMAC_CreateConVar("smac_plus_spinhack_reaction", "1", "Spinhack (per-second yaw sum): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarFastWalk = SMAC_CreateConVar("smac_FastWalk_reaction", "1", "FastWalk (on-ground move zigzag every cmd, 420hook): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarAutoStrafe = SMAC_CreateConVar("smac_AutoStrafe_reaction", "1", "AutoStrafe (air sidemove without strafe keys, following the turn): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarCircle = SMAC_CreateConVar("smac_CircleStrafe_reaction", "1", "CircleStrafe (wishmove above the client's cl_forwardspeed/cl_backspeed/cl_sidespeed): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run / fast bhop (speed > 289): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "Macros/bhop/HaX2/Auto-Jump: -1=off, 0=notice, 1=kick, 2=ban, 3/4=kick/ban Auto-Fire only", _, true, -1.0, true, 4.0);
+	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarTeleport = SMAC_CreateConVar("smac_SpeedTeleport", "-1500.0", "Teleport: max units/sec; +N ban, -N kick, 0=off (also fast detect)", _, true, -50000.0, true, 50000.0);
+	g_hCvarTeleportNotice = SMAC_CreateConVar("smac_SpeedTeleport_notice_only", "1", "Teleport: notice only instead of kick/ban: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarSpin = SMAC_CreateConVar("smac_plus_spinhack_reaction", "1", "Spinhack (yaw sum/sec): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarFastWalk = SMAC_CreateConVar("smac_FastWalk_reaction", "1", "FastWalk (ground zigzag every cmd): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAutoStrafe = SMAC_CreateConVar("smac_AutoStrafe_reaction", "1", "AutoStrafe (air sidemove without keys): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarCircle = SMAC_CreateConVar("smac_CircleStrafe_reaction", "1", "CircleStrafe (wishmove above cl_*speed): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);

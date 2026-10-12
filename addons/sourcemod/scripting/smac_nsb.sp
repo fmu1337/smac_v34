@@ -97,10 +97,10 @@ public OnPluginStart()
 	g_hEnable = SMAC_CreateConVar("smac_nsb", "1", "No-steam ban list: 0=off, 1=on", _, true, 0.0, true, 1.0);
 	g_hBanIp = SMAC_CreateConVar("smac_nsb_banip", "1", "Also addip on enforce: 0=off, 1=exact IP, 2=/24, 3=/16", _, true, 0.0, true, 3.0);
 	g_hBanIpTime = SMAC_CreateConVar("smac_nsb_banip_time", "45", "addip duration in minutes", _, true, 1.0);
-	g_hBanSteam = SMAC_CreateConVar("smac_nsb_steamid", "1", "Also sm_ban the SteamID: 0=kick only, 1=ban", _, true, 0.0, true, 1.0);
-	g_hFail = SMAC_CreateConVar("smac_nsb_fail", "1", "Client did not answer the marker query: 0=log, 1=kick", _, true, 0.0, true, 1.0);
-	g_hRestore = SMAC_CreateConVar("smac_nsb_restore", "200", "Seconds until a menu toggle-off turns the check back on. 0 keeps it off", _, true, 0.0);
-	g_hWarnEvery = SMAC_CreateConVar("smac_nsb_warn", "25", "Seconds between admin warnings while the check is toggled off. 0=silent", _, true, 0.0);
+	g_hBanSteam = SMAC_CreateConVar("smac_nsb_steamid", "1", "Also ban SteamID: 0=kick only, 1=ban", _, true, 0.0, true, 1.0);
+	g_hFail = SMAC_CreateConVar("smac_nsb_fail", "1", "No answer to marker query: 0=log, 1=kick", _, true, 0.0, true, 1.0);
+	g_hRestore = SMAC_CreateConVar("smac_nsb_restore", "200", "Seconds until menu toggle-off re-enables the check (0 = stay off)", _, true, 0.0);
+	g_hWarnEvery = SMAC_CreateConVar("smac_nsb_warn", "25", "Seconds between admin warnings while check is off (0 = silent)", _, true, 0.0);
 
 	HookConVarChange(g_hEnable, OnEnableChanged);
 

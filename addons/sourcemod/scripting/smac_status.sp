@@ -23,10 +23,10 @@ public OnPluginStart()
 	RegConsoleCmd("sm_status", StatusCmd);
 	RegConsoleCmd("sm_ping", PingCmd);
 
-	g_hCvarStatusShow =	SMAC_CreateConVar("smac_status_show",		"1", "Hide(0) or show (1) status command.", _, true, 0.0, true, 1.0);
-	g_hCvarPingShow =	SMAC_CreateConVar("smac_ping_show",			"1", "Hide(0) or show (1) ping command.", _, true, 0.0, true, 1.0);
-	g_hCvarSelfShow =	SMAC_CreateConVar("smac_status_self_show",	"1", "Print into status: only self (0) or all players (1) to non-admin clients.", _, true, 0.0, true, 1.0);
-	g_hCvarAdminShow =	SMAC_CreateConVar("smac_status_admin_show",	"1", "Print into status: only self (0) or all players (1) to admins.", _, true, 0.0, true, 1.0);
+	g_hCvarStatusShow =	SMAC_CreateConVar("smac_status_show",		"1", "Allow status command: 0=hide, 1=show", _, true, 0.0, true, 1.0);
+	g_hCvarPingShow =	SMAC_CreateConVar("smac_ping_show",			"1", "Allow ping command: 0=hide, 1=show", _, true, 0.0, true, 1.0);
+	g_hCvarSelfShow =	SMAC_CreateConVar("smac_status_self_show",	"1", "Non-admins in status: 0=self only, 1=all players", _, true, 0.0, true, 1.0);
+	g_hCvarAdminShow =	SMAC_CreateConVar("smac_status_admin_show",	"1", "Admins in status: 0=self only, 1=all players", _, true, 0.0, true, 1.0);
 
 	HookConVarChange(g_hCvarStatusShow,	OnCvarChanged);
 	HookConVarChange(g_hCvarPingShow,	OnCvarChanged);

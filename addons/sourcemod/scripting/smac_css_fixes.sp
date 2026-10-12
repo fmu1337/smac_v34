@@ -15,10 +15,10 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 	new Handle:hCvar = INVALID_HANDLE;
-	hCvar = SMAC_CreateConVar("smac_css_defusefix", "1", "Block illegal defuses.", _, true, 0.0, true, 1.0);
+	hCvar = SMAC_CreateConVar("smac_css_defusefix", "1", "Block illegal bomb defuses: 0=off, 1=on", _, true, 0.0, true, 1.0);
 	OnDefuseFixChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnDefuseFixChanged);
-	hCvar = SMAC_CreateConVar("smac_css_respawnfix", "1", "Block players from respawning through rejoins.", _, true, 0.0, true, 1.0);
+	hCvar = SMAC_CreateConVar("smac_css_respawnfix", "1", "Block respawn via reconnect: 0=off, 1=on", _, true, 0.0, true, 1.0);
 	OnRespawnFixChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnRespawnFixChanged);
 }

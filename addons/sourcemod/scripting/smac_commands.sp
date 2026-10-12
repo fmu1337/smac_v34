@@ -27,7 +27,7 @@ public OnPluginStart()
 
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
-	g_hLogCommands = SMAC_CreateConVar("smac_commands_log", "0", "Log command usage. Use only for debugging purposes.", _, true, 0.0);
+	g_hLogCommands = SMAC_CreateConVar("smac_commands_log", "0", "Log blocked/allowed command usage (debug): 0=off, 1=on", _, true, 0.0);
 	OnSettingsChanged1(g_hLogCommands, "", "");
 	HookConVarChange(g_hLogCommands, OnSettingsChanged1);
 

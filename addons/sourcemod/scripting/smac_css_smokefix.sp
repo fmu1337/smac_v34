@@ -38,10 +38,10 @@ new Handle:g_hCvarMapFog = INVALID_HANDLE;
 
 public OnPluginStart()
 {
-	g_hCvarEnable = SMAC_CreateConVar("smac_smokefix", "1", "Smoke fix: denser smoke and an invisible blocker that hides players in smoke from smac_wallhack. (0:Disabled, 1:Enabled)", _, true, 0.0, true, 1.0);
-	g_hCvarDelay = SMAC_CreateConVar("smac_smokefix_delay", "5.0", "Seconds after detonation until the blocker is placed. Too low and players vanish before the cloud has grown.", _, true, 0.0, true, 15.0);
-	g_hCvarDensity = SMAC_CreateConVar("smac_smokefix_density", "2", "Extra smoke emitters per grenade.", _, true, 0.0, true, float(SMOKE_MAX_DENSITY));
-	g_hCvarMapFog = SMAC_CreateConVar("smac_smokefix_mapfog", "1", "Remove env_fog_controller, func_smokevolume and func_dustmotes on round start.", _, true, 0.0, true, 1.0);
+	g_hCvarEnable = SMAC_CreateConVar("smac_smokefix", "1", "Denser smoke + invisible blocker for smac_wallhack: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarDelay = SMAC_CreateConVar("smac_smokefix_delay", "5.0", "Seconds after detonation before placing the blocker", _, true, 0.0, true, 15.0);
+	g_hCvarDensity = SMAC_CreateConVar("smac_smokefix_density", "2", "Extra smoke emitters per grenade", _, true, 0.0, true, float(SMOKE_MAX_DENSITY));
+	g_hCvarMapFog = SMAC_CreateConVar("smac_smokefix_mapfog", "1", "Remove map fog/smokevolume/dustmotes on round start: 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	HookEvent("smokegrenade_detonate", Event_SmokeDetonate, EventHookMode_Post);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);

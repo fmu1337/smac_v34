@@ -122,23 +122,23 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarWarn[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_PRG", "3", "AimBot PRG Pass.Mode:301-304: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_PRG", "0", "AimBot PRG Pass.Mode:301-304: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGT", "7", "AimBot AGT Mode:288/299: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGT", "0", "AimBot AGT Mode:288/299: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_Tr", "7", "AimBot Trigger Mode:188/199: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_Tr", "0", "AimBot Trigger Mode:188/199: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTAF", "3", "AimBot AGTAF Mode:88/99/108/109: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTAF", "0", "AimBot AGTAF Mode:88/99/108/109: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTNL", "1", "AimBot AGTNL Mode:200/201: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTNL", "0", "AimBot AGTNL Mode:200/201: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AMSAF", "5", "AimBot AMSAF Mode:101: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AimBot AMSAF Mode:101: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTWS", "4", "AimBot AGTWS Mode:100: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AimBot AGTWS Mode:100: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarWarn[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Warning_AMS", "3", "AimBot UsingWH Mode:103: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Ban_AMS", "0", "AimBot UsingWH Mode:103: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarWarn[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_PRG", "3", "PRG 301-304: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_PRG", "0", "PRG 301-304: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGT", "7", "AGT 288/299: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGT", "0", "AGT 288/299: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_Tr", "7", "Trigger 188/199: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_Tr", "0", "Trigger 188/199: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTAF", "3", "AGTAF 88/99/108/109: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTAF", "0", "AGTAF 88/99/108/109: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTNL", "1", "AGTNL 200/201: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTNL", "0", "AGTNL 200/201: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AMSAF", "5", "AMSAF 101: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AMSAF 101: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTWS", "4", "AGTWS 100: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AGTWS 100: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarWarn[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Warning_AMS", "3", "UsingWH 103: notify from this counter (0 = never)", _, true, 0.0);
+	g_hCvarBan[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Ban_AMS", "0", "UsingWH 103: punish after |N| (+N ban, -N kick, 0 = never)", _, true, -100.0, true, 100.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
 	g_hTriePistol = CreateTrie();

@@ -46,13 +46,13 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarImpulse = SMAC_CreateConVar("smac_css_Impulse", "12", "Max cmds with an impulse (flashlight, spray, ...) per second before a kick. (0 = off)", _, true, 0.0, true, 100.0);
-	g_hCvarSensLimits = SMAC_CreateConVar("smac_plus_sensitivity_limits", "1", "Sensitivity outside [1; 20]: 0=off, 1=admin notice, 2=kick", _, true, 0.0, true, 2.0);
-	g_hCvarSensChanges = SMAC_CreateConVar("smac_antispam_Mouse_Sensitivity", "-5", "Sensitivity changes per map: +N = ban, -N = kick after more than N changes, 0 = off", _, true, -100.0, true, 100.0);
-	g_hCvarSpeedUp = SMAC_CreateConVar("smac_SpeedUp", "1.2", "FakeSendPacket[Max]: allowed usercmds per second as a multiple of the tickrate. (0 = off)", _, true, 0.0, true, 3.0);
-	g_hCvarSpeedLimit = SMAC_CreateConVar("smac_SpeedLimitDetect", "-7", "FakeSendPacket: +N = ban, -N = kick after more than N seconds over the limit (2N seconds under it), 0 = off", _, true, -100.0, true, 100.0);
-	g_hCvarNoticeOnly = SMAC_CreateConVar("smac_plus_client_notice_only", "1", "Only notify admins instead of the kick/ban set by the cvars of smac_plus_client.", _, true, 0.0, true, 1.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarImpulse = SMAC_CreateConVar("smac_css_Impulse", "12", "Max impulse cmds per second before kick (0 = off)", _, true, 0.0, true, 100.0);
+	g_hCvarSensLimits = SMAC_CreateConVar("smac_plus_sensitivity_limits", "1", "Sensitivity outside [1; 20]: 0=off, 1=notice, 2=kick", _, true, 0.0, true, 2.0);
+	g_hCvarSensChanges = SMAC_CreateConVar("smac_antispam_Mouse_Sensitivity", "-5", "Sensitivity changes per map: +N ban, -N kick after |N|, 0=off", _, true, -100.0, true, 100.0);
+	g_hCvarSpeedUp = SMAC_CreateConVar("smac_SpeedUp", "1.2", "FakeSendPacket max: usercmds/sec as multiple of tickrate (0 = off)", _, true, 0.0, true, 3.0);
+	g_hCvarSpeedLimit = SMAC_CreateConVar("smac_SpeedLimitDetect", "-7", "FakeSendPacket: +N ban / -N kick after N seconds over limit (2N under), 0=off", _, true, -100.0, true, 100.0);
+	g_hCvarNoticeOnly = SMAC_CreateConVar("smac_plus_client_notice_only", "1", "Ignore kick/ban from smac_plus_client cvars; notice only: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	CreateTimer(1.0, Timer_Second, _, TIMER_REPEAT);
 	CreateTimer(QUERY_INTERVAL, Timer_QueryAll, _, TIMER_REPEAT);

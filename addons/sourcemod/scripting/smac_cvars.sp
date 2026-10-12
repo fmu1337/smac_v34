@@ -49,9 +49,9 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", _, true, 0.0, true, 1.0);
+	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Mute players on HLDJ/HLSS detect: 0=off, 1=on", _, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarHldj, OnCvarHldjChanged);
-	g_hCvarPlus = SMAC_CreateConVar("smac_cvars_plus", "1", "SMAC Plus cvar table: 0 = off, 1 = admin notice only, 2 = kick/ban. Missing or protected cvars are ignored.", _, true, 0.0, true, 2.0);
+	g_hCvarPlus = SMAC_CreateConVar("smac_cvars_plus", "1", "Extra cheat cvar table: 0=off, 1=notice, 2=kick/ban", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarPlus, OnCvarPlusChanged);
 	g_hPlusNames = CreateArray(ByteCountToCells(MAX_CVAR_NAME_LEN));
 

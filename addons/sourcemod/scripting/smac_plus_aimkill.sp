@@ -33,7 +33,7 @@ new g_iDecoy[MAXPLAYERS+1][SLOTS];
 
 public OnPluginStart()
 {
-	g_hCvarAimKill = SMAC_CreateConVar("smac_AIM_Kill", "1", "Invisible anti-aimbot decoys: 0=off, 1=box at the face, 2=also a decoy at the player's position", _, true, 0.0, true, 2.0);
+	g_hCvarAimKill = SMAC_CreateConVar("smac_AIM_Kill", "1", "Anti-aimbot decoys: 0=off, 1=box at the face, 2=also decoy at player origin", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarAimKill, OnAimKillChanged);
 
 	HookEvent("player_spawn", Event_PlayerReset, EventHookMode_Post);

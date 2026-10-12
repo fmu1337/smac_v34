@@ -133,22 +133,22 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only", _, true, -1.0, true, 4.0);
-	g_hCvarTriggerWarn = SMAC_CreateConVar("smac_AdvancedTrigger_Warning", "3", "Advanced Trigger detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarTriggerBan = SMAC_CreateConVar("smac_AdvancedTrigger_Ban", "0", "Advanced Trigger: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarAutoFireWarn = SMAC_CreateConVar("smac_AdvancedAutoFire_Warning", "3", "Advanced AutoFire detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarAutoFireBan = SMAC_CreateConVar("smac_AdvancedAutoFire_Ban", "0", "Advanced AutoFire: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarFastAimWarn = SMAC_CreateConVar("smac_Fast_AIM_Detect_Warning", "3", "Fast AIM Detect detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarFastAimBan = SMAC_CreateConVar("smac_Fast_AIM_Detect_Ban", "0", "Fast AIM Detect: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarRcsHurt = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Hurt", "4", "Recoil Control System -H: max aim change per second on hits, +N = ban, -N = kick, 0 = off", _, true, -1000.0, true, 1000.0);
-	g_hCvarRcsFire = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Fire", "-40", "Recoil Control System -F: max aim change per second while firing, +N = ban, -N = kick, 0 = off", _, true, -1000.0, true, 1000.0);
-	g_hCvarRcsNotice = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_notice_only", "1", "Recoil Control System: only notify admins instead of the kick/ban set by the sign.", _, true, 0.0, true, 1.0);
-	g_hCvarCheatCfg = SMAC_CreateConVar("smac_css_CheatCFG", "1", "CheatCFG (Stop Movement, Fast Switch, Fast Reload): 0=off, 1=admin notice, 2=kick, 3=ban (4-6 = same, league mode)", _, true, 0.0, true, 6.0);
-	g_hCvar2XWarn = SMAC_CreateConVar("smac_method_2X_Warning", "8", "Using the button 2X for fire: detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvar2XBan = SMAC_CreateConVar("smac_method_2X_Ban", "0", "Using the button 2X for fire: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: detections before admins are notified, 0 = never", _, true, 0.0);
-	g_hCvarKnifeBan = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Ban", "0", "KnifeBot: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "Macros/bhop/HaX2/Auto-Jump: -1=off, 0=notice, 1=kick, 2=ban, 3/4=kick/ban Auto-Fire only", _, true, -1.0, true, 4.0);
+	g_hCvarTriggerWarn = SMAC_CreateConVar("smac_AdvancedTrigger_Warning", "3", "Advanced Trigger: notify after N detections (0 = never)", _, true, 0.0);
+	g_hCvarTriggerBan = SMAC_CreateConVar("smac_AdvancedTrigger_Ban", "0", "Advanced Trigger: +N ban / -N kick after |N|, 0=never", _, true, -100.0, true, 100.0);
+	g_hCvarAutoFireWarn = SMAC_CreateConVar("smac_AdvancedAutoFire_Warning", "3", "Advanced AutoFire: notify after N detections (0 = never)", _, true, 0.0);
+	g_hCvarAutoFireBan = SMAC_CreateConVar("smac_AdvancedAutoFire_Ban", "0", "Advanced AutoFire: +N ban / -N kick after |N|, 0=never", _, true, -100.0, true, 100.0);
+	g_hCvarFastAimWarn = SMAC_CreateConVar("smac_Fast_AIM_Detect_Warning", "3", "Fast AIM: notify after N detections (0 = never)", _, true, 0.0);
+	g_hCvarFastAimBan = SMAC_CreateConVar("smac_Fast_AIM_Detect_Ban", "0", "Fast AIM: +N ban / -N kick after |N|, 0=never", _, true, -100.0, true, 100.0);
+	g_hCvarRcsHurt = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Hurt", "4", "RCS on hits: max aim delta/sec; +N ban, -N kick, 0=off", _, true, -1000.0, true, 1000.0);
+	g_hCvarRcsFire = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Fire", "-40", "RCS while firing: max aim delta/sec; +N ban, -N kick, 0=off", _, true, -1000.0, true, 1000.0);
+	g_hCvarRcsNotice = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_notice_only", "1", "RCS: notice only instead of kick/ban from sign: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarCheatCfg = SMAC_CreateConVar("smac_css_CheatCFG", "1", "CheatCFG (stop move / fast switch / reload): 0=off, 1=notice, 2=kick, 3=ban (4-6 same)", _, true, 0.0, true, 6.0);
+	g_hCvar2XWarn = SMAC_CreateConVar("smac_method_2X_Warning", "8", "2X fire: notify after N detections (0 = never)", _, true, 0.0);
+	g_hCvar2XBan = SMAC_CreateConVar("smac_method_2X_Ban", "0", "2X fire: +N ban / -N kick after |N|, 0=never", _, true, -100.0, true, 100.0);
+	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: notify after N detections (0 = never; off by default)", _, true, 0.0);
+	g_hCvarKnifeBan = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Ban", "0", "KnifeBot: +N ban / -N kick after |N|, 0=never", _, true, -100.0, true, 100.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
 	FillTrie(g_hTrieExclude, "knife tknifehs tknife env_explosion hegrenade flashbang smokegrenade hegrenade_projectile flashbang_projectile smokegrenade_projectile entityflame worldspawn world watermelon watermelon_projectile");

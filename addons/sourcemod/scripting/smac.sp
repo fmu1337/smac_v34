@@ -43,12 +43,12 @@ public OnPluginStart()
 	g_hCvarVersion = CreateConVar("smac_version", SMAC_VERSION, "SourceMod Anti-Cheat", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	OnVersionChanged(g_hCvarVersion, "", "");
 	HookConVarChange(g_hCvarVersion, OnVersionChanged);
-	g_hCvarWelcomeMsg = CreateConVar("smac_welcomemsg", "2", "Display a message saying that your server is protected. 0 - disable 1 - chat 2 - hint 3 - center", _, true, 0.0, true, 3.0);
-	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Time after display welcome message.", _, true, 1.0, true, 30.0);
-	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Display client info in client console.", _, true, 0.0, true, 1.0);
-	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "The duration in minutes used for automatic bans. (0 = Permanent)", _, true, 0.0);
-	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Include extra information about a client being logged.", _, true, 0.0, true, 1.0);
-	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Change GameDescr. to 'Protected by SMAC: v34'", _, true, 0.0, true, 1.0);
+	g_hCvarWelcomeMsg = CreateConVar("smac_welcomemsg", "2", "Welcome message that the server is protected: 0=off, 1=chat, 2=hint, 3=center", _, true, 0.0, true, 3.0);
+	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Delay in seconds before the welcome message", _, true, 1.0, true, 30.0);
+	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Print banned client info to their console: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "Automatic ban length in minutes (0 = permanent)", _, true, 0.0);
+	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Extra client info in SMAC logs: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Set game description to 'Protected by SMAC: v34': 0=off, 1=on", _, true, 0.0, true, 1.0);
 	RegAdminCmd("smac_status", Command_Status, ADMFLAG_GENERIC, "View the server's player status.");
 }
 

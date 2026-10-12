@@ -61,26 +61,26 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
-	new Handle: hCvar = CreateConVar("smac_wallhack", "1", "Anti-Wallhack mode. (0:Disable, 1:Normal Mode, 2:FFA Mode, Radar OFF)", _, true, 0.0, true, 2.0);
+	new Handle: hCvar = CreateConVar("smac_wallhack", "1", "Anti-wallhack: 0=off, 1=normal, 2=FFA (radar off)", _, true, 0.0, true, 2.0);
 	g_iMode = GetConVarInt(hCvar);
 	HookConVarChange(hCvar, OnModeChanged);
 
-	hCvar = CreateConVar("smac_wallhack_Level", "0.0", "Degree of rigidity of the Anti-Wallhack. (Easy < 0.0 > Hard; -3.0 = stock SMAC width)", _, true, -3.0, true, 3.0);
+	hCvar = CreateConVar("smac_wallhack_Level", "0.0", "Anti-WH tightness (easy < 0 < hard; -3.0 = stock width)", _, true, -3.0, true, 3.0);
 	OnLevelChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnLevelChanged);
 
-	hCvar = CreateConVar("smac_SoundESP", "0", "Anti-SoundESP for listeners who can't see the source. (-1:Disable sound handling, 0:Real sounds, 1:Fake position, 2:Fake position + level/pitch, 3:Volume by distance + level/pitch, 4:All)", _, true, -1.0, true, 4.0);
+	hCvar = CreateConVar("smac_SoundESP", "0", "Anti-SoundESP for hidden sources: -1=off sounds, 0=real, 1=fake pos, 2=fake+level/pitch, 3=vol by dist, 4=all", _, true, -1.0, true, 4.0);
 	g_iSoundESP = GetConVarInt(hCvar);
 	HookConVarChange(hCvar, OnSoundESPChanged);
 
-	hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", _, true, 1.0);
+	hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max traces per tick", _, true, 1.0);
 	OnMaxTracesChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnMaxTracesChanged);
 
-	g_hCvarTime = CreateConVar("smac_wallhack_Time", "0.2", "How long a player stays visible after he was last seen, in seconds.", _, true, 0.1, true, 0.4);
+	g_hCvarTime = CreateConVar("smac_wallhack_Time", "0.2", "Seconds a player stays visible after last seen", _, true, 0.1, true, 0.4);
 	HookConVarChange(g_hCvarTime, WallHack_TickOnSettingsChanged);
 
-	g_hCvarTickTime = CreateConVar("smac_wallhack_ticktime", "0", "Legacy (stock SMAC, was 0.75): when above 0, used instead of smac_wallhack_Time.", _, true, 0.0, true, 2.0);
+	g_hCvarTickTime = CreateConVar("smac_wallhack_ticktime", "0", "Legacy: if > 0, used instead of smac_wallhack_Time", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarTickTime, WallHack_TickOnSettingsChanged);
 	WallHack_TickOnSettingsChanged(INVALID_HANDLE, "", "");
 

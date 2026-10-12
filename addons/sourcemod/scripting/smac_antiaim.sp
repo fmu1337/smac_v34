@@ -20,7 +20,7 @@ new iMode = -1;
 new Handle:hAntiAimMode = INVALID_HANDLE;
 public OnPluginStart()
 {
-	hAntiAimMode = SMAC_CreateConVar("smac_aimbot_killer", "1", "0 - off, 1 - on. Breaks GetClientAimTarget() when 1.", _, true, 0.0);
+	hAntiAimMode = SMAC_CreateConVar("smac_aimbot_killer", "1", "Invisible props that break GetClientAimTarget: 0=off, 1=on", _, true, 0.0);
 	OnModeChanged(hAntiAimMode, "", "");
 	HookConVarChange(hAntiAimMode, OnModeChanged);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);

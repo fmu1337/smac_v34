@@ -20,11 +20,11 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Amount of commands allowed per second, kick above it. (0 = Disabled; SMAC Plus: -25, stock SMAC: 35; the sign is accepted for configs)");
+	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Max commands per second (absolute value; 0 = off). Sign ignored for old configs");
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 
-	g_hCvarCmdSpamKick = SMAC_CreateConVar("smac_antispam_cmds_kick", "1", "Kick (1) or only notify admins and log (0) on command spam.", _, true, 0.0, true, 1.0);
+	g_hCvarCmdSpamKick = SMAC_CreateConVar("smac_antispam_cmds_kick", "1", "On command spam: 0=notice only, 1=kick", _, true, 0.0, true, 1.0);
 
 	g_hIgnoredCmds = CreateTrie();
 

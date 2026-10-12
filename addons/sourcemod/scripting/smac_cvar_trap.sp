@@ -43,9 +43,9 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarEnable = SMAC_CreateConVar("smac_cvar_trap", "1", "xbox_throttlebias trap through the MOTD exit command (CSS v34 only): 0=off, 1=on", _, true, 0.0, true, 1.0);
-	g_hCvarAction = SMAC_CreateConVar("smac_cvar_trap_action", "0", "Reaction when the trap was reset: 0=admin notice and log, 1=kick, 2=ban", _, true, 0.0, true, 2.0);
-	g_hCvarDelay = SMAC_CreateConVar("smac_cvar_trap_delay", "2.0", "Seconds between the ack and the check query", _, true, 0.5, true, 30.0);
+	g_hCvarEnable = SMAC_CreateConVar("smac_cvar_trap", "1", "xbox_throttlebias MOTD trap (CSS v34): 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarAction = SMAC_CreateConVar("smac_cvar_trap_action", "0", "If the trap was reset: 0=notice, 1=kick, 2=ban", _, true, 0.0, true, 2.0);
+	g_hCvarDelay = SMAC_CreateConVar("smac_cvar_trap_delay", "2.0", "Seconds between MOTD ack and the check query", _, true, 0.5, true, 30.0);
 
 	new EngineVersion:engine = GetEngineVersion();
 	g_bSupported = (engine == Engine_SourceSDK2006 || engine == Engine_Original);

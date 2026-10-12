@@ -46,9 +46,9 @@ new g_iSamples[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
-	g_hCvarEnable = CreateConVar("smac_norecoil_diag", "1", "No Recoil diagnostics: 0 = off, 1 = log to logs/smac_norecoil_diag.log", _, true, 0.0, true, 1.0);
-	g_hCvarSamples = CreateConVar("smac_norecoil_diag_samples", "20", "Raw angle samples logged per player and map when eye angles differ from the previous cmd.", _, true, 0.0, true, 1000.0);
-	g_hCvarNoRBan = CreateConVar("smac_norecoil_diag_ban", "5", "|smac_NoR_Ban| used for the replay (default 5).", _, true, 1.0, true, 100.0);
+	g_hCvarEnable = CreateConVar("smac_norecoil_diag", "1", "No Recoil A/B diagnostics log: 0=off, 1=on (logs/smac_norecoil_diag.log)", _, true, 0.0, true, 1.0);
+	g_hCvarSamples = CreateConVar("smac_norecoil_diag_samples", "20", "Raw angle samples per player and map when eye != prev cmd", _, true, 0.0, true, 1000.0);
+	g_hCvarNoRBan = CreateConVar("smac_norecoil_diag_ban", "5", "Replay threshold like |smac_NoR_Ban| (default 5)", _, true, 1.0, true, 100.0);
 
 	BuildPath(Path_SM, g_sLog, sizeof(g_sLog), "logs/smac_norecoil_diag.log");
 

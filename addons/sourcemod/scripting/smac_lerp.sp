@@ -31,11 +31,11 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarNoLerp = SMAC_CreateConVar("smac_lerp_reaction", "1", "NoLerp (m_fLerpTime below 1 / sv_maxupdaterate, a tampered client): 0=off, 1=admin notice, 2=kick, 3=ban (LilAC: ban)", _, true, 0.0, true, 3.0);
-	g_hCvarMaxLerp = SMAC_CreateConVar("smac_lerp_max", "105", "Max lerp in ms. Above it the player gets the lag compensation of this value. (0 = no limit)", _, true, 0.0, true, 1000.0);
-	g_hCvarMaxLerpReaction = SMAC_CreateConVar("smac_lerp_max_reaction", "1", "Lerp above smac_lerp_max: 0=off, 1=admin notice, 2=kick (LilAC: kick)", _, true, 0.0, true, 2.0);
-	g_hCvarFix = SMAC_CreateConVar("smac_lerp_fix", "1", "Clamp m_fLerpTime into [1 / sv_maxupdaterate, smac_lerp_max] before lag compensation. 0=off, 1=on", _, true, 0.0, true, 1.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarNoLerp = SMAC_CreateConVar("smac_lerp_reaction", "1", "NoLerp (lerp below 1/sv_maxupdaterate): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarMaxLerp = SMAC_CreateConVar("smac_lerp_max", "105", "Max lerp in ms (0 = no limit); lagcomp uses this cap when higher", _, true, 0.0, true, 1000.0);
+	g_hCvarMaxLerpReaction = SMAC_CreateConVar("smac_lerp_max_reaction", "1", "Lerp above smac_lerp_max: 0=off, 1=notice, 2=kick", _, true, 0.0, true, 2.0);
+	g_hCvarFix = SMAC_CreateConVar("smac_lerp_fix", "1", "Clamp lerp before lag compensation: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	g_hCvarMaxUpdateRate = FindConVar("sv_maxupdaterate");
 

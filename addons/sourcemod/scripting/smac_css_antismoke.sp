@@ -27,7 +27,7 @@ public OnPluginStart()
 {
 	g_hSmokes = CreateArray(3);
 
-	new Handle:hCvar = CreateConVar("smac_AntiSmoke", "1", "Prevents anti-smoke cheats from working. (0:Disabled, 1:Standard Protection, 2:Advanced Protection)", _, true, 0.0, true, 2.0);
+	new Handle:hCvar = CreateConVar("smac_AntiSmoke", "1", "Anti-smoke protection: 0=off, 1=standard, 2=advanced", _, true, 0.0, true, 2.0);
 	g_iMode = GetConVarInt(hCvar);
 	HookConVarChange(hCvar, OnModeChanged);
 

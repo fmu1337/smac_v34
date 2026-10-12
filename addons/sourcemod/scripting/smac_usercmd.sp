@@ -72,9 +72,9 @@ new g_iWin[MAXPLAYERS+1][Win_Count];
 
 public OnPluginStart()
 {
-	g_hCvarEnable = CreateConVar("smac_usercmd_diag", "1", "Usercmd checks (MoveGrid, SnapBack, FakeLag, Roll): 0 = off, 1 = on (log to logs/smac_usercmd_diag.log)", _, true, 0.0, true, 1.0);
-	g_hCvarSamples = CreateConVar("smac_usercmd_diag_samples", "20", "Raw samples logged per player and map.", _, true, 0.0, true, 1000.0);
-	g_hCvarNotify = CreateConVar("smac_usercmd_notify", "1", "Notify admins (and log) when a check crosses its 30 s threshold: 0 = off, 1 = on. Nothing is punished.", _, true, 0.0, true, 1.0);
+	g_hCvarEnable = CreateConVar("smac_usercmd_diag", "1", "Usercmd checks (MoveGrid/SnapBack/FakeLag/Roll): 0=off, 1=log", _, true, 0.0, true, 1.0);
+	g_hCvarSamples = CreateConVar("smac_usercmd_diag_samples", "20", "Raw samples logged per player and map", _, true, 0.0, true, 1000.0);
+	g_hCvarNotify = CreateConVar("smac_usercmd_notify", "1", "Notify admins when a check crosses its threshold (no punish): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	LoadTranslations("smac.phrases");
 	CreateTimer(WINDOW, Timer_Window, _, TIMER_REPEAT);

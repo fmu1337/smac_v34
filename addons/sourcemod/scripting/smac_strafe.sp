@@ -79,11 +79,11 @@ public OnPluginStart()
 	LoadTranslations("common.phrases");
 	LoadTranslations("smac.phrases");
 
-	g_hCvarCheck[CHECK_SYNC] = SMAC_CreateConVar("smac_strafe_sync", "1", "Strafe Sync (key vs mouse direction change, Oryx/BASH): 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
-	g_hCvarCheck[CHECK_TURN] = SMAC_CreateConVar("smac_strafe_turn", "1", "Perfect Turn / Steady Turn (Oryx): 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
-	g_hCvarCheck[CHECK_SILENT] = SMAC_CreateConVar("smac_strafe_silent", "1", "Silent Strafe (sidemove flips every cmd, Cow AC): 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
-	g_hCvarCheck[CHECK_AHK] = SMAC_CreateConVar("smac_strafe_ahk", "1", "AHK Mouse (constant mouse dx in the air, Cow AC): 0=off, 1=log/notice", _, true, 0.0, true, 1.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarCheck[CHECK_SYNC] = SMAC_CreateConVar("smac_strafe_sync", "1", "Strafe Sync: 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
+	g_hCvarCheck[CHECK_TURN] = SMAC_CreateConVar("smac_strafe_turn", "1", "Perfect/Steady Turn: 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
+	g_hCvarCheck[CHECK_SILENT] = SMAC_CreateConVar("smac_strafe_silent", "1", "Silent Strafe: 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
+	g_hCvarCheck[CHECK_AHK] = SMAC_CreateConVar("smac_strafe_ahk", "1", "AHK Mouse: 0=off, 1=log/notice", _, true, 0.0, true, 1.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	g_bMouse = (GetFeatureStatus(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS) == FeatureStatus_Available);
 

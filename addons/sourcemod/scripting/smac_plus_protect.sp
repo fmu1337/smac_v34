@@ -28,8 +28,8 @@ new bool:g_bRestarting;
 
 public OnPluginStart()
 {
-	g_hCvarNoTeamFlash = SMAC_CreateConVar("smac_No_Team_Flash", "0", "Flashbangs: 0=normal, 1=do not blind the thrower's teammates, 2=team T is never blinded, 3=team CT is never blinded", _, true, 0.0, true, 3.0);
-	g_hCvarControlEntity = SMAC_CreateConVar("smac_Control_Entity", "1", "Reload the map when an entity index above 2003 is created (the limit is 2048): 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarNoTeamFlash = SMAC_CreateConVar("smac_No_Team_Flash", "0", "Flashbangs: 0=normal, 1=skip thrower's teammates, 2=T never blinded, 3=CT never blinded", _, true, 0.0, true, 3.0);
+	g_hCvarControlEntity = SMAC_CreateConVar("smac_Control_Entity", "1", "Reload map if entity index > 2003 (engine limit 2048): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	HookEvent("flashbang_detonate", Event_FlashDetonate, EventHookMode_Post);
 	HookEvent("player_blind", Event_PlayerBlind, EventHookMode_Post);
