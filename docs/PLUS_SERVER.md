@@ -1,6 +1,6 @@
 # smac_plus_server — защиты сервера из плагинов Rcon, Cvars и Client SMAC Plus
 
-Plus здесь нет. Собирается SourceMod 1.6 (CS:S v34) и новее.
+Собирается SourceMod 1.6 (CS:S v34) и новее.
 
 В модуль вошло только то, чего нет в стоковых `smac_client`, `smac_commands` и `smac_rcon`. Проверка ника, анти-реконнект,
 блок-лист команд, спам командами, фильтр `say` и `ent_create`/`ent_fire`, защита `rcon_password` уже есть в master и в

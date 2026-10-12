@@ -56,8 +56,8 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   Подробности — в [docs/PLUS_SERVER.md](docs/PLUS_SERVER.md).
 * `smac_plus_aimkill` — AIM_Kill: невидимые несталкивающиеся приманки (ящик у лица игрока), в которые упираются
   трассы аимбота. Защита, а не детект. Подробности — в [docs/PLUS_AIMKILL.md](docs/PLUS_AIMKILL.md).
-* `smac_plus_protect` — No_Team_Flash (флешки не слепят своих) и Control_Entity (перезагрузка карты у лимита энтити)
-  . Подробности — в [docs/PLUS_PROTECT.md](docs/PLUS_PROTECT.md).
+* `smac_plus_protect` — No_Team_Flash (флешки не слепят своих) и Control_Entity (перезагрузка карты у лимита энтити).
+  Подробности — в [docs/PLUS_PROTECT.md](docs/PLUS_PROTECT.md).
 * `smac_plus_diag_norecoil` — **диагностика, без наказаний**: меряет `m_angEyeAngles` против углов usercmd и прогоняет
   No Recoil A/B, чтобы понять, ловил бы он обычных игроков. Как читать — в
   [docs/PLUS_DIAG_NORECOIL.md](docs/PLUS_DIAG_NORECOIL.md).
@@ -77,7 +77,7 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   автострейф, клавиатура так не умеет), SnapBack (взгляд прыгает на одну команду и возвращается — silent aim, jitter),
   FakeLag (пачки по 8+ команд за тик) и Roll (roll ≠ 0 — nospread через `viewangles.z`). Лог —
   `logs/smac_usercmd_diag.log`. Подробности — в [docs/USERCMD.md](docs/USERCMD.md).
-* Детекты по исходникам 420hook : CmdNum Jump и Tick Ahead в `smac_plus_netcode`; FastWalk,
+* Детекты по исходникам 420hook: CmdNum Jump и Tick Ahead в `smac_plus_netcode`; FastWalk,
   AutoStrafe и CircleStrafe в `smac_plus_movement`; Name stealer, текст отключения и реклама в чате в
   `smac_client`; `mat_fullbright` в `smac_cvars`. Спорные по умолчанию только пишут в лог и уведомляют.
   Подробности — в [docs/HOOK_420.md](docs/HOOK_420.md).

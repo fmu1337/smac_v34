@@ -110,7 +110,7 @@ public OnPluginStart()
 	AddCvar(Order_First, "aaa123_steam_set_random_id",	Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "steam_set_id",					Comp_NonExist, Action_Ban);
 	
-	// PlusHook fingerprint cvars (hlmod.net/threads/cs-s-v34-obnaruzhenie-chita-ultr-hook.66608)
+	// Cheat fingerprint cvars (hlmod AntiSMAC / hook thread 66608)
 	// Ban if the client answers (cvar exists). Kick-on-no-reply covers net_blockmsg.
 	AddCvar(Order_First, "bMbALa4DHPBTv8b",				Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "y6JgxqVrY7a7eSE",				Comp_NonExist, Action_Ban);
@@ -260,7 +260,7 @@ public OnClientPostAdminCheck(client)
 	}
 }
 
-// Re-scan when client settings change so mid-session inject (PlusHook etc.) is not missed.
+// Re-scan when client settings change so mid-session inject is not missed.
 public OnClientSettingsChanged(client)
 {
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsClientAuthorized(client))
