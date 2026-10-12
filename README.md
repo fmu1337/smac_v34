@@ -92,6 +92,17 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   и переживает смену SteamID. Меню `sm_nsb` (бан / разбан / проверка). При старте подтягивает ещё не скопированные
   записи из `data/kac_nsblist.txt`. Подробности — в [docs/NSB.md](docs/NSB.md).
 
+## Autopunish (kick/ban без админов)
+
+* `smac_autopunish` — слушает `SMAC_OnCheatDetected`: если на сервере есть админ с `smac_admin_notices` /
+  `ADMFLAG_GENERIC`, только уведомляет и **не** перехватывает реакцию детектора; если админов нет —
+  кикает (`1`) или банит (`2`) по квару на каждый `DetectionType` (`smac_autopunish_aimbot`,
+  `smac_autopunish_airstuck`, `smac_autopunish_plus_movement`, …). Глобально: `smac_autopunish` 0/1,
+  иммунитет подозреваемого с ban/root: `smac_autopunish_immune`. **Все типы по умолчанию 0 (выкл)** —
+  включайте нужные сами. Модуль не меняет `*_reaction` детекторов: для автокика/бана держите их на
+  notice, иначе при пустом сервере стоковый модуль с kick/ban и autopunish могут пересечься
+  (autopunish при наказании возвращает `Plugin_Handled` и блокирует повтор).
+
 ## Из Cheat-Acid (LilAC, Oryx, Cow AC)
 
 Что взято, ревью пересечений и разбор SauRay — [docs/CHEAT_ACID.md](docs/CHEAT_ACID.md). Отложенные идеи — [docs/PLANS.md](docs/PLANS.md).
