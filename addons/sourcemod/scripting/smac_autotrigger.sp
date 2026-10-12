@@ -11,7 +11,7 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-#define MIN_JUMP_TIME		0.500	// Minimum amount of air-time for a jump to count.
+#define MIN_JUMP_TIME		0.500
 #define METHOD_BUNNYHOP		0
 #define METHOD_AUTOSCROLL	1
 #define METHOD_AUTOFIRE		2
@@ -30,8 +30,8 @@ new bool:g_bNoitice[MAXPLAYERS];
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	g_hCvarAction = SMAC_CreateConVar("smac_autotrigger_action", "1", "Action on auto-trigger detections.\n 0 - Notice Admin\n 1 - Kick\n 2 - Ban", _, true, 0.0, true, 50.0);
-	g_hCvarDetections = SMAC_CreateConVar("smac_autotrigger_detections", "7", "Number of autotrigger detections before a player perform action.\nSMAC default - 20\n SMAC by Den4eGG - 3\n SMAC v34 beta - 10\n Recommended - 7", _, true, 0.0, true, 50.0);
+	g_hCvarAction = SMAC_CreateConVar("smac_autotrigger_action", "1", "Auto-trigger action: 0=notice, 1=kick, 2=ban", _, true, 0.0, true, 50.0);
+	g_hCvarDetections = SMAC_CreateConVar("smac_autotrigger_detections", "7", "Auto-trigger detections before action", _, true, 0.0, true, 50.0);
 	OnSettingsChanged(g_hCvarDetections, "", "");
 	HookConVarChange(g_hCvarDetections, OnSettingsChanged);
 	g_iAttackMax = RoundToNearest(1.0 / GetTickInterval() / 3.0);
@@ -44,7 +44,7 @@ public OnClientDisconnect_Post(client)
 	{
 		g_iDetections[i][client] = 0;
 	}
-	g_bNoitice[client] = false; 
+	g_bNoitice[client] = false;
 }
 
 public Action:Timer_DecreaseCount(Handle:timer)
@@ -59,7 +59,7 @@ public Action:Timer_DecreaseCount(Handle:timer)
 			}
 		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
@@ -67,8 +67,13 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 {
 	static iPrevButtons[MAXPLAYERS];
 	static Float:fCheckTime[MAXPLAYERS];
-	if (!(buttons & IN_JUMP) && (GetEntityFlags(client) & FL_ONGROUND) && fCheckTime[client] > 0.0){fCheckTime[client] = 0.0;}
-	if ((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP))
+
+	if (GetEntityMoveType(client) == MOVETYPE_LADDER)
+	{
+		fCheckTime[client] = 0.0;
+	}
+	else if (!(buttons & IN_JUMP) && (GetEntityFlags(client) & FL_ONGROUND) && fCheckTime[client] > 0.0){fCheckTime[client] = 0.0;}
+	else if ((buttons & IN_JUMP) && !(iPrevButtons[client] & IN_JUMP))
 	{
 		if (GetEntityFlags(client) & FL_ONGROUND)
 		{
@@ -96,7 +101,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			AutoTrigger_Detected(client, METHOD_AUTOSCROLL);
 			iAttackAmt[client] = 0;
 		}
-		
+
 		bResetNext[client] = false;
 	}
 	else if (((buttons & IN_ATTACK) && !(iPrevButtons[client] & IN_ATTACK)) || (!(buttons & IN_ATTACK) && (iPrevButtons[client] & IN_ATTACK)))
@@ -106,7 +111,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			AutoTrigger_Detected(client, METHOD_AUTOFIRE);
 			iAttackAmt[client] = 0;
 		}
-		
+
 		bResetNext[client] = false;
 	}
 	else if (((buttons & IN_MOVELEFT) && !(iPrevButtons[client] & IN_MOVELEFT)) || (!(buttons & IN_MOVELEFT) && (iPrevButtons[client] & IN_MOVELEFT)))
@@ -116,7 +121,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			AutoTrigger_Detected(client, METHOD_AUTOLEFT);
 			iAttackAmt[client] = 0;
 		}
-		
+
 		bResetNext[client] = false;
 	}
 	else if (((buttons & IN_MOVERIGHT) && !(iPrevButtons[client] & IN_MOVERIGHT)) || (!(buttons & IN_MOVERIGHT) && (iPrevButtons[client] & IN_MOVERIGHT)))
@@ -126,10 +131,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			AutoTrigger_Detected(client, METHOD_AUTORIGHT);
 			iAttackAmt[client] = 0;
 		}
-		
+
 		bResetNext[client] = false;
 	}
-	/* Auto-Duck */
+
 	else if (((buttons & IN_DUCK) && !(iPrevButtons[client] & IN_DUCK)) || (!(buttons & IN_DUCK) && (iPrevButtons[client] & IN_DUCK)))
 	{
 		if (++iAttackAmt[client] >= g_iAttackMax)
@@ -137,7 +142,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			AutoTrigger_Detected(client, METHOD_AUTODUCK);
 			iAttackAmt[client] = 0;
 		}
-		
+
 		bResetNext[client] = false;
 	}
 	else if (bResetNext[client])
@@ -171,12 +176,12 @@ AutoTrigger_Detected(client, method)
 			case METHOD_AUTORIGHT:	strcopy(sMethod, sizeof(sMethod), "Auto-Strafe");
 			case METHOD_AUTODUCK:	strcopy(sMethod, sizeof(sMethod), "Auto-Duck");
 		}
-		
+
 		new Handle:info = CreateKeyValues("");
 		KvSetString(info, "method", sMethod);
-		
+
 		if (SMAC_CheatDetected(client, Detection_AutoTrigger, info) == Plugin_Continue)
-		{	
+		{
 			g_bNoitice[client] = true;
 			SMAC_PrintAdminNotice("%t", "SMAC_AutoTriggerDetected", client, sMethod);
 			SMAC_LogAction(client, "is suspected of using auto-trigger cheat: %s", sMethod);
@@ -186,17 +191,16 @@ AutoTrigger_Detected(client, method)
 				case 2:{SMAC_Ban(client, "AutoTrigger Detection: %s", sMethod);}
 			}
 		}
-		
+
 		CloseHandle(info);
 		g_iDetections[method][client] = 0;
 	}
 }
 
-
 public OnSettingsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	new iNewValue = GetConVarInt(convar);
-	
+
 	if (iNewValue < 6)
 	{
 		PrintToServer("SMAC Warning: smac_autotrigger_detections is lower than 6.\n SMAC Warning: Possible false bans for autotrigger module");
@@ -207,11 +211,6 @@ public OnSettingsChanged(Handle:convar, const String:oldValue[], const String:ne
 		PrintToServer("SMAC Warning: smac_autotrigger_detections is higer than 30.\n SMAC Warning: Some Autotrigger cheats can be undetected.");
 		g_iDetectionsMax = iNewValue;
 	}
-/*	else if (iNewValue == 1337)
-	{
-		PrintToServer("SMAC Warning: L33T HAXORZ IS COMING...");
-		g_iDetectionsMax = 1337;
-	}
-*/
+
 	else g_iDetectionsMax = iNewValue;
 }
