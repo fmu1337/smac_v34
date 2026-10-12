@@ -16,7 +16,7 @@ public Plugin:myinfo =
 // SMAC Plus: cl_autobuy longer than this is blocked (stock SMAC checked > 255 on a 256 buffer).
 #define AUTOBUY_MAX_LEN		240
 
-/* smac_v34, from the 420hook source (docs/HOOK_420.md). */
+/* smac_v34, from the 420hook source. */
 #define SIGNATURE_NOTICE_COOLDOWN	30.0
 
 // 420hook "disconnect reason" options (the client sends its own drop text).

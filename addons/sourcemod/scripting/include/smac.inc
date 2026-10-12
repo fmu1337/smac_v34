@@ -39,7 +39,7 @@ enum DetectionType {
 	Detection_PlusServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
 	Detection_PlusFakeStatus = 7700,	/* Changer Player Status: a client flagged as a bot sends mouse input */
 
-	/* Ports from other anti-cheats (see docs/CHEAT_ACID.md). */
+	/* Ports from other anti-cheats (LilAC / Oryx / Cow AC). */
 	Detection_Lerp = 7800,			/* smac_lerp: NoLerp, max lerp (Little Anti-Cheat) */
 	Detection_Strafe = 7900,		/* smac_strafe: strafe sync, perfect turn, steady turn, silent strafe, AHK mouse (Oryx / BASH / Cow AC) */
 

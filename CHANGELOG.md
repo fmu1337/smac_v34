@@ -13,12 +13,11 @@
 - CI переведён с Travis на GitHub Actions, сборка под SM 1.6–1.13, публикация релизов по тегам.
 - Исправлен буфер `GeoipCode3` в `smac.sp` (на SM 1.11 нужно 4 символа, было 3).
 - Добавлены модули SMAC Plus (`smac_plus_*`), доработки штатных модулей,
-  Anti-SoundESP в `smac_wallhack`, `smac_css_smokefix`. Подробности — в `docs/PLUS_*.md`.
+  Anti-SoundESP в `smac_wallhack`, `smac_css_smokefix`. Список — в `docs/MODULES.md`.
 - Детекты по исходникам 420hook: CmdNum Jump, Tick Ahead, FastWalk, AutoStrafe, CircleStrafe,
-  Name stealer, текст отключения, реклама в чате, `mat_fullbright`. Подробности — в `docs/HOOK_420.md`.
+  Name stealer, текст отключения, реклама в чате, `mat_fullbright`.
 - `smac_nsb` — no-steam баны: метка в клиентском кваре, список, меню бана/разбана.
   Старый `data/kac_nsblist.txt` при старте копируется в `data/smac_nsblist.txt` (уже существующие метки не затираются).
-  Подробности — в `docs/NSB.md`.
 
 ### 2020-12-28
 - Попытка починить сборку и работу на SM 1.11 (`smac_cvars`, `smac_cvars.inc`).

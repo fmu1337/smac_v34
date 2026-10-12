@@ -190,7 +190,7 @@ public OnPluginStart()
 	g_hCvarCheatCfg = SMAC_CreateConVar("smac_css_CheatCFG", "1", "CheatCFG (Stop Movement, Fast Switch, Fast Reload): 0=off, 1=admin notice, 2=kick, 3=ban (4-6 = same, R52 league mode) (R52: 3)", _, true, 0.0, true, 6.0);
 	g_hCvar2XWarn = SMAC_CreateConVar("smac_method_2X_Warning", "8", "Using the button 2X for fire: detections before admins are notified. (0 = never)", _, true, 0.0);
 	g_hCvar2XBan = SMAC_CreateConVar("smac_method_2X_Ban", "0", "Using the button 2X for fire: +N ban / -N kick after more than N detections, 0 = never (R52: 10)", _, true, -100.0, true, 100.0);
-	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: detections before admins are notified, 0 = never (R52: 1; off here, see docs/PLUS_INPUT.md)", _, true, 0.0);
+	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: detections before admins are notified, 0 = never (R52: 1; off by default)", _, true, 0.0);
 	g_hCvarKnifeBan = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Ban", "0", "KnifeBot: +N ban / -N kick after more than N detections, 0 = never (R52: 2)", _, true, -100.0, true, 100.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 

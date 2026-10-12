@@ -31,7 +31,7 @@
  * m_flLaggedMovementValue change), are skipped on ladders, noclip and fly movetypes and
  * without a knife (R52), and after spawn / trigger_teleport (added for safety).
  *
- * Added in smac_v34 (not in R52), from the 420hook source (docs/HOOK_420.md). Per usercmd, walk
+ * Added in smac_v34 (not in R52), from the 420hook source. Per usercmd, walk
  * movetype only, admin notice by default:
  *   FastWalk            on the ground forwardmove or sidemove zigzags: the change flips sign on every
  *                       cmd with the same size (>= 100), 20 cmds in a row. Keys can't do that per tick.

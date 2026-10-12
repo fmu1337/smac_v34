@@ -47,7 +47,7 @@
  *     when it sends <= 70% of tickrate packets (R52: 46.2 pkt/s on 66 tick);
  *   - admins with ban/root flag are never punished (still logged).
  *
- * Added in smac_v34 (not in R52), from the 420hook source (docs/HOOK_420.md):
+ * Added in smac_v34 (not in R52), from the 420hook source:
  *   CmdNum Jump     - cmdnum jumps forward by more than MULTIPLAYER_BACKUP (90) commands.
  *                     A real outage does it once; 420hook Lag Exploit adds 450 to every
  *                     cmdnum. 3 jumps within 10 s = detection. Packet loss does not skip this
