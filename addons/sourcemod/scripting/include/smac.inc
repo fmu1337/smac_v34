@@ -38,6 +38,8 @@ enum DetectionType {
 	Detection_PlusClient = 7500,		/* Impulse spam, sensitivity, FakeSendPacket */
 	Detection_PlusServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
 	Detection_PlusFakeStatus = 7700,
+	Detection_Lerp = 7800,
+	Detection_Strafe = 7900,
 	Detection_CvarTrap = 8000,
 	Detection_Usercmd = 8100,	/* Changer Player Status: a client flagged as a bot sends mouse input */
 };

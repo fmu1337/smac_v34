@@ -20,6 +20,14 @@
  *   Backtrack A     - at the shot the client tickcount is lower than the previous cmd's (or the
  *                     previous one is negative). Counter from -1, each step decays in 300 s, the
  *                     4th such shot is a detection.
+ *   Backtrack Patch - not a detector (from Little Anti-Cheat, lilac_backtrack_patch): when the
+ *                     client tickcount stops following cmdnum (tickcount - prev != cmdnum - prev,
+ *                     so packet loss does not count), for smac_backtrack_patch_time seconds every
+ *                     cmd gets the tickcount the engine itself would fall back to in
+ *                     CLagCompensationManager::StartLagCompensation (server tick - latency - lerp).
+ *                     A backtrack cheat then rewinds nothing; a legit lossy player only loses
+ *                     the (<= 200 ms) tickcount lag compensation for that time. Off by default.
+ *                     Runs after the checks above, so they still see the raw tickcount.
  *   Changer Player Status - a client flagged as a bot (IsFakeClient) sends mouse input; real bots
  *                     never do. Reported once per connection.
  *   PSilent Active  - at the shot (weapon_fire = R52 FireBullets TE hook):
@@ -39,14 +47,24 @@
  *     when it sends <= 70% of tickrate packets (R52: 46.2 pkt/s on 66 tick);
  *   - admins with ban/root flag are never punished (still logged).
  *
- * Defaults are admin-notice only where noted. Defaults are admin-notice only.
+ * Added in smac_v34 (not in R52), from the 420hook source (docs/HOOK_420.md):
+ *   CmdNum Jump     - cmdnum jumps forward by more than MULTIPLAYER_BACKUP (90) commands.
+ *                     A real outage does it once; 420hook Lag Exploit adds 450 to every
+ *                     cmdnum. 3 jumps within 10 s = detection. Packet loss does not skip this
+ *                     check and does not lower the action: the exploit itself fakes the loss.
+ *   Tick Ahead      - the client tickcount is more than 1 s ahead of the server tick on
+ *                     3 cmds in a row (420hook Airstuck sends INT_MAX). The client clock always
+ *                     runs behind the server, so this is caught at once.
+ *   (fake lag itself is counted by smac_usercmd FakeLag)
+ *
+ * Defaults are admin-notice only where noted. Defaults are admin-notice only, except CmdNum Jump and Tick Ahead (kick).
  */
 
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: Netcode",
 	author = SMAC_AUTHOR,
-	description = "Airstuck, Lag Exploit, Backtrack A/B, PSilent (choke-on-shot) and Changer Player Status from SMAC Plus",
+	description = "Airstuck, Lag Exploit, Backtrack A/B, PSilent and Changer Player Status from SMAC Plus; CmdNum Jump, Tick Ahead",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -81,6 +99,13 @@ public Plugin:myinfo =
 #define MAX_PING			0.15
 #define MIN_PACKET_FRAC		0.7
 
+#define CMDJUMP_MIN			90		/* MULTIPLAYER_BACKUP */
+#define CMDJUMP_EVENTS		3
+#define CMDJUMP_WINDOW		10.0
+
+#define TICKAHEAD_SECONDS	1.0
+#define TICKAHEAD_CMDS		3
+
 #define LAG_MAX_LOSS		0.05
 #define LAG_MAX_CHOKE		0.30
 #define LAG_MAX_PING_SPIKE	0.10
@@ -92,6 +117,10 @@ new Handle:g_hCvarPSilentWarn = INVALID_HANDLE;
 new Handle:g_hCvarPSilentBan = INVALID_HANDLE;
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
 new Handle:g_hCvarFakeStatus = INVALID_HANDLE;
+new Handle:g_hCvarCmdJump = INVALID_HANDLE;
+new Handle:g_hCvarTickAhead = INVALID_HANDLE;
+new Handle:g_hCvarBtPatch = INVALID_HANDLE;
+new Handle:g_hCvarBtPatchTime = INVALID_HANDLE;
 
 /* Last 4 cmds: [3] = newest. */
 new g_iHistCmd[MAXPLAYERS+1][4];
@@ -129,6 +158,16 @@ new g_iBtaDetects[MAXPLAYERS+1];
 new g_iFakeDetects[MAXPLAYERS+1];
 new bool:g_bFakeReported[MAXPLAYERS+1];
 
+new g_iCmdJumpEvents[MAXPLAYERS+1];
+new Float:g_fCmdJumpFirst[MAXPLAYERS+1];
+new g_iCmdJumpDetects[MAXPLAYERS+1];
+
+new g_iTickAheadStreak[MAXPLAYERS+1];
+new g_iTickAheadDetects[MAXPLAYERS+1];
+
+
+new Float:g_fBtPatchUntil[MAXPLAYERS+1];
+
 new g_iPSilentState[MAXPLAYERS+1];
 new g_iPSilentDetects[MAXPLAYERS+1];
 new Float:g_fPSilentTime[MAXPLAYERS+1];
@@ -148,6 +187,10 @@ public OnPluginStart()
 	g_hCvarPSilentWarn = SMAC_CreateConVar("smac_PSilent_Warning", "1", "PSilent [Active Mode] detections before admins are notified. (0 = never)", _, true, 0.0);
 	g_hCvarPSilentBan = SMAC_CreateConVar("smac_PSilent_Ban", "0", "PSilent [Active Mode] detections before punish: -N = kick, +N = ban, 0 = never (R52: -12)", _, true, -100.0, true, 100.0);
 	g_hCvarFakeStatus = SMAC_CreateConVar("smac_plus_fake_status", "1", "Changer Player Status (a client flagged as a bot sends mouse input): 0=off, 1=admin notice, 2=kick, 3=ban (R52: ban)", _, true, 0.0, true, 3.0);
+	g_hCvarCmdJump = SMAC_CreateConVar("smac_CmdNumJump_reaction", "2", "CmdNum Jump (cmdnum skips > 90 commands, 420hook Lag Exploit): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarTickAhead = SMAC_CreateConVar("smac_TickAhead_reaction", "2", "Tick Ahead (client tickcount > 1 s ahead of the server, 420hook Airstuck): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarBtPatch = SMAC_CreateConVar("smac_backtrack_patch", "0", "Backtrack Patch (Little Anti-Cheat): replace a tampered client tickcount with the engine estimate for a while. Not a detector. 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarBtPatchTime = SMAC_CreateConVar("smac_backtrack_patch_time", "5.0", "Seconds the Backtrack Patch stays on after the last tampered tickcount.", _, true, 0.5, true, 60.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
@@ -196,6 +239,14 @@ public OnClientPutInServer(client)
 
 	g_iFakeDetects[client] = 0;
 	g_bFakeReported[client] = false;
+
+	g_iCmdJumpEvents[client] = 0;
+	g_fCmdJumpFirst[client] = 0.0;
+	g_iCmdJumpDetects[client] = 0;
+
+	g_iTickAheadStreak[client] = 0;
+	g_iTickAheadDetects[client] = 0;
+	g_fBtPatchUntil[client] = 0.0;
 
 	g_iPSilentState[client] = 0;
 	g_iPSilentDetects[client] = 0;
@@ -336,6 +387,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		g_iHistLen[client] = 0;
 		g_iPSilentState[client] = 0;
+		g_iTickAheadStreak[client] = 0;
 		return Plugin_Continue;
 	}
 
@@ -360,6 +412,14 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	g_iMouseSum[client][0] = g_iMouseSum[client][1];
 	g_iMouseSum[client][1] = AbsValue(mouse[0]) + AbsValue(mouse[1]);
 
+	/* These run before the loss gate: the 420hook Lag Exploit makes the client look lossy. */
+	if (GetGameTime() >= g_fIgnoreUntil[client] && !IsServerHitch() && !IsClientTimingOut(client))
+	{
+		if (bHasPrev)
+			CheckCmdNumJump(client, buttons, cmdnum, prevCmd, tickcount, prevTick);
+		CheckTickAhead(client, cmdnum, tickcount);
+	}
+
 	if (bHasPrev && GetGameTime() >= g_fIgnoreUntil[client] && !IsLagging(client))
 	{
 		CheckAirstuck(client, buttons, angles, cmdnum, tickcount, mouse, prevCmd, prevTick);
@@ -376,7 +436,39 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	g_fPrevAng[client][0] = angles[0];
 	g_fPrevAng[client][1] = angles[1];
 
+	if (bHasPrev && PatchBacktrack(client, cmdnum, tickcount, prevCmd, prevTick))
+		return Plugin_Changed;
+
 	return Plugin_Continue;
+}
+
+/* Backtrack Patch (Little Anti-Cheat). The history above keeps the raw tickcount. */
+bool:PatchBacktrack(client, cmdnum, &tickcount, prevCmd, prevTick)
+{
+	if (!GetConVarBool(g_hCvarBtPatch))
+		return false;
+
+	new Float:now = GetGameTime();
+
+	/* Lost cmds move cmdnum and tickcount by the same step; a backtrack only moves tickcount.
+	   Fake lag still triggers it, so client loss/choke is not a reason to skip (unlike the detectors). */
+	if (cmdnum > prevCmd && tickcount - prevTick != cmdnum - prevCmd
+		&& now >= g_fIgnoreUntil[client] && (g_fServerLagUntil <= 0.0 || now >= g_fServerLagUntil))
+	{
+		g_fBtPatchUntil[client] = now + GetConVarFloat(g_hCvarBtPatchTime);
+	}
+
+	if (now >= g_fBtPatchUntil[client])
+		return false;
+
+	/* CLagCompensationManager::StartLagCompensation fallback: target tick =
+	   server tick - TIME_TO_TICKS(latency + lerp), tick_count = target + lerp ticks. */
+	new iLerpTicks = TIME_TO_TICK(GetEntPropFloat(client, Prop_Data, "m_fLerpTime"));
+	new Float:fCorrect = GetClientLatency(client, NetFlow_Outgoing) + TICK_TO_TIME(iLerpTicks);
+	fCorrect = ClampValue(fCorrect, 0.0, 1.0);
+
+	tickcount = GetGameTickCount() - TIME_TO_TICK(fCorrect) + iLerpTicks;
+	return true;
 }
 
 CheckAirstuck(client, buttons, const Float:angles[3], cmdnum, tickcount, const mouse[2], prevCmd, prevTick)
@@ -454,6 +546,71 @@ CheckLagExploit(client)
 	ReportLevel(client, Detection_LagExploit, info, g_iLagDetects[client], level, "Lag Exploit", sDetail);
 	CloseHandle(info);
 }
+
+CheckCmdNumJump(client, buttons, cmdnum, prevCmd, tickcount, prevTick)
+{
+	new level = GetConVarInt(g_hCvarCmdJump);
+	new jump = cmdnum - prevCmd;
+	if (level <= 0 || jump <= CMDJUMP_MIN)
+		return;
+
+	new Float:now = GetGameTime();
+	if (g_iCmdJumpEvents[client] == 0 || now - g_fCmdJumpFirst[client] > CMDJUMP_WINDOW)
+	{
+		g_iCmdJumpEvents[client] = 0;
+		g_fCmdJumpFirst[client] = now;
+	}
+
+	if (++g_iCmdJumpEvents[client] < CMDJUMP_EVENTS)
+		return;
+
+	g_iCmdJumpEvents[client] = 0;
+
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "cmdnum", cmdnum);
+	KvSetNum(info, "prev_cmdnum", prevCmd);
+	KvSetNum(info, "tickcount", tickcount);
+	KvSetNum(info, "prev_tickcount", prevTick);
+
+	decl String:sDetail[160];
+	FormatEx(sDetail, sizeof(sDetail), "cmdnum +%i (tickcount +%i, attack %i), %i jumps > %i in %.1f s, loss %.0f%%",
+		jump, tickcount - prevTick, (buttons & IN_ATTACK) ? 1 : 0, CMDJUMP_EVENTS, CMDJUMP_MIN,
+		now - g_fCmdJumpFirst[client], GetClientAvgLoss(client, NetFlow_Incoming) * 100.0);
+	ReportLevel(client, Detection_LagExploit, info, g_iCmdJumpDetects[client], level, "CmdNum Jump", sDetail, false);
+	CloseHandle(info);
+}
+
+CheckTickAhead(client, cmdnum, tickcount)
+{
+	new level = GetConVarInt(g_hCvarTickAhead);
+	if (level <= 0)
+		return;
+
+	new server = GetGameTickCount();
+	new margin = RoundToCeil(TICKAHEAD_SECONDS / GetTickInterval());
+	if (tickcount <= server + margin)
+	{
+		g_iTickAheadStreak[client] = 0;
+		return;
+	}
+
+	if (++g_iTickAheadStreak[client] < TICKAHEAD_CMDS)
+		return;
+
+	g_iTickAheadStreak[client] = 0;
+
+	new Handle:info = CreateKeyValues("");
+	KvSetNum(info, "cmdnum", cmdnum);
+	KvSetNum(info, "tickcount", tickcount);
+	KvSetNum(info, "server_tick", server);
+
+	decl String:sDetail[128];
+	FormatEx(sDetail, sizeof(sDetail), "client tickcount %i, server tick %i (+%i ticks) on %i cmds",
+		tickcount, server, tickcount - server, TICKAHEAD_CMDS);
+	ReportLevel(client, Detection_AirStuck, info, g_iTickAheadDetects[client], level, "Tick Ahead", sDetail, false);
+	CloseHandle(info);
+}
+
 
 CheckBacktrack(client, cmdnum, prevCmd)
 {
@@ -628,9 +785,14 @@ bool:IsPlaying(client)
 
 /* Lost/choked packets, ping spikes, timeouts or a server hitch make the
    cmd stream look like tampering. */
+bool:IsServerHitch()
+{
+	return g_fServerLagUntil > 0.0 && GetGameTime() < g_fServerLagUntil;
+}
+
 bool:IsLagging(client)
 {
-	if (g_fServerLagUntil > 0.0 && GetGameTime() < g_fServerLagUntil)
+	if (IsServerHitch())
 		return true;
 
 	if (IsClientTimingOut(client))
@@ -667,7 +829,7 @@ LowerAction(client, action)
  *   warn - admins are notified from this detection on (0 = never)
  *   ban  - +N ban / -N kick after N detections (0 = never)
  */
-Report(client, DetectionType:type, Handle:info, &count, warn, ban, const String:name[], const String:detail[])
+Report(client, DetectionType:type, Handle:info, &count, warn, ban, const String:name[], const String:detail[], bool:bLower=true)
 {
 	count++;
 	KvSetNum(info, "detection", count);
@@ -681,7 +843,7 @@ Report(client, DetectionType:type, Handle:info, &count, warn, ban, const String:
 	if (ban != 0 && count >= AbsValue(ban) && !IsImmune(client))
 		action = (ban > 0) ? 3 : 2;
 
-	new lowered = LowerAction(client, action);
+	new lowered = bLower ? LowerAction(client, action) : action;
 	if (lowered != action)
 	{
 		SMAC_LogAction(client, "%s: action lowered %i -> %i (avg ping %.0f ms, %.1f pkt/s).",
@@ -713,7 +875,7 @@ Report(client, DetectionType:type, Handle:info, &count, warn, ban, const String:
 }
 
 /* Reaction cvar (0 = off, 1 = notice, 2 = kick, 3 = ban), acting on the first detection. */
-ReportLevel(client, DetectionType:type, Handle:info, &count, level, const String:name[], const String:detail[])
+ReportLevel(client, DetectionType:type, Handle:info, &count, level, const String:name[], const String:detail[], bool:bLower=true)
 {
 	new ban = 0;
 	if (level == 2)
@@ -721,5 +883,5 @@ ReportLevel(client, DetectionType:type, Handle:info, &count, level, const String
 	else if (level >= 3)
 		ban = 1;
 
-	Report(client, type, info, count, 1, ban, name, detail);
+	Report(client, type, info, count, 1, ban, name, detail, bLower);
 }
