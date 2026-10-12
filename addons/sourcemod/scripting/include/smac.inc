@@ -5,11 +5,9 @@
 
 #include <smac_stocks>
 
-/* Globals */
 #define SMAC_VERSION	"v34.R2"
 #define SMAC_URL		"https://vk.com/by_danyas"
 #define SMAC_AUTHOR		"Danyas"
-
 
 enum DetectionType {
 	Detection_Unknown = 0,
@@ -23,13 +21,31 @@ enum DetectionType {
 	Detection_UserCmdTamperingTickcount,
 	Detection_UserCmdTamperingButtons,
 	Detection_Eyeangles,
+	Detection_SeedSkip,
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
-	
+
+	Detection_AirStuck = 3500,
+	Detection_LagExploit = 3800,
+	Detection_Backtrack = 5200,
+	Detection_PlusPSilent = 7100,
+	Detection_PlusAim = 7200,
+	Detection_PlusMovement = 7300,
+	Detection_PlusInput = 7400,
+	Detection_PlusClient = 7500,
+	Detection_PlusServer = 7600,
+	Detection_PlusFakeStatus = 7700,
+
+	Detection_Lerp = 7800,
+	Detection_Strafe = 7900,
+
+	Detection_CvarTrap = 8000,
+	Detection_Usercmd = 8100,
+	Detection_Nsb = 8200,
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
-// Newer compilers require an explicit type; older ones create the GameType tag implicitly.
+
 enum GameType {
 	Game_Unknown = 0,
 	Game_CSS,
@@ -46,7 +62,6 @@ enum GameType {
 };
 #endif
 
-/* Natives */
 native GameType:SMAC_GetGameType();
 native SMAC_Log(const String:format[], any:...);
 native SMAC_LogAction(client, const String:format[], any:...);
@@ -55,11 +70,9 @@ native SMAC_PrintAdminNotice(const String:format[], any:...);
 native Handle:SMAC_CreateConVar(const String:name[], const String:defaultValue[], const String:description[]="", flags=0, bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0);
 native Action:SMAC_CheatDetected(client, DetectionType:type = Detection_Unknown, Handle:info = INVALID_HANDLE);
 
-/* Forwards */
 forward Action:SMAC_OnCheatDetected(client, const String:module[], DetectionType:type, Handle:info);
 
-
-public SharedPlugin:__pl_smac = 
+public SharedPlugin:__pl_smac =
 {
 	name = "smac",
 	file = "smac.smx",

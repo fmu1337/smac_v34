@@ -6,7 +6,7 @@
 
 ![picture alt](https://raw.githubusercontent.com/fmu1337/smac_v34/master/logo.jpg "SMAC v34 Logo")
 
-Поддержка осуществляеться на форуме hlmod.ru, в обсуждениях по ссылке: https://hlmod.ru/threads/smac-v34.28266/
+Поддержка осуществляеться на форуме hlmod.net, в обсуждениях по ссылке: https://hlmod.net/threads/smac-v34.28266/
 
 ## Сборка
 
@@ -29,6 +29,16 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 
 Типичная цель — **SourceMod 1.6** (CSS v34).
 
-`smac_wallhack` и `smac_eyetest` вызывают `RequireFeature(..., FEATURECAP_PLAYERRUNCMD_11PARAMS)`. Этот capability появился в **SourceMod 1.5.0** ([API Changes](https://wiki.alliedmods.net/Sourcemod_1.5.0_API_Changes)), не в 1.7. На нормальном SM ≥ 1.5 (включая css34 SM 1.6.4) модули должны загружаться.
+`smac_wallhack` и `smac_eyetest` вызывают `RequireFeature(..., FEATURECAP_PLAYERRUNCMD_11PARAMS)`. Этот capability появился в **SourceMod 1.5.0** ([API Changes](https://wiki.alliedmods.net/SourceMod_1.5.0_API_Changes)), не в 1.7. На нормальном SM ≥ 1.5 (включая css34 SM 1.6.4) модули должны загружаться.
 
 Если wallhack не грузится с сообщением про «newer version of SourceMod» — проверьте, что у вас действительно SM ≥ 1.5 с рабочим SDKTools, а не урезанный/битый билд.
+
+## Модули
+
+Кратко: что делает каждый новый модуль и доработки стока — **[docs/MODULES.md](docs/MODULES.md)**.
+
+**Plus:** `smac_plus_netcode`, `aimbot`, `movement`, `input`, `client`, `server`, `aimkill`, `protect`, `diag_norecoil` + таблица кваров в `smac_cvars` (`smac_cvars_plus`).
+
+**Отдельно:** `smac_css_smokefix`, `smac_cvar_trap`, `smac_usercmd`, `smac_lerp`, `smac_strafe` (disabled), `smac_nsb`, `smac_cmdspam`.
+
+По умолчанию почти всё только уведомляет админов.

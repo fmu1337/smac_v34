@@ -2,8 +2,8 @@
 #include <smac>
 #include <smac_cvars>
 #include <basecomm>
+#include <smac_cvars_plus>
 
-/* Plugin Info */
 public Plugin:myinfo =
 {
 	name = "SMAC: ConVar Checker",
@@ -12,32 +12,33 @@ public Plugin:myinfo =
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
-/*Cvars*/
-new Handle:g_hCvarHldj = INVALID_HANDLE;
 
-/* Globals */
+new Handle:g_hCvarHldj = INVALID_HANDLE;
+new Handle:g_hCvarPlus = INVALID_HANDLE;
+
+#define Cvar_Plus "8"
+new Handle:g_hPlusNames = INVALID_HANDLE;
+new Handle:g_hWarned[MAXPLAYERS+1];
+
 #define CVAR_REPLICATION_DELAY 30
 #define TIME_REQUERY_FIRST 20.0
 #define TIME_REQUERY_SUBSEQUENT 10.0
 #define MAX_REQUERY_ATTEMPTS 4
 
-// cvar data
 new Handle:g_hCvarTrie;
 new Handle:g_hCvarADT;
 new g_iADTSize;
 
-// client data
 new Handle:g_hTimer[MAXPLAYERS+1];
 new g_iRequeryCount[MAXPLAYERS+1];
 
 new g_iADTIndex[MAXPLAYERS+1] = {-1, ...};
 new Handle:g_hCurDataTrie[MAXPLAYERS+1];
+new Float:g_fSettingsRestartTime[MAXPLAYERS+1];
 
-// plugin state
 new bool:g_bLateLoad;
 new bool:g_bPluginStarted;
 
-/* Plugin Functions */
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	g_bLateLoad = late;
@@ -47,14 +48,16 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
-	
-	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", _, true, 0.0, true, 1.0);
+
+	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Mute players on HLDJ/HLSS detect: 0=off, 1=on", _, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarHldj, OnCvarHldjChanged);
-	
+	g_hCvarPlus = SMAC_CreateConVar("smac_cvars_plus", "1", "Extra cheat cvar table: 0=off, 1=notice, 2=kick/ban", _, true, 0.0, true, 2.0);
+	HookConVarChange(g_hCvarPlus, OnCvarPlusChanged);
+	g_hPlusNames = CreateArray(ByteCountToCells(MAX_CVAR_NAME_LEN));
+
 	g_hCvarTrie = CreateTrie();
 	g_hCvarADT = CreateArray();
-	
-	// Check for plugins first.
+
 	AddCvar(Order_First, "0penscript",				Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "aim_bot",					Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "aim_fov",					Comp_NonExist, Action_Ban);
@@ -76,16 +79,14 @@ public OnPluginStart()
 	AddCvar(Order_First, "sourcemod_version",		Comp_NonExist, Action_Kick);
 	AddCvar(Order_First, "tb_enabled",				Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "zb_version",				Comp_NonExist, Action_Kick);
- 
-	// Check for everything else last.
+
 	AddCvar(Order_Last, "cl_clock_correction",	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "cl_leveloverview",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "cl_overdraw_test",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "cl_phys_timescale",	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "cl_showevents",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "fog_enable",		Comp_Equal, Action_Ban, "1.0");
-	
-	
+
 	AddCvar(Order_First, "open",							Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "prepareuranus",				Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "ZhykLua",						Comp_NonExist, Action_Ban);
@@ -98,21 +99,26 @@ public OnPluginStart()
 	AddCvar(Order_First, "openhack",						Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "aaa123_steam_set_random_id",	Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "steam_set_id",					Comp_NonExist, Action_Ban);
-	
-	 
-	 
-	 
-	 
-	
+
+	AddCvar(Order_First, "bMbALa4DHPBTv8b",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "y6JgxqVrY7a7eSE",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "gngHLy34Gg69S65",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "Ha9dkVwbyLz8v7g",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "ExB468YsMxArJjA",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "5bzeYeLgN8r3tzX",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "ct7B6m2Sdxvdfu9",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "fGuJwz4EmA5GbBB",				Comp_NonExist, Action_Ban);
+	AddCvar(Order_First, "sxwL9anTUbfkxbc",				Comp_NonExist, Action_Ban);
+
 	if(GetConVarBool(g_hCvarHldj))
 	{
 		AddCvar(Order_Last, "voice_inputfromfile",			Comp_Equal, Action_Mute, "0.0");
 	}
-	
-	
+
 	AddCvar(Order_Last, "host_timescale",		Comp_Replicated, Action_Ban);
 	AddCvar(Order_Last, "mat_dxlevel",			Comp_Greater, Action_Kick, "80.0");
 	AddCvar(Order_Last, "mat_fillrate",			Comp_Equal, Action_Ban, "0.0");
+	AddCvar(Order_Last, "mat_fullbright",		Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_measurefillrate",	Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_proxy",			Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "mat_showlowresimage",	Comp_Equal, Action_Ban, "0.0");
@@ -129,6 +135,8 @@ public OnPluginStart()
 	AddCvar(Order_Last, "r_drawentities",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawmodelstatsoverlay", Comp_Equal, Action_Ban, "0.0");
 	AddCvar(Order_Last, "r_drawopaqueworld",	Comp_Equal, Action_Ban, "1.0");
+
+	AddCvar(Order_Last, "cl_interpolate",		Comp_Integer, Action_Warn, "0", "1");
 	AddCvar(Order_Last, "r_drawothermodels", 	Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawparticles",		Comp_Equal, Action_Ban, "1.0");
 	AddCvar(Order_Last, "r_drawrenderboxes",	Comp_Equal, Action_Ban, "0.0");
@@ -142,21 +150,23 @@ public OnPluginStart()
 	AddCvar(Order_Last, "sv_allowminmodels",	Comp_Replicated, Action_Ban);
 	AddCvar(Order_Last, "sv_cheats",			Comp_Replicated, Action_Ban);
 	AddCvar(Order_Last, "sv_competitive_minspec", Comp_Replicated, Action_Ban);
-//	AddCvar(Order_Last, "sv_consistency",Comp_Replicated, Action_Ban);
+
 	AddCvar(Order_Last, "sv_footsteps",			Comp_Replicated, Action_Ban);
 	AddCvar(Order_Last, "vcollide_wireframe",	Comp_Equal, Action_Ban, "0.0");
-	
-	// Commands.
+
 	RegAdminCmd("smac_addcvar", Command_AddCvar, ADMFLAG_ROOT, "Add cvar to checking.");
 	RegAdminCmd("smac_removecvar", Command_RemCvar, ADMFLAG_ROOT, "Remove cvar from checking.");
-	
-	// scramble ordering.
+
+	if (GetConVarInt(g_hCvarPlus) > 0)
+	{
+		AddPlusCvars();
+	}
+
 	if (g_iADTSize)
 	{
 		ScrambleCvars();
 	}
-	
-	// Start on all clients.
+
 	if (g_bLateLoad)
 	{
 		for (new i = 1; i <= MaxClients; i++)
@@ -167,9 +177,9 @@ public OnPluginStart()
 			}
 		}
 	}
-	
+
 	g_bPluginStarted = true;
-	
+
 }
 
 public OnCvarHldjChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -186,12 +196,65 @@ public OnCvarHldjChanged(Handle:convar, const String:oldValue[], const String:ne
 	}
 }
 
+public OnCvarPlusChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	decl String:sCvar[MAX_CVAR_NAME_LEN];
+	new size = GetArraySize(g_hPlusNames);
+	for (new i = 0; i < size; i++)
+	{
+		GetArrayString(g_hPlusNames, i, sCvar, sizeof(sCvar));
+		RemCvar(sCvar);
+	}
+	ClearArray(g_hPlusNames);
+
+	if (GetConVarInt(g_hCvarPlus) > 0)
+	{
+		AddPlusCvars();
+	}
+}
+
+AddPlusCvar(CvarOrder:COrder, const String:sName[], CvarComp:CCompType, CvarAction:CAction, const String:sValue[] = "", const String:sValue2[] = "")
+{
+	decl String:sCvar[MAX_CVAR_NAME_LEN], Handle:hDataTrie;
+	strcopy(sCvar, sizeof(sCvar), sName);
+	StringToLower(sCvar);
+
+	if (GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
+		return;
+
+	if (GetConVarInt(g_hCvarPlus) < 2)
+	{
+		CAction = Action_Warn;
+	}
+
+	if (AddCvar(COrder, sCvar, CCompType, CAction, sValue, sValue2) && GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
+	{
+		SetTrieValue(hDataTrie, Cvar_Plus, 1);
+		PushArrayString(g_hPlusNames, sCvar);
+	}
+}
+
 public OnClientPostAdminCheck(client)
 {
 	if (!IsFakeClient(client))
 	{
 		SetTimer(g_hTimer[client], CreateTimer(0.1, Timer_QueryNextCvar, client, TIMER_REPEAT));
 	}
+}
+
+public OnClientSettingsChanged(client)
+{
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsClientAuthorized(client))
+		return;
+
+	new Float:fNow = GetGameTime();
+	if (fNow - g_fSettingsRestartTime[client] < 3.0)
+		return;
+
+	g_fSettingsRestartTime[client] = fNow;
+	g_hCurDataTrie[client] = INVALID_HANDLE;
+	g_iRequeryCount[client] = 0;
+	SetTimer(g_hTimer[client], CreateTimer(0.5, Timer_QueryNextCvar, client, TIMER_REPEAT));
 }
 
 public OnClientDisconnect(client)
@@ -201,7 +264,14 @@ public OnClientDisconnect(client)
 		g_hCurDataTrie[client] = INVALID_HANDLE;
 		g_iADTIndex[client] = -1;
 		g_iRequeryCount[client] = 0;
+		g_fSettingsRestartTime[client] = 0.0;
 		SetTimer(g_hTimer[client], INVALID_HANDLE);
+	}
+
+	if (g_hWarned[client] != INVALID_HANDLE)
+	{
+		CloseHandle(g_hWarned[client]);
+		g_hWarned[client] = INVALID_HANDLE;
 	}
 }
 
@@ -211,25 +281,25 @@ public Action:Command_AddCvar(client, args)
 	{
 		decl String:sCvar[MAX_CVAR_NAME_LEN];
 		GetCmdArg(1, sCvar, sizeof(sCvar));
-		
+
 		if (!IsValidConVarName(sCvar))
 		{
 			ReplyToCommand(client, "\"%s\" is not a valid convar.", sCvar);
 			return Plugin_Handled;
 		}
-		
+
 		decl String:sCompType[16], String:sAction[16];
-		
+
 		GetCmdArg(2, sCompType, sizeof(sCompType));
 		GetCmdArg(3, sAction, sizeof(sAction));
-		
+
 		new String:sValue[MAX_CVAR_VALUE_LEN], String:sValue2[MAX_CVAR_VALUE_LEN];
-		
+
 		if (args >= 4)
 		{
 			GetCmdArg(4, sValue, sizeof(sValue));
 		}
-		
+
 		if (args >= 5)
 		{
 			GetCmdArg(5, sValue2, sizeof(sValue2));
@@ -241,7 +311,7 @@ public Action:Command_AddCvar(client, args)
 			return Plugin_Handled;
 		}
 	}
-	
+
 	ReplyToCommand(client, "Usage: smac_addcvar <cvar> <comptype> <action> <value> <value2>");
 	return Plugin_Handled;
 }
@@ -250,43 +320,42 @@ bool:AddCvar(CvarOrder:COrder, String:sCvar[], CvarComp:CCompType, CvarAction:CA
 {
 	if (CCompType == Comp_Invalid || CAction == Action_Invalid)
 		return false;
-	
-	// Trie is case sensitive.
-	StringToLower(sCvar); 
-	
+
+	StringToLower(sCvar);
+
 	decl String:sNewValue[MAX_CVAR_VALUE_LEN], Handle:hCvar;
-	
+
 	if (CCompType == Comp_Replicated)
 	{
 		hCvar = FindConVar(sCvar);
-		
+
 		if (hCvar == INVALID_HANDLE || !(GetConVarFlags(hCvar) & FCVAR_REPLICATED))
 			return false;
-			
+
 		GetConVarString(hCvar, sNewValue, sizeof(sNewValue));
 	}
 	else
 	{
 		strcopy(sNewValue, sizeof(sNewValue), sValue);
 	}
-	
+
 	decl Handle:hDataTrie;
-	
+
 	if (GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
 	{
-		//SetTrieValue(hDataTrie, Cvar_Order, COrder);
+
 		SetTrieString(hDataTrie, Cvar_Name, sCvar);
 		SetTrieValue(hDataTrie, Cvar_CompType, CCompType);
 		SetTrieValue(hDataTrie, Cvar_Action, CAction);
 		SetTrieString(hDataTrie, Cvar_Value, sNewValue);
 		SetTrieString(hDataTrie, Cvar_Value2, sValue2);
-		//SetTrieValue(hDataTrie, Cvar_ReplicatedTime, 0);
+
 	}
 	else
 	{
-		// Setup cvar data
+
 		hDataTrie = CreateTrie();
-		
+
 		SetTrieValue(hDataTrie, Cvar_Order, COrder);
 		SetTrieString(hDataTrie, Cvar_Name, sCvar);
 		SetTrieValue(hDataTrie, Cvar_CompType, CCompType);
@@ -294,26 +363,23 @@ bool:AddCvar(CvarOrder:COrder, String:sCvar[], CvarComp:CCompType, CvarAction:CA
 		SetTrieString(hDataTrie, Cvar_Value, sNewValue);
 		SetTrieString(hDataTrie, Cvar_Value2, sValue2);
 		SetTrieValue(hDataTrie, Cvar_ReplicatedTime, 0);
-		
-		// Add cvar to lists
+
 		SetTrieValue(g_hCvarTrie, sCvar, hDataTrie);
 		PushArrayCell(g_hCvarADT, hDataTrie);
 		g_iADTSize = GetArraySize(g_hCvarADT);
-		
-		// Begin replication
+
 		if (CCompType == Comp_Replicated)
 		{
 			HookConVarChange(hCvar, OnConVarChanged);
 			ReplicateToAll(hCvar, sNewValue);
 		}
-		
-		// Scramble
+
 		if (g_bPluginStarted)
 		{
 			ScrambleCvars();
 		}
 	}
-	
+
 	return true;
 }
 
@@ -332,10 +398,10 @@ public Action:Command_RemCvar(client, args)
 		{
 			ReplyToCommand(client, "%s was not found.", sCvar);
 		}
-		
+
 		return Plugin_Handled;
 	}
-	
+
 	ReplyToCommand(client, "Usage: smac_removecvar <cvar>");
 	return Plugin_Handled;
 }
@@ -343,15 +409,12 @@ public Action:Command_RemCvar(client, args)
 bool:RemCvar(String:sCvar[])
 {
 	decl Handle:hDataTrie;
-	
-	// Trie is case sensitive.
+
 	StringToLower(sCvar);
-	
-	// Are you listed?
+
 	if (!GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
 		return false;
-	
-	// Invalidate active queries.
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (g_hCurDataTrie[i] == hDataTrie)
@@ -359,48 +422,43 @@ bool:RemCvar(String:sCvar[])
 			g_hCurDataTrie[i] = INVALID_HANDLE;
 		}
 	}
-	
-	// Disable replication
+
 	decl CvarComp:CCompType;
 	GetTrieValue(hDataTrie, Cvar_CompType, CCompType);
-	
+
 	if (CCompType == Comp_Replicated)
 	{
 		UnhookConVarChange(FindConVar(sCvar), OnConVarChanged);
 	}
-	
-	// Remove relevant entries
+
 	RemoveFromTrie(g_hCvarTrie, sCvar);
 	RemoveFromArray(g_hCvarADT, FindValueInArray(g_hCvarADT, hDataTrie));
 	g_iADTSize = GetArraySize(g_hCvarADT);
 	CloseHandle(hDataTrie);
-	
+
 	return true;
 }
 
 public Action:Timer_QueryNextCvar(Handle:timer, any:client)
 {
-	// No cvars in the list
+
 	if (!g_iADTSize)
 		return Plugin_Continue;
-	
-	// Get next cvar
+
 	if (++g_iADTIndex[client] >= g_iADTSize)
 		g_iADTIndex[client] = 0;
-	
+
 	new Handle:hDataTrie = GetArrayCell(g_hCvarADT, g_iADTIndex[client]);
-	
+
 	if (IsReplicating(hDataTrie))
 		return Plugin_Continue;
-	
-	// Attempt to query it
+
 	decl String:sCvar[MAX_CVAR_NAME_LEN];
 	GetTrieString(hDataTrie, Cvar_Name, sCvar, sizeof(sCvar));
-	
+
 	if (QueryClientConVar(client, sCvar, OnConVarQueryFinished, GetClientSerial(client)) == QUERYCOOKIE_FAILED)
 		return Plugin_Continue;
-	
-	// Success!
+
 	g_hCurDataTrie[client] = hDataTrie;
 	g_hTimer[client] = CreateTimer(TIME_REQUERY_FIRST, Timer_RequeryCvar, client);
 	return Plugin_Stop;
@@ -408,27 +466,26 @@ public Action:Timer_QueryNextCvar(Handle:timer, any:client)
 
 public Action:Timer_RequeryCvar(Handle:timer, any:client)
 {
-	// Have we had enough?
+
 	if (++g_iRequeryCount[client] > MAX_REQUERY_ATTEMPTS)
 	{
 		g_hTimer[client] = INVALID_HANDLE;
 		KickClient(client, "%t", "SMAC_FailedToReply");
 		return Plugin_Stop;
 	}
-	
-	// Did the query get invalidated?
+
 	if (g_hCurDataTrie[client] != INVALID_HANDLE && !IsReplicating(g_hCurDataTrie[client]))
 	{
 		decl String:sCvar[MAX_CVAR_NAME_LEN];
 		GetTrieString(g_hCurDataTrie[client], Cvar_Name, sCvar, sizeof(sCvar));
-		
+
 		if (QueryClientConVar(client, sCvar, OnConVarQueryFinished, GetClientSerial(client)) != QUERYCOOKIE_FAILED)
 		{
 			g_hTimer[client] = CreateTimer(TIME_REQUERY_SUBSEQUENT, Timer_RequeryCvar, client);
 			return Plugin_Stop;
 		}
 	}
-	
+
 	g_hTimer[client] = CreateTimer(0.1, Timer_QueryNextCvar, client, TIMER_REPEAT);
 	return Plugin_Stop;
 }
@@ -437,76 +494,84 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 {
 	if (GetClientFromSerial(serial) != client)
 		return;
-	
-	// Trie is case sensitive.
+
 	decl String:sCvar[MAX_CVAR_NAME_LEN], Handle:hDataTrie;
-	
+
 	strcopy(sCvar, sizeof(sCvar), cvarName);
 	StringToLower(sCvar);
-	
-	// Did we expect this query?
+
 	if (!GetTrieValue(g_hCvarTrie, sCvar, hDataTrie) || hDataTrie != g_hCurDataTrie[client])
 		return;
-	
-	// Prepare the next query.
+
 	g_hCurDataTrie[client] = INVALID_HANDLE;
 	g_iRequeryCount[client] = 0;
 	SetTimer(g_hTimer[client], CreateTimer(0.1, Timer_QueryNextCvar, client, TIMER_REPEAT));
-	
-	// Initialize data
+
 	decl CvarComp:CCompType, String:sValue[MAX_CVAR_VALUE_LEN], String:sValue2[MAX_CVAR_VALUE_LEN], String:sKickMessage[255];
 	GetTrieValue(hDataTrie, Cvar_CompType, CCompType);
+
+	new bPlus = 0;
+	GetTrieValue(hDataTrie, Cvar_Plus, bPlus);
+	if (bPlus && result != ConVarQuery_Okay && CCompType != Comp_NonExist)
+		return;
 	GetTrieString(hDataTrie, Cvar_Value, sValue, sizeof(sValue));
 	GetTrieString(hDataTrie, Cvar_Value2, sValue2, sizeof(sValue2));
-	
-	// Check query results
+
 	if (result == ConVarQuery_Okay)
 	{
 		if (IsReplicating(hDataTrie))
 			return;
-		
+
 		switch (CCompType)
 		{
 			case Comp_Equal:
 			{
 				if (StringToFloat(cvarValue) == StringToFloat(sValue))
 					return;
-				
+
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldEqual", client, sCvar, sValue, cvarValue);
 			}
 			case Comp_StrEqual, Comp_Replicated:
 			{
 				if (StrEqual(cvarValue, sValue))
 					return;
-				
+
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldEqual", client, sCvar, sValue, cvarValue);
 			}
 			case Comp_Greater:
 			{
 				if (StringToFloat(cvarValue) >= StringToFloat(sValue))
 					return;
-				
+
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeGreater", client, sCvar, sValue, cvarValue);
 			}
 			case Comp_Less:
 			{
 				if (StringToFloat(cvarValue) <= StringToFloat(sValue))
 					return;
-				
+
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeLess", client, sCvar, sValue, cvarValue);
 			}
 			case Comp_Between:
 			{
 				if (StringToFloat(cvarValue) >= StringToFloat(sValue) && StringToFloat(cvarValue) <= StringToFloat(sValue2))
 					return;
-				
+
+				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeBetween", client, sCvar, sValue, sValue2, cvarValue);
+			}
+			case Comp_Integer:
+			{
+				new Float:fValue = StringToFloat(cvarValue);
+				if (fValue == float(RoundToFloor(fValue)) && fValue >= StringToFloat(sValue) && fValue <= StringToFloat(sValue2))
+					return;
+
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeBetween", client, sCvar, sValue, sValue2, cvarValue);
 			}
 			case Comp_Outside:
 			{
 				if (StringToFloat(cvarValue) < StringToFloat(sValue) || StringToFloat(cvarValue) > StringToFloat(sValue2))
 					return;
-				
+
 				FormatEx(sKickMessage, sizeof(sKickMessage), "%T", "SMAC_ShouldBeOutside", client, sCvar, sValue, sValue2, cvarValue);
 			}
 			default:
@@ -519,16 +584,29 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 	{
 		if (result == ConVarQuery_NotFound)
 			return;
-		
+
 		FormatEx(sKickMessage, sizeof(sKickMessage), "ConVar %s violation", sCvar);
 	}
-	
-	// The client failed relevant checks.
+
 	decl CvarAction:CAction;
 	GetTrieValue(hDataTrie, Cvar_Action, CAction);
-	
+
+	if (CAction == Action_Warn)
+	{
+		if (g_hWarned[client] == INVALID_HANDLE)
+		{
+			g_hWarned[client] = CreateTrie();
+		}
+
+		new dummy;
+		if (GetTrieValue(g_hWarned[client], sCvar, dummy))
+			return;
+
+		SetTrieValue(g_hWarned[client], sCvar, 1);
+	}
+
 	new Handle:info = CreateKeyValues("");
-	
+
 	KvSetString(info, "cvar", sCvar);
 	KvSetNum(info, "comptype", _:CCompType);
 	KvSetNum(info, "actiontype", _:CAction);
@@ -536,15 +614,20 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 	KvSetString(info, "value", sValue);
 	KvSetString(info, "value2", sValue2);
 	KvSetNum(info, "result", _:result);
-	
+
 	if (SMAC_CheatDetected(client, Detection_CvarViolation, info) == Plugin_Continue)
-	{	
+	{
 		decl String:sResult[16], String:sCompType[16];
 		GetQueryResultString(result, sResult, sizeof(sResult));
 		GetCompTypeString(CCompType, sCompType, sizeof(sCompType));
-		
+
 		switch (CAction)
 		{
+			case Action_Warn:
+			{
+				SMAC_PrintAdminNotice("%t", "SMAC_CvarViolation", client, sCvar);
+				SMAC_LogAction(client, "failed checks on convar \"%s\" (notice only). result \"%s\" | CompType: \"%s\" | cvarValue \"%s\" | value: \"%s\" | value2: \"%s\"", sCvar, sResult, sCompType, cvarValue, sValue, sValue2);
+			}
 			case Action_Mute:
 			{
 				if (!BaseComm_IsClientMuted(client))
@@ -568,30 +651,29 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 			}
 		}
 	}
-	
+
 	CloseHandle(info);
 }
 
 public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	decl String:sCvar[MAX_CVAR_NAME_LEN], Handle:hDataTrie;
-	
+
 	GetConVarName(convar, sCvar, sizeof(sCvar));
 	StringToLower(sCvar);
-	
+
 	if (!GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
 		return;
-	
+
 	SetTrieString(hDataTrie, Cvar_Value, newValue);
 	SetTrieValue(hDataTrie, Cvar_ReplicatedTime, GetTime() + CVAR_REPLICATION_DELAY);
-	
-	// sv_cheats, if enabled, will false positive on client-side cheat commands.
+
 	if (StrEqual(sCvar, "sv_cheats") && StringToInt(newValue) != 0)
 	{
 		SetConVarInt(convar, 0, true, true);
 		return;
 	}
-	
+
 	ReplicateToAll(convar, newValue);
 }
 
@@ -607,7 +689,7 @@ void ScrambleCvars()
 	{
 		hDataTrie = GetArrayCell(g_hCvarADT, i);
 		GetTrieValue(hDataTrie, Cvar_Order, iOrder);
-	
+
 		hCvarADTs[iOrder][iADTIndex[iOrder]++] = hDataTrie;
 	}
 
@@ -630,23 +712,23 @@ ScrambleCvars()
 {
 	decl Handle:hCvarADTs[_:CvarOrder][g_iADTSize], Handle:hDataTrie, iOrder;
 	new iADTIndex[_:CvarOrder];
-	
+
 	for (new i = 0; i < g_iADTSize; i++)
 	{
 		hDataTrie = GetArrayCell(g_hCvarADT, i);
 		GetTrieValue(hDataTrie, Cvar_Order, iOrder);
-		
+
 		hCvarADTs[iOrder][iADTIndex[iOrder]++] = hDataTrie;
 	}
-	
+
 	ClearArray(g_hCvarADT);
-	
+
 	for (new i = 0; i < _:CvarOrder; i++)
 	{
 		if (iADTIndex[i] > 0)
 		{
 			SortIntegers(_:hCvarADTs[i], iADTIndex[i], Sort_Random);
-			
+
 			for (new j = 0; j < iADTIndex[i]; j++)
 			{
 				PushArrayCell(g_hCvarADT, hCvarADTs[i][j]);
@@ -660,6 +742,6 @@ bool:IsReplicating(Handle:hDataTrie)
 {
 	decl iReplicatedTime;
 	GetTrieValue(hDataTrie, Cvar_ReplicatedTime, iReplicatedTime);
-	
+
 	return (iReplicatedTime > GetTime());
 }

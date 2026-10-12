@@ -42,14 +42,14 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 	g_hCvarVersion = CreateConVar("smac_version", SMAC_VERSION, "SourceMod Anti-Cheat", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	OnVersionChanged(g_hCvarVersion, "", "");
-	HookConVarChange(g_hCvarVersion, OnVersionChanged);	
-	g_hCvarWelcomeMsg = CreateConVar("smac_welcomemsg", "2", "Display a message saying that your server is protected. 0 - disable 1 - chat 2 - hint 3 - center", _, true, 0.0, true, 3.0);
-	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Time after display welcome message.", _, true, 1.0, true, 30.0);
-	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Display client info in client console.", _, true, 0.0, true, 1.0);
-	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "The duration in minutes used for automatic bans. (0 = Permanent)", _, true, 0.0);
-	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Include extra information about a client being logged.", _, true, 0.0, true, 1.0);
-	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Change GameDescr. to 'Protected by SMAC: v34'", _, true, 0.0, true, 1.0);
-	RegAdminCmd("smac_status", Command_Status, ADMFLAG_GENERIC, "View the server's player status.");	
+	HookConVarChange(g_hCvarVersion, OnVersionChanged);
+	g_hCvarWelcomeMsg = CreateConVar("smac_welcomemsg", "2", "Welcome message that the server is protected: 0=off, 1=chat, 2=hint, 3=center", _, true, 0.0, true, 3.0);
+	g_hCvarWelcomeMsgTime = CreateConVar("smac_welcomemsgtime", "10.0", "Delay in seconds before the welcome message", _, true, 1.0, true, 30.0);
+	g_hCvarBanConsoleMsg = CreateConVar("smac_ban_console_msg", "1", "Print banned client info to their console: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarBanDuration = CreateConVar("smac_ban_duration", "1440", "Automatic ban length in minutes (0 = permanent)", _, true, 0.0);
+	g_hCvarLogVerbose = CreateConVar("smac_log_verbose", "0", "Extra client info in SMAC logs: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarGameDesc = CreateConVar("smac_gamedesc", "0", "Set game description to 'Protected by SMAC: v34': 0=off, 1=on", _, true, 0.0, true, 1.0);
+	RegAdminCmd("smac_status", Command_Status, ADMFLAG_GENERIC, "View the server's player status.");
 }
 
 public OnAllPluginsLoaded(){
@@ -68,7 +68,6 @@ public Action:OnGetGameDescription(String:g_szGameDesc[64])
 	return Plugin_Continue;
 }
 
-
 public OnVersionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	if (!StrEqual(newValue, SMAC_VERSION)) {SetConVarString(g_hCvarVersion, SMAC_VERSION);}
@@ -83,7 +82,7 @@ public OnClientPutInServer(client){
 public Action:Timer_WelcomeMsg(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	
+
 	if (IS_CLIENT(client) && IsClientInGame(client)){
 		switch (GetConVarInt(g_hCvarWelcomeMsg)){
 			case 1:  CPrintToChat(client, "{teamcolor}%t{default}%t {green}%s", "SMAC_Tag", "SMAC_WelcomeMsg",SMAC_VERSION);
@@ -108,9 +107,9 @@ public Action:Command_Status(client, args){
 			#endif
 			{
 				#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-				if (!GetClientAuthId(i, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+				if (GetClientAuthId(i, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
 				#else
-				if (!GetClientAuthString(i, sAuthID, sizeof(sAuthID), false))
+				if (GetClientAuthString(i, sAuthID, sizeof(sAuthID), false))
 				#endif
 				{
 					Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);
@@ -128,19 +127,18 @@ public Action:Command_Status(client, args){
 			{
 				strcopy(sCountry, sizeof(sCountry), "Unknown");
 			}
-			
+
 			ReplyToCommand(client, "#%5d  %-21s %-14s %4i ms    %-s|%N", GetClientUserId(i), sAuthID, sIP, RoundToZero(GetClientLatency(i, NetFlow_Outgoing) * 1024),sCountry, i);
 		}
 	}
 	return Plugin_Handled;
 }
 
-
 public Native_Log(Handle:plugin, numParams){
 	decl String:sFilename[64], String:sBuffer[256];
 	GetPluginBasename(plugin, sFilename, sizeof(sFilename));
 	FormatNativeString(0, 1, 2, sizeof(sBuffer), _, sBuffer);
-	LogToFileEx(g_sLogPath, "[%s] %s", sFilename, sBuffer);	
+	LogToFileEx(g_sLogPath, "[%s] %s", sFilename, sBuffer);
 }
 
 public Native_LogAction(Handle:plugin, numParams)
@@ -150,7 +148,7 @@ public Native_LogAction(Handle:plugin, numParams)
 	{
 		ThrowNativeError(SP_ERROR_INDEX, "Client index %i is invalid", client);
 	}
-	
+
 	decl String:sAuthID[MAX_AUTHID_LENGTH];
 	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
 	if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), true))
@@ -159,9 +157,9 @@ public Native_LogAction(Handle:plugin, numParams)
 	#endif
 	{
 		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+		if (GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
 		#else
-		if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
+		if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
 		#endif
 		{
 			Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);
@@ -171,16 +169,15 @@ public Native_LogAction(Handle:plugin, numParams)
 			strcopy(sAuthID, sizeof(sAuthID), "Unknown");
 		}
 	}
-	
+
 	decl String:sIP[17];
 	if (!GetClientIP(client, sIP, sizeof(sIP)))	{strcopy(sIP, sizeof(sIP), "Unknown");}
-	
+
 	decl String:sVersion[16], String:sFilename[64], String:sBuffer[512];
 	GetPluginInfo(plugin, PlInfo_Version, sVersion, sizeof(sVersion));
 	GetPluginBasename(plugin, sFilename, sizeof(sFilename));
 	FormatNativeString(0, 2, 3, sizeof(sBuffer), _, sBuffer);
-	
-	// Verbose client logging.
+
 	if (GetConVarBool(g_hCvarLogVerbose) && IsClientInGame(client))
 	{
 		decl String:sMap[MAX_MAPNAME_LENGTH], Float:vOrigin[3], Float:vAngles[3], String:sWeapon[32], iTeam, iLatency;
@@ -190,7 +187,7 @@ public Native_LogAction(Handle:plugin, numParams)
 		GetClientWeapon(client, sWeapon, sizeof(sWeapon));
 		iTeam = GetClientTeam(client);
 		iLatency = RoundToNearest(GetClientAvgLatency(client, NetFlow_Outgoing) * 1000.0);
-		
+
 		LogToFileEx(g_sLogPath,
 			"[%s | %s] %N (ID: %s | IP: %s) %s\n\tMap: %s | Origin: %.0f %.0f %.0f | Angles: %.0f %.0f %.0f | Weapon: %s | Team: %i | Latency: %ims",
 			sFilename,
@@ -210,16 +207,15 @@ public Native_LogAction(Handle:plugin, numParams)
 	{
 		LogToFileEx(g_sLogPath, "[%s | %s] %N (ID: %s | IP: %s) %s", sFilename, sVersion, client, sAuthID, sIP, sBuffer);
 	}
-	
+
 }
 
-// native SMAC_Ban(client, const String:reason[], any:...);
 public Native_Ban(Handle:plugin, numParams)
 {
 	decl String:sVersion[16], String:sReason[256];
 	new client = GetNativeCell(1);
 	new duration = GetConVarInt(g_hCvarBanDuration);
-	
+
 	GetPluginInfo(plugin, PlInfo_Version, sVersion, sizeof(sVersion));
 	FormatNativeString(0, 2, 3, sizeof(sReason), _, sReason);
 	Format(sReason, sizeof(sReason), "SMAC: %s", sReason);
@@ -253,32 +249,30 @@ public Native_PrintAdminNotice(Handle:plugin, numParams)
 	}
 }
 
-// native Handle:SMAC_CreateConVar(const String:name[], const String:defaultValue[], const String:description[]="", flags=0, bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0);
 public Native_CreateConVar(Handle:plugin, numParams)
 {
 	decl String:name[64], String:defaultValue[16], String:description[192];
 	GetNativeString(1, name, sizeof(name));
 	GetNativeString(2, defaultValue, sizeof(defaultValue));
 	GetNativeString(3, description, sizeof(description));
-	
+
 	new flags = GetNativeCell(4);
 	new bool:hasMin = bool:GetNativeCell(5);
 	new Float:min = Float:GetNativeCell(6);
 	new bool:hasMax = bool:GetNativeCell(7);
 	new Float:max = Float:GetNativeCell(8);
-	
+
 	decl String:sFilename[64];
 	GetPluginBasename(plugin, sFilename, sizeof(sFilename));
 	Format(description, sizeof(description), "[%s] %s", sFilename, description);
-	
+
 	return _:CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
 }
 
-// native Action:SMAC_CheatDetected(client, DetectionType:type = Detection_Unknown, Handle:info = INVALID_HANDLE);
 public Native_CheatDetected(Handle:plugin, numParams)
 {
 	new client = GetNativeCell(1);
-	
+
 	if (!IS_CLIENT(client) || !IsClientConnected(client)){ThrowNativeError(SP_ERROR_INDEX, "Client index %i is invalid", client);}
 	if (IsClientInKickQueue(client)){return _:Plugin_Handled;}
 	decl String:sFilename[64];
@@ -290,7 +284,7 @@ public Native_CheatDetected(Handle:plugin, numParams)
 		type = DetectionType:GetNativeCell(2);
 		info = Handle:GetNativeCell(3);
 	}
-	
+
 	new Action:result = Plugin_Continue;
 	Call_StartForward(g_OnCheatDetected);
 	Call_PushCell(client);
@@ -298,6 +292,6 @@ public Native_CheatDetected(Handle:plugin, numParams)
 	Call_PushCell(type);
 	Call_PushCell(info);
 	Call_Finish(result);
-	
+
 	return _:result;
 }
