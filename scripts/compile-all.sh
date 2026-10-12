@@ -38,6 +38,7 @@ PLUGINS=(
 	smac_autotrigger.sp
 	smac_client.sp
 	smac_commands.sp
+	smac_cmdspam.sp
 	smac_css_antiflash.sp
 	smac_css_antismoke.sp
 	smac_css_smokefix.sp
