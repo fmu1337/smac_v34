@@ -22,7 +22,7 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Amount of commands allowed per second, kick above it. (0 = Disabled; SMAC Ultr@ R52: -25, stock SMAC: 35; the sign is accepted for R52 configs)");
+	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Amount of commands allowed per second, kick above it. (0 = Disabled; SMAC Plus: -25, stock SMAC: 35; the sign is accepted for R52 configs)");
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 

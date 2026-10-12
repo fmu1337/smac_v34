@@ -17,10 +17,10 @@ new Float:g_fFlashedUntil[MAXPLAYERS+1];
 new Float:g_fOverlayUntil[MAXPLAYERS+1];
 new bool:g_bFlashHooked = false;
 
-// 0 = off, 1 = white fade and no players while fully blind, 2 = also a random screen overlay (SMAC Ultr@ R52).
+// 0 = off, 1 = white fade and no players while fully blind, 2 = also a random screen overlay (SMAC Plus).
 new g_iMode = 1;
 
-// Overlays SMAC Ultr@ R52 uses on CS:S.
+// Overlays SMAC Plus uses on CS:S.
 new const String:g_sOverlays[][] =
 {
 	"effects/security_noise2.vmt",
@@ -88,7 +88,7 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 		
 		if (g_iMode == 2)
 		{
-			// SMAC Ultr@ R52: a second flash that cheats removing the white fade don't touch.
+			// SMAC Plus: a second flash that cheats removing the white fade don't touch.
 			// It is cleared after 0.72 of the flash duration (R52: duration * 900 / 1250).
 			new Float:fOverlay = duration * 0.72;
 			

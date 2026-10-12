@@ -12,7 +12,7 @@ public Plugin:myinfo =
 };
 
 
-// SMAC Ultr@ R52 values (stock SMAC: 45 degrees over 0.5 s, checked on kills only).
+// SMAC Plus values (stock SMAC: 45 degrees over 0.5 s, checked on kills only).
 #define AIM_ANGLE_CHANGE	35.0	// Max angle change that a player should snap
 // Informant AntiSMAC / Insomnia SnapLimiter cap per-tick snaps and split them into steps under the threshold.
 #define AIM_STEP_MIN		28.0	// Min per-tick step for staircase detection

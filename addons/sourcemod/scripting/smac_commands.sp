@@ -214,7 +214,7 @@ public Action:Command_Say(client, const String:command[], args)
 	decl String:sMsg[256], String:sChar;
 	new iLen = GetCmdArgString(sMsg, sizeof(sMsg));
 	
-	// SMAC Ultr@ R52: over 240 bytes, or nothing but spaces (and quotes).
+	// SMAC Plus: over 240 bytes, or nothing but spaces (and quotes).
 	if (iLen > 240)
 	{
 		PrintToChat(client, "%t", "SMAC_SayBlock");

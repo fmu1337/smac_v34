@@ -309,14 +309,14 @@ React(client, const String:detail[])
 		return;
 
 	SMAC_LogAction(client, "%s | %s", sName, detail);
-	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, sName, 1);
+	SMAC_PrintAdminNotice("%t", "SMAC_PlusNotice", client, sName, 1);
 
 	switch (GetConVarInt(g_hCvarAction))
 	{
 		case 1:
 		{
 			SMAC_LogAction(client, "was kicked for %s.", sName);
-			KickClient(client, "%t", "SMAC_UltraKick");
+			KickClient(client, "%t", "SMAC_PlusKick");
 		}
 		case 2:
 		{

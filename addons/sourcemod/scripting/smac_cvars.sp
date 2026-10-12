@@ -2,7 +2,7 @@
 #include <smac>
 #include <smac_cvars>
 #include <basecomm>
-#include <smac_cvars_ultra>
+#include <smac_cvars_plus>
 
 /* Plugin Info */
 public Plugin:myinfo =
@@ -15,11 +15,11 @@ public Plugin:myinfo =
 };
 /*Cvars*/
 new Handle:g_hCvarHldj = INVALID_HANDLE;
-new Handle:g_hCvarUltra = INVALID_HANDLE;
+new Handle:g_hCvarPlus = INVALID_HANDLE;
 
-/* SMAC Ultr@ R52 table (include/smac_cvars_ultra.inc): names added by it, and its trie flag. */
-#define Cvar_Ultra "8"
-new Handle:g_hUltraNames = INVALID_HANDLE;
+/* SMAC Plus table (include/smac_cvars_plus.inc): names added by it, and its trie flag. */
+#define Cvar_Plus "8"
+new Handle:g_hPlusNames = INVALID_HANDLE;
 new Handle:g_hWarned[MAXPLAYERS+1];	/* cvars already reported with Action_Warn */
 
 /* Globals */
@@ -58,9 +58,9 @@ public OnPluginStart()
 	
 	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", _, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarHldj, OnCvarHldjChanged);
-	g_hCvarUltra = SMAC_CreateConVar("smac_cvars_ultra", "1", "SMAC Ultr@ R52 cvar table: 0 = off, 1 = admin notice only, 2 = R52 kick/ban. Missing or protected cvars are ignored.", _, true, 0.0, true, 2.0);
-	HookConVarChange(g_hCvarUltra, OnCvarUltraChanged);
-	g_hUltraNames = CreateArray(ByteCountToCells(MAX_CVAR_NAME_LEN));
+	g_hCvarPlus = SMAC_CreateConVar("smac_cvars_plus", "1", "SMAC Plus cvar table: 0 = off, 1 = admin notice only, 2 = R52 kick/ban. Missing or protected cvars are ignored.", _, true, 0.0, true, 2.0);
+	HookConVarChange(g_hCvarPlus, OnCvarPlusChanged);
+	g_hPlusNames = CreateArray(ByteCountToCells(MAX_CVAR_NAME_LEN));
 	
 	g_hCvarTrie = CreateTrie();
 	g_hCvarADT = CreateArray();
@@ -110,7 +110,7 @@ public OnPluginStart()
 	AddCvar(Order_First, "aaa123_steam_set_random_id",	Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "steam_set_id",					Comp_NonExist, Action_Ban);
 	
-	// Ultr@Hook fingerprint cvars (hlmod.net/threads/cs-s-v34-obnaruzhenie-chita-ultr-hook.66608)
+	// PlusHook fingerprint cvars (hlmod.net/threads/cs-s-v34-obnaruzhenie-chita-ultr-hook.66608)
 	// Ban if the client answers (cvar exists). Kick-on-no-reply covers net_blockmsg.
 	AddCvar(Order_First, "bMbALa4DHPBTv8b",				Comp_NonExist, Action_Ban);
 	AddCvar(Order_First, "y6JgxqVrY7a7eSE",				Comp_NonExist, Action_Ban);
@@ -171,10 +171,10 @@ public OnPluginStart()
 	RegAdminCmd("smac_addcvar", Command_AddCvar, ADMFLAG_ROOT, "Add cvar to checking.");
 	RegAdminCmd("smac_removecvar", Command_RemCvar, ADMFLAG_ROOT, "Remove cvar from checking.");
 	
-	// SMAC Ultr@ R52 table, after our own entries so it never overrides them.
-	if (GetConVarInt(g_hCvarUltra) > 0)
+	// SMAC Plus table, after our own entries so it never overrides them.
+	if (GetConVarInt(g_hCvarPlus) > 0)
 	{
-		AddUltraCvars();
+		AddPlusCvars();
 	}
 	
 	// scramble ordering.
@@ -213,25 +213,25 @@ public OnCvarHldjChanged(Handle:convar, const String:oldValue[], const String:ne
 	}
 }
 
-public OnCvarUltraChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public OnCvarPlusChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	decl String:sCvar[MAX_CVAR_NAME_LEN];
-	new size = GetArraySize(g_hUltraNames);
+	new size = GetArraySize(g_hPlusNames);
 	for (new i = 0; i < size; i++)
 	{
-		GetArrayString(g_hUltraNames, i, sCvar, sizeof(sCvar));
+		GetArrayString(g_hPlusNames, i, sCvar, sizeof(sCvar));
 		RemCvar(sCvar);
 	}
-	ClearArray(g_hUltraNames);
+	ClearArray(g_hPlusNames);
 	
-	if (GetConVarInt(g_hCvarUltra) > 0)
+	if (GetConVarInt(g_hCvarPlus) > 0)
 	{
-		AddUltraCvars();
+		AddPlusCvars();
 	}
 }
 
-/* Called by AddUltraCvars(). Mode 1 turns the R52 action into a notice. */
-AddUltraCvar(CvarOrder:COrder, const String:sName[], CvarComp:CCompType, CvarAction:CAction, const String:sValue[] = "", const String:sValue2[] = "")
+/* Called by AddPlusCvars(). Mode 1 turns the R52 action into a notice. */
+AddPlusCvar(CvarOrder:COrder, const String:sName[], CvarComp:CCompType, CvarAction:CAction, const String:sValue[] = "", const String:sValue2[] = "")
 {
 	decl String:sCvar[MAX_CVAR_NAME_LEN], Handle:hDataTrie;
 	strcopy(sCvar, sizeof(sCvar), sName);
@@ -240,15 +240,15 @@ AddUltraCvar(CvarOrder:COrder, const String:sName[], CvarComp:CCompType, CvarAct
 	if (GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
 		return;
 	
-	if (GetConVarInt(g_hCvarUltra) < 2)
+	if (GetConVarInt(g_hCvarPlus) < 2)
 	{
 		CAction = Action_Warn;
 	}
 	
 	if (AddCvar(COrder, sCvar, CCompType, CAction, sValue, sValue2) && GetTrieValue(g_hCvarTrie, sCvar, hDataTrie))
 	{
-		SetTrieValue(hDataTrie, Cvar_Ultra, 1);
-		PushArrayString(g_hUltraNames, sCvar);
+		SetTrieValue(hDataTrie, Cvar_Plus, 1);
+		PushArrayString(g_hPlusNames, sCvar);
 	}
 }
 
@@ -260,7 +260,7 @@ public OnClientPostAdminCheck(client)
 	}
 }
 
-// Re-scan when client settings change so mid-session inject (Ultr@Hook etc.) is not missed.
+// Re-scan when client settings change so mid-session inject (PlusHook etc.) is not missed.
 public OnClientSettingsChanged(client)
 {
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || IsFakeClient(client) || !IsClientAuthorized(client))
@@ -547,9 +547,9 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 	GetTrieValue(hDataTrie, Cvar_CompType, CCompType);
 	
 	// R52 table: a cvar missing in this client build (or protected) is not a violation.
-	new bUltra = 0;
-	GetTrieValue(hDataTrie, Cvar_Ultra, bUltra);
-	if (bUltra && result != ConVarQuery_Okay && CCompType != Comp_NonExist)
+	new bPlus = 0;
+	GetTrieValue(hDataTrie, Cvar_Plus, bPlus);
+	if (bPlus && result != ConVarQuery_Okay && CCompType != Comp_NonExist)
 		return;
 	GetTrieString(hDataTrie, Cvar_Value, sValue, sizeof(sValue));
 	GetTrieString(hDataTrie, Cvar_Value2, sValue2, sizeof(sValue2));

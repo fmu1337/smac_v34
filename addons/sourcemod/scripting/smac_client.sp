@@ -10,10 +10,10 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-// SMAC Ultr@ R52: a second name change within 15 s kicks (stock SMAC: 5 changes, -1 every 10 s).
+// SMAC Plus: a second name change within 15 s kicks (stock SMAC: 5 changes, -1 every 10 s).
 #define NAME_CHANGE_LIMIT	1
 #define NAME_CHANGE_DECAY	15.0
-// SMAC Ultr@ R52: cl_autobuy longer than this is blocked (stock SMAC checked > 255 on a 256 buffer).
+// SMAC Plus: cl_autobuy longer than this is blocked (stock SMAC checked > 255 on a 256 buffer).
 #define AUTOBUY_MAX_LEN		240
 
 /* smac_v34, from the 420hook source (docs/HOOK_420.md). */
@@ -355,7 +355,7 @@ bool:CheckNameSteal(client, const String:newname[])
 		return false;
 
 	SMAC_LogAction(client, "Name stealer: new name \"%s\" copies %N%s.", newname, victim, bPadded ? " (padded with spaces, 420hook)" : "");
-	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, "Name stealer", 1);
+	SMAC_PrintAdminNotice("%t", "SMAC_PlusNotice", client, "Name stealer", 1);
 
 	return Punish(client, level, "Name stealer");
 }
@@ -480,7 +480,7 @@ public Action:Command_Say(client, const String:command[], args)
 		return Plugin_Continue;
 
 	SMAC_LogAction(client, "Cheat advert in chat (\"%s\"): %s", g_sChatSignatures[match], sText);
-	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, "Cheat advert in chat", 1);
+	SMAC_PrintAdminNotice("%t", "SMAC_PlusNotice", client, "Cheat advert in chat", 1);
 	Punish(client, level, "Cheat advert in chat");
 
 	return Plugin_Continue;
@@ -539,7 +539,7 @@ public Action:Timer_DecreaseCount(Handle:timer, any:userid)
 }
 
 /**
- * smac_Lock_Adm (SMAC Ultr@ R52): sm_rcon / sm_cvar from an admin account can't touch the server's
+ * smac_Lock_Adm (SMAC Plus): sm_rcon / sm_cvar from an admin account can't touch the server's
  * critical settings or SMAC itself. Protects against a stolen admin account.
  */
 public Action:Command_LockAdm(client, const String:command[], args)

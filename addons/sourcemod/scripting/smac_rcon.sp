@@ -21,7 +21,7 @@ public OnPluginStart()
 }
 
 /**
- * SMAC Ultr@ R52: every command listed in cfg/sourcemod/smac_cmd_block.cfg (one per line,
+ * SMAC Plus: every command listed in cfg/sourcemod/smac_cmd_block.cfg (one per line,
  * "//" starts a comment) is blocked for players. R52 blocked them for the server console too;
  * here the console and rcon can still use them.
  */

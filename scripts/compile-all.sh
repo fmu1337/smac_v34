@@ -51,15 +51,15 @@ PLUGINS=(
 	smac_spinhack.sp
 	smac_status.sp
 	smac_wallhack.sp
-	smac_ultra_netcode.sp
-	smac_ultra_aimbot.sp
-	smac_ultra_movement.sp
-	smac_ultra_input.sp
-	smac_ultra_client.sp
-	smac_ultra_server.sp
-	smac_ultra_aimkill.sp
-	smac_ultra_protect.sp
-	smac_ultra_diag_norecoil.sp
+	smac_plus_netcode.sp
+	smac_plus_aimbot.sp
+	smac_plus_movement.sp
+	smac_plus_input.sp
+	smac_plus_client.sp
+	smac_plus_server.sp
+	smac_plus_aimkill.sp
+	smac_plus_protect.sp
+	smac_plus_diag_norecoil.sp
 	smac_cvar_trap.sp
 	smac_usercmd.sp
 	smac_nsb.sp

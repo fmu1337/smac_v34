@@ -24,14 +24,14 @@ public Plugin:myinfo =
 };
 
 new bool:g_bFarEspEnabled;
-new g_iMaxTraces; //ty for crashfix to alex smirnov (aka Ultr@)
+new g_iMaxTraces; //ty for crashfix to alex smirnov (aka Plus)
 
-// SMAC Ultr@ R52: 0 = off, 1 = enemies only (radar on), 2 = FFA (everyone, radar off).
+// SMAC Plus: 0 = off, 1 = enemies only (radar on), 2 = FFA (everyone, radar off).
 new g_iMode = 1;
-// SMAC Ultr@ R52: rectangle width divisor = 7.0 + smac_wallhack_Level (master SMAC used 4.0).
+// SMAC Plus: rectangle width divisor = 7.0 + smac_wallhack_Level (master SMAC used 4.0).
 new Float:g_fWideDivisor = 7.0;
 new Handle:g_hCvarTime = INVALID_HANDLE;
-// SMAC Ultr@ R52 Anti-SoundESP: -1 = no sound handling, 0 = real sounds, 1-4 = faked for listeners who can't see the source.
+// SMAC Plus Anti-SoundESP: -1 = no sound handling, 0 = real sounds, 1-4 = faked for listeners who can't see the source.
 new g_iSoundESP = 0;
 new Handle:g_hCvarTickTime = INVALID_HANDLE;
 
@@ -416,7 +416,7 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 }
 
 /**
- * Anti-SoundESP (SMAC Ultr@ R52, smac_SoundESP). For each listener who can't see the source:
+ * Anti-SoundESP (SMAC Plus, smac_SoundESP). For each listener who can't see the source:
  *   1, 2, 4  the sound comes from a random point near the source (x/y -269.7..289, z -180..289);
  *   2+       level 75 and pitch 100, so the weapon can't be told from them;
  *   3, 4     volume 100000 / dist^2 limited to 0.7, nothing below 0.1 (about 1000 units).
@@ -638,7 +638,7 @@ UpdateClientData(client)
 	GetClientEyePosition(client, g_vEyePos[client]);
 	
 	// Adjust vectors relative to the model's absolute centre.
-	// SMAC Ultr@ R52: half height = view offset / 2.2 (follows crouching, a bit lower than the hull).
+	// SMAC Plus: half height = view offset / 2.2 (follows crouching, a bit lower than the hull).
 	new Float:fHalfHeight = (g_vEyePos[client][2] - g_vAbsCentre[client][2]) / 2.2;
 	
 	if (fHalfHeight > 0.0)
@@ -743,7 +743,7 @@ bool:IsAbleToSee(entity, client)
 		if (IsRectangleVisible(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 1.30))
 			return true;
 		
-		// Check if head is visible (SMAC Ultr@ R52; stock SMAC traced to a point 50 units in front of the eyes).
+		// Check if head is visible (SMAC Plus; stock SMAC traced to a point 50 units in front of the eyes).
 		if (IsPointVisible(g_vEyePos[client], g_vEyePos[entity]))
 			return true;
 

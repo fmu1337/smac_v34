@@ -21,7 +21,7 @@ LilAC, Oryx и Cow AC выпущены под GPLv3, как и SMAC, автор�
 
 Уведомление шлётся один раз на каждое новое значение lerp. Проверка раз в 2 с.
 
-### Backtrack Patch в smac_ultra_netcode (из LilAC)
+### Backtrack Patch в smac_plus_netcode (из LilAC)
 
 Отдельным модулем не сделан: патч должен идти **после** детектов netcode, чтобы Airstuck, Lag Exploit и Backtrack A/B
 видели сырой tickcount клиента. Порядок загрузки плагинов SourceMod не гарантирует, а внутри одного модуля порядок задан.
@@ -68,15 +68,15 @@ LilAC, Oryx и Cow AC выпущены под GPLv3, как и SMAC, автор�
 |---|---|---|---|
 | Углы глаз | `smac_eyetest` 04: питч ±89.9, ролл ±30, углы зажимаются | LilAC и StAC: питч ±89.01, ролл ±50, LilAC тоже зажимает | У нас строже и не хуже. Оставить |
 | Снап аимбота | `smac_aimbot`: скачок за тик > 35° или «лесенка» шагов ≥ 28°, на попадании | LilAC: прицел за тик сходится к жертве (расстояние до неё < 20% от прошлого при повороте > 10°, или < 10% при > 5°) и суммарный поворот > 450° за 0.5 с до убийства | **У LilAC лучше** для снапов 10–35°, которые мы не видим. Стоит добавить проверку «снап к жертве» в `smac_aimbot` |
-| pSilent | `smac_ultra_netcode` PSilent Active (нужен choke на выстреле), R52 AMSAF/AGTWS | StAC: углы A → B → A на трёх cmd подряд (прицел ушёл на 1 cmd и вернулся ровно назад), разница ≥ 1°. LilAC: то же на выстреле, ставшем убийством | **У них лучше** для pSilent без choke. Стоит добавить A-B-A проверку с привязкой к выстрелу (как LilAC), без неё у StAC были ложняки |
+| pSilent | `smac_plus_netcode` PSilent Active (нужен choke на выстреле), R52 AMSAF/AGTWS | StAC: углы A → B → A на трёх cmd подряд (прицел ушёл на 1 cmd и вернулся ровно назад), разница ≥ 1°. LilAC: то же на выстреле, ставшем убийством | **У них лучше** для pSilent без choke. Стоит добавить A-B-A проверку с привязкой к выстрелу (как LilAC), без неё у StAC были ложняки |
 | Autoshoot | R52 Auto-Fire, Advanced AutoFire, Trigger | LilAC: +attack ровно на один cmd на двух убийствах подряд. Cow: tick-perfect выстрел при входе цели в прицел | Перекрыто. Оставить |
 | Aimlock | R52 AGTNL 200/201, PRG 301–304 | LilAC: раз в 0.5 с по всем парам игроков, прицел снапнул > 10° и держится < 10° от врага ≥ 0.1 с | Перекрыто по сути. Метод LilAC тяжёлый (O(n²) за тик), не брать |
 | Bhop | R52 HaX2 (EMA идеальных прыжков ≈ 11 подряд), Advanced BunnyHop | LilAC: 10 идеальных подряд (5, если нажатий мало). Cow: по 30 последним прыжкам | Равноценно, у нас терпимее к случайным сериям. Оставить |
 | Чистка чата | `smac_commands`: сообщение с управляющими символами < 32 блокируется | LilAC: перевод строки в сообщении — бан | У нас безопаснее. Можно добавить запись в лог, кто это делал |
 | Квары | stock + таблица R52 (257 кваров), кик за неответ на запрос | LilAC 12 кваров, StAC интерп и cmdrate | Всё из LilAC есть, кроме `mat_fullbright`. Его стоит проверить на v34 и добавить. От StAC интересна проверка «ping masking» (нечисловой `cl_cmdrate`) |
-| Флуд | `smac_client` (ник, переподключения), `smac_commands` (команды), `smac_status`, Iniuria в `smac_ultra_server` | Forlix FloodCheck: чат, команды, ник, коннекты, voice_loopback | Перекрыто. Флуд чата в SourceMod уже есть (`sm_flood_time`) |
+| Флуд | `smac_client` (ник, переподключения), `smac_commands` (команды), `smac_status`, Iniuria в `smac_plus_server` | Forlix FloodCheck: чат, команды, ник, коннекты, voice_loopback | Перекрыто. Флуд чата в SourceMod уже есть (`sm_flood_time`) |
 | Anti-WH | `smac_wallhack` + доработки R52, Anti-SoundESP, `smac_css_smokefix` | HOTGUARD antiwh, fixsmoke, fixflash | У нас полнее. HOTGUARD частично декомпилирован, без лицензии. Не брать |
-| Блок прицела | `smac_ultra_aimkill` (невидимые приманки у лица) | HOTGUARD blockaim (машина, прикреплённая к игроку) | То же самое. Оставить своё |
+| Блок прицела | `smac_plus_aimkill` (невидимые приманки у лица) | HOTGUARD blockaim (машина, прикреплённая к игроку) | То же самое. Оставить своё |
 | Rcon, status, eyetest | `smac_rcon`, `smac_status`, `smac_eyetest` | KAC rcon, status, eyetest | У нас то же или больше. KAC network — сервис банлиста, он мёртв |
 
 Итого стоит сделать отдельно: снап к жертве и A-B-A pSilent в `smac_aimbot`, `mat_fullbright` и ping masking в `smac_cvars`.

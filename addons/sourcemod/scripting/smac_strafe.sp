@@ -113,7 +113,7 @@ public OnPluginStart()
 	g_hCvarCheck[CHECK_TURN] = SMAC_CreateConVar("smac_strafe_turn", "1", "Perfect Turn / Steady Turn (Oryx): 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
 	g_hCvarCheck[CHECK_SILENT] = SMAC_CreateConVar("smac_strafe_silent", "1", "Silent Strafe (sidemove flips every cmd, Cow AC): 0=off, 1=log/notice, 2=kick on high, 3=ban on high", _, true, 0.0, true, 3.0);
 	g_hCvarCheck[CHECK_AHK] = SMAC_CreateConVar("smac_strafe_ahk", "1", "AHK Mouse (constant mouse dx in the air, Cow AC): 0=off, 1=log/notice", _, true, 0.0, true, 1.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	// mouse[2] needs the 11-parameter OnPlayerRunCmd (SourceMod 1.5.0+); only AHK Mouse uses it.
 	g_bMouse = (GetFeatureStatus(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS) == FeatureStatus_Available);
@@ -573,7 +573,7 @@ Report(client, check, severity, const String:name[], const String:detail[])
 	if (severity < SEV_MEDIUM)
 		return;
 
-	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, name, count);
+	SMAC_PrintAdminNotice("%t", "SMAC_PlusNotice", client, name, count);
 
 	new level = GetConVarInt(g_hCvarCheck[check]);
 	if (severity < SEV_HIGH || level < 2 || IsImmune(client))
@@ -587,6 +587,6 @@ Report(client, check, severity, const String:name[], const String:detail[])
 	else
 	{
 		SMAC_LogAction(client, "was kicked for %s.", name);
-		KickClient(client, "%t", "SMAC_UltraKick");
+		KickClient(client, "%t", "SMAC_PlusKick");
 	}
 }

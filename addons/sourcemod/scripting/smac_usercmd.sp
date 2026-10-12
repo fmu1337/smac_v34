@@ -468,7 +468,7 @@ Notice(client, const String:name[], count, const String:detail[])
 		return;
 
 	SMAC_LogAction(client, "%s | %s", name, detail);
-	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, name, count);
+	SMAC_PrintAdminNotice("%t", "SMAC_PlusNotice", client, name, count);
 	LogToFileEx(g_sLog, "%L NOTICE %s | %s", client, name, detail);
 }
 

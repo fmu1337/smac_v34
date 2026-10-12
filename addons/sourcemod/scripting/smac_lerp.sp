@@ -55,7 +55,7 @@ public OnPluginStart()
 	g_hCvarMaxLerp = SMAC_CreateConVar("smac_lerp_max", "105", "Max lerp in ms. Above it the player gets the lag compensation of this value. (0 = no limit)", _, true, 0.0, true, 1000.0);
 	g_hCvarMaxLerpReaction = SMAC_CreateConVar("smac_lerp_max_reaction", "1", "Lerp above smac_lerp_max: 0=off, 1=admin notice, 2=kick (LilAC: kick)", _, true, 0.0, true, 2.0);
 	g_hCvarFix = SMAC_CreateConVar("smac_lerp_fix", "1", "Clamp m_fLerpTime into [1 / sv_maxupdaterate, smac_lerp_max] before lag compensation. 0=off, 1=on", _, true, 0.0, true, 1.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_ultra_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	g_hCvarMaxUpdateRate = FindConVar("sv_maxupdaterate");
 
@@ -174,7 +174,7 @@ Report(client, Handle:info, &count, level, const String:name[], const String:det
 		return;
 
 	SMAC_LogAction(client, "%s (Detection #%i) %s", name, count, detail);
-	SMAC_PrintAdminNotice("%t", "SMAC_UltraNotice", client, name, count);
+	SMAC_PrintAdminNotice("%t", "SMAC_PlusNotice", client, name, count);
 
 	if (level < 2 || IsImmune(client))
 		return;

@@ -12,7 +12,7 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-// Values from SMAC Ultr@ R52 (stock SMAC: 0.75 s, 15 s, 45 units).
+// Values from SMAC Plus (stock SMAC: 0.75 s, 15 s, 45 units).
 #define SMOKE_DELAYTIME	0.7		// Seconds until smoke is fully deployed
 #define SMOKE_FADETIME	16.0	// Seconds until a smoke begins to fade away
 #define SMOKE_RADIUS	3025	// (55^2) Radius to check for a player inside a smoke cloud
@@ -173,7 +173,7 @@ public Action:Hook_SetTransmit(entity, client)
 	if (g_bIsInSmoke[client])
 		return Plugin_Handled;
 	
-	/* SMAC Ultr@ R52: a player inside a smoke is not sent to living players of the other team. */
+	/* SMAC Plus: a player inside a smoke is not sent to living players of the other team. */
 	if (g_iMode == 2 && g_bIsInSmoke[entity] && g_iTeam[client] > 1 && g_iTeam[client] != g_iTeam[entity] && IsPlayerAlive(client))
 		return Plugin_Handled;
 	

@@ -14,7 +14,7 @@ public Plugin:myinfo =
 };
 
 /*
- * Eyetest 01-04 as in SMAC Ultr@ R52 (001_SMAC_Global.smx, OnPlayerRunCmd):
+ * Eyetest 01-04 as in SMAC Plus (001_SMAC_Global.smx, OnPlayerRunCmd):
  *   01  cmdnum went back                                  (Detection_UserCmdReuse)
  *   02  cmdnum repeated, tickcount is not prev or prev+1  (Detection_UserCmdTamperingTickcount)
  *   03  cmdnum repeated, movement/score buttons changed   (Detection_UserCmdTamperingButtons)
@@ -103,9 +103,9 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	// Convars.
-	g_hCvarReaction = SMAC_CreateConVar("smac_eyetest_reaction", "3", "Eye test 01-04 reaction: 0=off, 1=admin notice, 2=kick, 3=ban (SMAC Ultr@ R52: 3)", _, true, 0.0, true, 3.0);
+	g_hCvarReaction = SMAC_CreateConVar("smac_eyetest_reaction", "3", "Eye test 01-04 reaction: 0=off, 1=admin notice, 2=kick, 3=ban (SMAC Plus: 3)", _, true, 0.0, true, 3.0);
 	g_hCvarNewReaction = SMAC_CreateConVar("smac_eyetest_new_reaction", "1", "Reaction for lisp yaw (04L) and zero angles (05): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarNoSpread = SMAC_CreateConVar("smac_NoS_NoR", "1", "No Spread / No Recoil block (SMAC Ultr@ R52): a new random seed on every +attack usercmd. 0 = only when cmdnums are skipped (stock SMAC).", _, true, 0.0, true, 1.0);
+	g_hCvarNoSpread = SMAC_CreateConVar("smac_NoS_NoR", "1", "No Spread / No Recoil block (SMAC Plus): a new random seed on every +attack usercmd. 0 = only when cmdnums are skipped (stock SMAC).", _, true, 0.0, true, 1.0);
 	g_hCvarBan = SMAC_CreateConVar("smac_eyetest_ban", "1", "Legacy: 0 limits smac_eyetest_reaction to admin notices.", _, true, 0.0, true, 1.0);
 	g_hCvarSeedBan = SMAC_CreateConVar("smac_eyetest_seed_ban", "1", "Automatically ban players for nospread seed hunting (command_number skips on attack).", _, true, 0.0, true, 1.0);
 
@@ -468,7 +468,7 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 		case 2:
 		{
 			SMAC_LogAction(client, "was kicked for %s. %s", g_sCheck[check], detail);
-			KickClient(client, "%t", "SMAC_UltraKick");
+			KickClient(client, "%t", "SMAC_PlusKick");
 		}
 		default:
 		{
