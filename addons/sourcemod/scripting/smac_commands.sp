@@ -19,11 +19,7 @@ enum ActionType {
 };
 
 new Handle:g_hBlockedCmds = INVALID_HANDLE;
-new Handle:g_hIgnoredCmds = INVALID_HANDLE;
-new g_iCmdSpamLimit = 35;
 new bool:g_bLogCommands;
-new g_iCmdCount[MAXPLAYERS+1] = {0, ...};
-new Handle:g_hCvarCmdSpam = INVALID_HANDLE;
 new Handle:g_hLogCommands = INVALID_HANDLE;
 
 new String:g_sLogPath[PLATFORM_MAX_PATH];
@@ -33,10 +29,6 @@ public OnPluginStart()
 	
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
-	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "35", "Amount of commands allowed per second. (0 = Disabled)", _, true, 0.0);
-	OnSettingsChanged(g_hCvarCmdSpam, "", "");
-	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
-	
 	g_hLogCommands = SMAC_CreateConVar("smac_commands_log", "0", "Log command usage. Use only for debugging purposes.", _, true, 0.0);
 	OnSettingsChanged1(g_hLogCommands, "", "");
 	HookConVarChange(g_hLogCommands, OnSettingsChanged1);
@@ -47,7 +39,6 @@ public OnPluginStart()
 	AddCommandListener(Command_BlockEntExploit, "ent_fire");
 	HookEvent("player_disconnect", Commands_EventDisconnect, EventHookMode_Pre);
 	g_hBlockedCmds = CreateTrie();
-	g_hIgnoredCmds = CreateTrie();
 	SetTrieValue(g_hBlockedCmds, "ai_test_los", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "cl_fullupdate", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "dbghist_addline", Action_Block);
@@ -99,28 +90,11 @@ public OnPluginStart()
 	SetTrieValue(g_hBlockedCmds, "speed.toggle", Action_Kick);
 	
 
-	// Add commands to ignore list.
-//	SetTrieValue(g_hIgnoredCmds, "buy", true); // AntiBuy DDOS
-//	SetTrieValue(g_hIgnoredCmds, "buyammo1", true);
-//	SetTrieValue(g_hIgnoredCmds, "buyammo2", true);
-	SetTrieValue(g_hIgnoredCmds, "setpause", true);
-//	SetTrieValue(g_hIgnoredCmds, "spec_mode", true);
-//	SetTrieValue(g_hIgnoredCmds, "spec_next", true);
-//	SetTrieValue(g_hIgnoredCmds, "spec_prev", true);
-	SetTrieValue(g_hIgnoredCmds, "unpause", true);
-	SetTrieValue(g_hIgnoredCmds, "use", true);
-	SetTrieValue(g_hIgnoredCmds, "vban", true);
-	SetTrieValue(g_hIgnoredCmds, "vmodenable", true);
-//	SetTrieValue(g_hIgnoredCmds, "ucp_NW2N4T32", true); // UCP Clients fix
-	
-	CreateTimer(1.0, Timer_ResetCmdCount, _, TIMER_REPEAT);
 	
 	AddCommandListener(Command_CommandListener);
 
 	RegAdminCmd("smac_addcmd", Command_AddCmd, ADMFLAG_ROOT, "Block a command.");
-	RegAdminCmd("smac_addignorecmd", Command_AddIgnoreCmd, ADMFLAG_ROOT, "Ignore a command.");
 	RegAdminCmd("smac_removecmd", Command_RemoveCmd, ADMFLAG_ROOT, "Unblock a command.");
-	RegAdminCmd("smac_removeignorecmd", Command_RemoveIgnoreCmd, ADMFLAG_ROOT, "Unignore a command.");
 }
 
 public Action:Commands_EventDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
@@ -206,25 +180,6 @@ public Action:Command_AddCmd(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_AddIgnoreCmd(client, args)
-{
-	if (args == 1)
-	{
-		decl String:sCommand[PLATFORM_MAX_PATH];
-		
-		GetCmdArg(1, sCommand, sizeof(sCommand));
-		StringToLower(sCommand);
-		
-		SetTrieValue(g_hIgnoredCmds, sCommand, true);
-		ReplyToCommand(client, "%s has been added.", sCommand);
-		
-		return Plugin_Handled;
-	}
-	
-	ReplyToCommand(client, "Usage: smac_addignorecmd <cmd>");
-	return Plugin_Handled;
-}
-
 public Action:Command_RemoveCmd(client, args)
 {
 	if (args == 1)
@@ -250,31 +205,6 @@ public Action:Command_RemoveCmd(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_RemoveIgnoreCmd(client, args)
-{
-	if (args == 1)
-	{
-		decl String:sCommand[PLATFORM_MAX_PATH];
-		
-		GetCmdArg(1, sCommand, sizeof(sCommand));
-		StringToLower(sCommand);
-		
-		if (RemoveFromTrie(g_hIgnoredCmds, sCommand))
-		{
-			ReplyToCommand(client, "%s has been removed.", sCommand);
-		}
-		else
-		{
-			ReplyToCommand(client, "%s was not found.", sCommand);
-		}
-		
-		return Plugin_Handled;
-	}
-	
-	ReplyToCommand(client, "Usage: smac_removeignorecmd <cmd>");
-	return Plugin_Handled;
-}
-
 public Action:Command_Say(client, const String:command[], args)
 {
 	if (!IS_CLIENT(client))
@@ -283,6 +213,30 @@ public Action:Command_Say(client, const String:command[], args)
 	new iSpaceNum;
 	decl String:sMsg[256], String:sChar;
 	new iLen = GetCmdArgString(sMsg, sizeof(sMsg));
+	
+	// SMAC Plus: over 240 bytes, or nothing but spaces (and quotes).
+	if (iLen > 240)
+	{
+		PrintToChat(client, "%t", "SMAC_SayBlock");
+		return Plugin_Stop;
+	}
+	
+	new bool:bOnlySpaces = (iLen > 0);
+	
+	for (new i = 0; i < iLen; i++)
+	{
+		if (sMsg[i] != ' ' && sMsg[i] != '"')
+		{
+			bOnlySpaces = false;
+			break;
+		}
+	}
+	
+	if (bOnlySpaces)
+	{
+		PrintToChat(client, "%t", "SMAC_SayBlock");
+		return Plugin_Stop;
+	}
 	
 	for (new i = 0; i < iLen; i++)
 	{
@@ -400,45 +354,8 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 		return Plugin_Stop;
 	}
 	
-	if (g_iCmdSpamLimit && !GetTrieValue(g_hIgnoredCmds, command, cAction) && ++g_iCmdCount[client] > g_iCmdSpamLimit)
-	{
-		decl String:sArgString[192];
-		GetCmdArgString(sArgString, sizeof(sArgString));
-		
-		new Handle:info = CreateKeyValues("");
-		KvSetString(info, "command", command);
-		KvSetString(info, "argstring", sArgString);
-		
-		PrintToServer("DEBUG: Client %i - Command %s - arg %s", client, command, sArgString);
-		
-		if (SMAC_CheatDetected(client, Detection_CommandSpamming, info) == Plugin_Continue)
-		{
-			SMAC_PrintAdminNotice("%N was kicked for spamming: %s %s", client, command, sArgString);
-			SMAC_LogAction(client, "was kicked for spamming: %s %s", command, sArgString);
-			KickClient(client, "%t", "SMAC_CommandSpamKick");
-		}
-		
-		CloseHandle(info);
-		
-		return Plugin_Stop;
-	}
 
 	return Plugin_Continue;
-}
-
-public Action:Timer_ResetCmdCount(Handle:timer)
-{
-	for (new i = 1; i <= MaxClients; i++)
-	{
-		g_iCmdCount[i] = 0;
-	}
-	
-	return Plugin_Continue;
-}
-
-public OnSettingsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
-{
-	g_iCmdSpamLimit = GetConVarInt(convar);
 }
 
 

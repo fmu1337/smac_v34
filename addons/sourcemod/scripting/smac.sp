@@ -108,9 +108,9 @@ public Action:Command_Status(client, args){
 			#endif
 			{
 				#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-				if (!GetClientAuthId(i, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+				if (GetClientAuthId(i, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
 				#else
-				if (!GetClientAuthString(i, sAuthID, sizeof(sAuthID), false))
+				if (GetClientAuthString(i, sAuthID, sizeof(sAuthID), false))
 				#endif
 				{
 					Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);
@@ -159,9 +159,9 @@ public Native_LogAction(Handle:plugin, numParams)
 	#endif
 	{
 		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+		if (GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
 		#else
-		if (!GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
+		if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
 		#endif
 		{
 			Format(sAuthID, sizeof(sAuthID), "%s (Not Validated)", sAuthID);
