@@ -895,29 +895,13 @@ UnbanMarker(admin, const String:marker[])
 /**
  * Enforce a record the KV cursor is already on.
  * SteamID hits ignore the timer. Marker hits are filtered by RecordActive first.
+ * Rejoin always bans for 5 minutes (same as the original): a new SteamID must not
+ * inherit a long sm_ban from the list.
  */
 Enforce(client)
 {
-	decl String:reason[64], String:expires[16], String:elapse[32];
+	decl String:reason[64];
 	KvGetString(g_hList, "Ban Reason", reason, sizeof(reason), "no-steam ban");
-	KvGetString(g_hList, "Expires", expires, sizeof(expires), "");
-	KvGetString(g_hList, "Elapse", elapse, sizeof(elapse), "");
-
-	new minutes = 0;
-	if (expires[0])
-	{
-		new when = StringToInt(expires);
-		if (when > 0)
-		{
-			minutes = (when - GetTime()) / 60;
-			if (minutes < 1)
-				minutes = 1;
-		}
-	}
-	else if (elapse[0] && !StrEqual(elapse, "Permanent") && !StrEqual(elapse, "0"))
-	{
-		minutes = 5;
-	}
 
 	new Handle:info = CreateKeyValues("");
 	KvSetString(info, "check", "no-steam ban");
@@ -929,7 +913,7 @@ Enforce(client)
 
 	SMAC_PrintAdminNotice("%t", "SMAC_NsbHit", client, reason);
 	SMAC_LogAction(client, "no-steam ban list (%s)", reason);
-	Punish(client, reason, minutes);
+	Punish(client, reason, 5);
 }
 
 Punish(client, const String:reason[], minutes)
@@ -1119,30 +1103,20 @@ bool:GetAuth(client, String:auth[], maxlen)
 bool:IsMarkerValue(const String:value[], String:out[], maxlen)
 {
 	out[0] = 0;
-	if (!value[0] || !IsCharNumeric(value[0]))
+	new n = strlen(value);
+	if (n != 7)
 		return false;
+
+	for (new i = 0; i < n; i++)
+	{
+		if (!IsCharNumeric(value[i]))
+			return false;
+	}
 
 	new v = StringToInt(value);
 	if (v < NSB_MARKER_MIN || v > NSB_MARKER_MAX)
 		return false;
 
-	FormatEx(out, maxlen, "%d", v);
-	if (StrEqual(value, out))
-		return true;
-
-	new n = strlen(out);
-	if (value[n] != '.')
-	{
-		out[0] = 0;
-		return false;
-	}
-	for (new i = n + 1; value[i]; i++)
-	{
-		if (value[i] != '0')
-		{
-			out[0] = 0;
-			return false;
-		}
-	}
-	return value[n + 1] != 0;
+	strcopy(out, maxlen, value);
+	return true;
 }
