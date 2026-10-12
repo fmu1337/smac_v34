@@ -91,6 +91,14 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
 * `smac_nsb` — no-steam баны: игроку пишется метка в клиентский квар, бан хранится в `data/smac_nsblist.txt`
   и переживает смену SteamID. Меню `sm_nsb` (бан / разбан / проверка). При старте подтягивает ещё не скопированные
   записи из `data/kac_nsblist.txt`. Подробности — в [docs/NSB.md](docs/NSB.md).
+* `smac_autopunish` — слушает `SMAC_OnCheatDetected`: если на сервере есть админ с `smac_admin_notices` /
+  `ADMFLAG_GENERIC`, только уведомление и детекторы работают как обычно; если админов нет —
+  кикает (`1`) или банит (`2`) по квару на каждый `DetectionType` (`smac_autopunish_aimbot`,
+  `smac_autopunish_airstuck`, `smac_autopunish_plus_movement`, …). Глобально: `smac_autopunish` 0/1,
+  иммунитет подозреваемого с ban/root: `smac_autopunish_immune`. **Все типы по умолчанию 0 (выкл)** —
+  модуль ничего не делает, пока не включите нужные типы. Имеет смысл там, где детектор уже в режиме
+  notice, иначе при пустом сервере стоковый модуль с kick/ban и autopunish могут пересечься
+  (autopunish при наказании возвращает `Plugin_Handled` и блокирует повтор).
 
 ## Из Cheat-Acid (LilAC, Oryx, Cow AC)
 

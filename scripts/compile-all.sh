@@ -63,6 +63,7 @@ PLUGINS=(
 	smac_cvar_trap.sp
 	smac_usercmd.sp
 	smac_nsb.sp
+	smac_autopunish.sp
 )
 
 # Optional modules: compiled into plugins/disabled, so SourceMod does not load them
