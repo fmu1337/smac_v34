@@ -3,49 +3,17 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * SMAC Plus port: movement detectors.
- *
- *
- * Per usercmd:
- *   Fast Run            wishmove without the matching key (sidemove > 0 without +moveright, ...)
- *                       while |vel.x| or |vel.y| > 289; more than 22 such cmds (reset on death).
- *   Advanced BunnyHop   (R52 fn_344b08, on every +jump press on the ground)
- *                       n = +jump presses since the previous ground jump, ema = (9*ema + n) / 10.
- *                       ema < 1.1 (one press per jump) and horizontal speed >= 350 on 12 jumps.
- *                       Jumping in place (< sqrt(30) units) or a fast fall skips 2 jumps.
- *   AutoHotKeys, Auto-Jump  ema > 15 and n repeats exactly for more than 15 jumps.
- *   HaX2                perfect-hop EMA (+jump pressed on the very cmd the player landed)
- *                       reaches 0.8 (about 11 perfect hops in a row).
- * Every second:
- *   Airstuck: Fast Detect   velocity has no zero component and no component changed by 0.7,
- *                       flags exactly 0x10280/0x10282 (as R52); 3 hits, each decays in 420 s.
- *   BunnyHop: Fast Detect   |vel.x| or |vel.y| > 289.
- *   Teleport Hack       |vel.z| < 360 and the player moved more than |SpeedTeleport| units
- *                       in one second.
- *   Teleport Hack: Fast Detect  vel.z > 1250 (R52 uses |vel.z|; falling is left out here).
- *   Spinhack            sum of |dYaw| (wrapped) in one second > 420 * sensitivity or > 4096;
- *                       more than 5 such seconds in one life.
- *
- * All second checks need normal gravity (R52: entity gravity 0 or 1; here also no
- * m_flLaggedMovementValue change), are skipped on ladders, noclip and fly movetypes and
- * without a knife (R52), and after spawn / trigger_teleport (added for safety).
- *
- * Defaults are admin-notice only where noted. Defaults are admin-notice only.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: Movement",
 	author = SMAC_AUTHOR,
-	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack from SMAC Plus",
+	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack; FastWalk, AutoStrafe, CircleStrafe",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
 
-/* Checks (index into g_sCheck). */
 #define M_FASTRUN		0
-#define M_EYE04			1		/* Eye Angles 04 moved to smac_eyetest; index kept */
+#define M_EYE04			1
 #define M_ADVBHOP		2
 #define M_AUTOJUMP		3
 #define M_HAX2			4
@@ -54,7 +22,10 @@ public Plugin:myinfo =
 #define M_TELEPORT		7
 #define M_TELEFAST		8
 #define M_SPIN			9
-#define M_COUNT			10
+#define M_FASTWALK		10
+#define M_AUTOSTRAFE	11
+#define M_CIRCLE		12
+#define M_COUNT			13
 
 new String:g_sCheck[M_COUNT][] =
 {
@@ -67,13 +38,15 @@ new String:g_sCheck[M_COUNT][] =
 	"BunnyHop: Fast Detect",
 	"Teleport Hack",
 	"Teleport Hack: Fast Detect",
-	"Spinhack"
+	"Spinhack",
+	"FastWalk",
+	"AutoStrafe",
+	"CircleStrafe"
 };
 
 #define MAX_RUN_SPEED		289.0
 #define FASTRUN_CMDS		22
 #define FASTRUN_AFTER		-264
-
 
 #define BHOP_EMA_SINGLE		1.1
 #define BHOP_EMA_SCROLL		15.0
@@ -100,6 +73,11 @@ new String:g_sCheck[M_COUNT][] =
 #define NOTICE_COOLDOWN		30.0
 #define QUERY_INTERVAL		60.0
 
+#define FASTWALK_MIN_STEP	100.0
+#define FASTWALK_CMDS		20
+#define AUTOSTRAFE_CMDS		60
+#define CIRCLE_CMDS			10
+
 #define MAX_PING			0.15
 #define MIN_PACKET_FRAC		0.7
 
@@ -110,16 +88,26 @@ new Handle:g_hCvarTeleport = INVALID_HANDLE;
 new Handle:g_hCvarTeleportNotice = INVALID_HANDLE;
 new Handle:g_hCvarSpin = INVALID_HANDLE;
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
+new Handle:g_hCvarFastWalk = INVALID_HANDLE;
+new Handle:g_hCvarAutoStrafe = INVALID_HANDLE;
+new Handle:g_hCvarCircle = INVALID_HANDLE;
 
 new Float:g_fSens[MAXPLAYERS+1];
+
+new Float:g_fMoveSpeed[MAXPLAYERS+1][3];
+
+new Float:g_fPrevMove[MAXPLAYERS+1][2];
+new Float:g_fPrevMoveDelta[MAXPLAYERS+1][2];
+new bool:g_bHasPrevMove[MAXPLAYERS+1];
+new g_iFastWalk[MAXPLAYERS+1];
+new g_iAutoStrafe[MAXPLAYERS+1];
+new g_iCircle[MAXPLAYERS+1];
 new Float:g_fIgnoreUntil[MAXPLAYERS+1];
 new g_iDetects[MAXPLAYERS+1][M_COUNT];
 new Float:g_fNextNotice[MAXPLAYERS+1][M_COUNT];
 
-/* Fast Run */
 new g_iFastRun[MAXPLAYERS+1];
 
-/* Advanced BunnyHop (R52 fn_344b08 state) */
 new g_iJumpPresses[MAXPLAYERS+1];
 new Float:g_fPressEma[MAXPLAYERS+1];
 new g_iRepeat[MAXPLAYERS+1];
@@ -134,12 +122,10 @@ new bool:g_bJumpHeld[MAXPLAYERS+1];
 new bool:g_bPrevOnGround[MAXPLAYERS+1];
 new g_iPrevButtons[MAXPLAYERS+1];
 
-/* Second ticker */
 new Float:g_fPrevVel[MAXPLAYERS+1][3];
 new Float:g_fPrevPos[MAXPLAYERS+1][3];
 new g_iAirstuck[MAXPLAYERS+1];
 
-/* Spinhack */
 new Float:g_fPrevYaw[MAXPLAYERS+1];
 new bool:g_bHasPrevYaw[MAXPLAYERS+1];
 new Float:g_fSpinSum[MAXPLAYERS+1];
@@ -149,13 +135,16 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run and BunnyHop: Fast Detect (speed > 289): 0=off, 1=admin notice, 2=kick, 3=ban (R52: 2)", _, true, 0.0, true, 3.0);
-	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only (R52: 2)", _, true, -1.0, true, 4.0);
-	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
-	g_hCvarTeleport = SMAC_CreateConVar("smac_SpeedTeleport", "-1500.0", "Teleport Hack: max distance per second, +N = ban, -N = kick, 0 = off (also Teleport Hack: Fast Detect)", _, true, -50000.0, true, 50000.0);
-	g_hCvarTeleportNotice = SMAC_CreateConVar("smac_SpeedTeleport_notice_only", "1", "Teleport Hack: only notify admins instead of the kick/ban set by smac_SpeedTeleport.", _, true, 0.0, true, 1.0);
-	g_hCvarSpin = SMAC_CreateConVar("smac_plus_spinhack_reaction", "1", "Spinhack (R52 per-second yaw sum): 0=off, 1=admin notice, 2=kick, 3=ban (R52: kick)", _, true, 0.0, true, 3.0);
-	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
+	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run / fast bhop (speed > 289): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "Macros/bhop/HaX2/Auto-Jump: -1=off, 0=notice, 1=kick, 2=ban, 3/4=kick/ban Auto-Fire only", _, true, -1.0, true, 4.0);
+	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarTeleport = SMAC_CreateConVar("smac_SpeedTeleport", "-1500.0", "Teleport: max units/sec; +N ban, -N kick, 0=off (also fast detect)", _, true, -50000.0, true, 50000.0);
+	g_hCvarTeleportNotice = SMAC_CreateConVar("smac_SpeedTeleport_notice_only", "1", "Teleport: notice only instead of kick/ban: 0=off, 1=on", _, true, 0.0, true, 1.0);
+	g_hCvarSpin = SMAC_CreateConVar("smac_plus_spinhack_reaction", "1", "Spinhack (yaw sum/sec): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarFastWalk = SMAC_CreateConVar("smac_FastWalk_reaction", "1", "FastWalk (ground zigzag every cmd): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAutoStrafe = SMAC_CreateConVar("smac_AutoStrafe_reaction", "1", "AutoStrafe (air sidemove without keys): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarCircle = SMAC_CreateConVar("smac_CircleStrafe_reaction", "1", "CircleStrafe (wishmove above cl_*speed): 0=off, 1=notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root (still logged): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
@@ -175,6 +164,7 @@ public OnPluginStart()
 public OnClientPutInServer(client)
 {
 	g_fSens[client] = 0.0;
+	g_fMoveSpeed[client][0] = g_fMoveSpeed[client][1] = g_fMoveSpeed[client][2] = 0.0;
 	g_fIgnoreUntil[client] = 0.0;
 	for (new i = 0; i < M_COUNT; i++)
 	{
@@ -201,20 +191,38 @@ public OnClientPutInServer(client)
 	ResetLife(client);
 
 	if (!IsFakeClient(client))
-		QueryClientConVar(client, "sensitivity", Query_Sensitivity);
+		QueryClient(client);
 }
 
-/* State R52 clears on death / while not in game. */
+QueryClient(client)
+{
+	QueryClientConVar(client, "sensitivity", Query_Sensitivity);
+	QueryClientConVar(client, "cl_forwardspeed", Query_MoveSpeed, 0);
+	QueryClientConVar(client, "cl_backspeed", Query_MoveSpeed, 1);
+	QueryClientConVar(client, "cl_sidespeed", Query_MoveSpeed, 2);
+}
+
+public Query_MoveSpeed(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[], any:axis)
+{
+	if (!IS_CLIENT(client) || !IsClientInGame(client) || result != ConVarQuery_Okay || axis < 0 || axis > 2)
+		return;
+
+	g_fMoveSpeed[client][axis] = FloatAbs(StringToFloat(cvarValue));
+}
+
 ResetLife(client)
 {
 	g_iFastRun[client] = 0;
+	g_iFastWalk[client] = 0;
+	g_iAutoStrafe[client] = 0;
+	g_iCircle[client] = 0;
+	g_bHasPrevMove[client] = false;
 	g_iSpinSeconds[client] = 0;
 	g_fSpinSum[client] = 0.0;
 	g_bHasPrevYaw[client] = false;
 	ResetPrev(client);
 }
 
-/* R52 fn_180078. */
 ResetPrev(client)
 {
 	ZeroVector(g_fPrevVel[client]);
@@ -226,7 +234,7 @@ public Action:Timer_QueryAll(Handle:timer)
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsFakeClient(i))
-			QueryClientConVar(i, "sensitivity", Query_Sensitivity);
+			QueryClient(i);
 	}
 	return Plugin_Continue;
 }
@@ -236,7 +244,6 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || result != ConVarQuery_Okay)
 		return;
 
-	/* R52 kicks for sensitivity outside [1; 20]; here it is clamped instead. */
 	new Float:sens = StringToFloat(cvarValue);
 	if (sens < 1.0)
 		sens = 1.0;
@@ -272,14 +279,12 @@ public Output_Teleport(const String:output[], caller, activator, Float:delay)
 	}
 }
 
-/**
- * Usercmd analysis
- */
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
 	if (!IsPlaying(client))
 	{
 		g_bHasPrevYaw[client] = false;
+		g_bHasPrevMove[client] = false;
 		return Plugin_Continue;
 	}
 
@@ -287,8 +292,8 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 
 	CheckFastRun(client, buttons, vel);
 	CheckJump(client, buttons, flags);
+	CheckMoveInput(client, buttons, flags, vel, angles);
 
-	/* Spinhack: sum of wrapped |dYaw| for the second ticker. */
 	if (g_bHasPrevYaw[client])
 	{
 		new Float:d = FloatAbs(angles[1] - g_fPrevYaw[client]);
@@ -308,7 +313,6 @@ CheckFastRun(client, buttons, const Float:vel[3])
 	if (GetConVarInt(g_hCvarFastRun) <= 0)
 		return;
 
-	/* Wishmove the keys cannot produce. */
 	if (!((vel[1] > 0.0 && !(buttons & IN_MOVERIGHT))
 		|| (vel[1] < 0.0 && !(buttons & IN_MOVELEFT))
 		|| (vel[0] > 0.0 && !(buttons & IN_FORWARD))
@@ -334,7 +338,6 @@ CheckFastRun(client, buttons, const Float:vel[3])
 	React(client, M_FASTRUN, GetConVarInt(g_hCvarFastRun), sDetail);
 }
 
-/* R52 smac_autotrigger_ban: -1 off, 0 notice, 1 kick, 2 ban; 3 and more skip these checks. */
 AutoTriggerLevel()
 {
 	new value = GetConVarInt(g_hCvarAutoTrigger);
@@ -351,7 +354,6 @@ CheckJump(client, buttons, flags)
 	new bool:bOnGround = (flags & FL_ONGROUND) != 0;
 	new bool:bJump = (buttons & IN_JUMP) != 0;
 
-	/* +jump pressed on the ground. */
 	if (bJump && !(g_iPrevButtons[client] & IN_JUMP) && bOnGround)
 		AnalyzeJump(client);
 
@@ -364,7 +366,6 @@ CheckJump(client, buttons, flags)
 		g_bJumpHeld[client] = true;
 		g_iJumpPresses[client]++;
 
-		/* Pressed on the very cmd the player landed: a perfect hop. */
 		if (bOnGround)
 		{
 			if (g_bPrevOnGround[client])
@@ -375,7 +376,6 @@ CheckJump(client, buttons, flags)
 	}
 	g_bPrevOnGround[client] = bOnGround;
 
-	/* A fast fall makes the next landing speed meaningless. */
 	if (g_bBhopSeen[client])
 	{
 		decl Float:velocity[3];
@@ -385,7 +385,6 @@ CheckJump(client, buttons, flags)
 	}
 }
 
-/* R52 fn_344b08. */
 AnalyzeJump(client)
 {
 	new n = g_iJumpPresses[client];
@@ -393,7 +392,7 @@ AnalyzeJump(client)
 
 	if (g_fPressEma[client] > BHOP_EMA_SCROLL)
 	{
-		/* Scrolling: a script repeats exactly the same number of presses. */
+
 		if (g_iRepeat[client] > 0 && g_iRepeatN[client] == n)
 		{
 			if (++g_iRepeat[client] > BHOP_REPEATS && !g_bAutoJump[client])
@@ -455,7 +454,6 @@ AnalyzeJump(client)
 
 	g_iJumpPresses[client] = 0;
 
-	/* Jumping in place: skip the next two jumps. */
 	decl Float:origin[3];
 	GetEntPropVector(client, Prop_Data, "m_vecOrigin", origin);
 	if (GetVectorDistance(g_fJumpOrigin[client], origin, true) < BHOP_STUCK_DIST2)
@@ -476,9 +474,6 @@ JumpReact(client, check, const String:detail[])
 		React(client, check, AutoTriggerLevel(), detail);
 }
 
-/**
- * Second ticker (R52 OnTimerUp)
- */
 public Action:Timer_Second(Handle:timer)
 {
 	for (new i = 1; i <= MaxClients; i++)
@@ -540,7 +535,6 @@ CheckMotion(client)
 
 	decl String:sDetail[128];
 
-	/* Airstuck: Fast Detect. */
 	if (airstuck > 0 && vel[0] != 0.0 && vel[1] != 0.0 && vel[2] != 0.0)
 	{
 		if (IsVectorZero(g_fPrevVel[client]))
@@ -572,7 +566,7 @@ CheckMotion(client)
 
 	if (FloatAbs(vel[0]) > MAX_RUN_SPEED || FloatAbs(vel[1]) > MAX_RUN_SPEED)
 	{
-		/* BunnyHop: Fast Detect. */
+
 		if (fastBhop > 0)
 		{
 			if (IsNormalGravity(client))
@@ -586,7 +580,7 @@ CheckMotion(client)
 	}
 	else if (FloatAbs(vel[2]) < TELEPORT_MAX_VZ)
 	{
-		/* Teleport Hack. */
+
 		if (teleport != 0.0)
 		{
 			if (IsVectorZero(g_fPrevPos[client]))
@@ -607,7 +601,7 @@ CheckMotion(client)
 	}
 	else if (vel[2] > TELEFAST_VZ && teleport != 0.0)
 	{
-		/* Teleport Hack: Fast Detect. */
+
 		FormatEx(sDetail, sizeof(sDetail), "vertical speed %.0f", vel[2]);
 		React(client, M_TELEFAST, TeleportLevel(teleport), sDetail);
 		ResetPrev(client);
@@ -617,6 +611,121 @@ CheckMotion(client)
 	CopyVector(pos, g_fPrevPos[client]);
 }
 
+CheckMoveInput(client, buttons, flags, const Float:vel[3], const Float:angles[3])
+{
+	if (GetEntityMoveType(client) != MOVETYPE_WALK || IsIgnored(client) || (flags & (FL_FROZEN | FL_ATCONTROLS)))
+	{
+		g_bHasPrevMove[client] = false;
+		return;
+	}
+
+	new bool:bOnGround = (flags & FL_ONGROUND) != 0;
+
+	if (g_bHasPrevMove[client])
+	{
+		if (bOnGround && !(buttons & IN_JUMP))
+			CheckFastWalk(client, vel);
+		else
+			g_iFastWalk[client] = 0;
+
+		if (!bOnGround && g_bHasPrevYaw[client])
+			CheckAutoStrafe(client, buttons, vel, angles);
+	}
+	else
+	{
+		g_iFastWalk[client] = 0;
+	}
+
+	CheckCircleStrafe(client, vel);
+
+	for (new i = 0; i < 2; i++)
+	{
+		g_fPrevMoveDelta[client][i] = g_bHasPrevMove[client] ? vel[i] - g_fPrevMove[client][i] : 0.0;
+		g_fPrevMove[client][i] = vel[i];
+	}
+	g_bHasPrevMove[client] = true;
+}
+
+CheckFastWalk(client, const Float:vel[3])
+{
+	new level = GetConVarInt(g_hCvarFastWalk);
+	if (level <= 0)
+		return;
+
+	new bool:bZigzag = false;
+	for (new i = 0; i < 2; i++)
+	{
+		new Float:d = vel[i] - g_fPrevMove[client][i];
+		new Float:pd = g_fPrevMoveDelta[client][i];
+		if (FloatAbs(d) >= FASTWALK_MIN_STEP && d * pd < 0.0 && FloatAbs(FloatAbs(d) - FloatAbs(pd)) < 1.0)
+			bZigzag = true;
+	}
+
+	if (!bZigzag)
+	{
+		g_iFastWalk[client] = 0;
+		return;
+	}
+
+	if (++g_iFastWalk[client] < FASTWALK_CMDS)
+		return;
+
+	g_iFastWalk[client] = 0;
+
+	decl String:sDetail[128];
+	FormatEx(sDetail, sizeof(sDetail), "wishmove zigzag %.1f %.1f -> %.1f %.1f on %i cmds in a row",
+		g_fPrevMove[client][0], g_fPrevMove[client][1], vel[0], vel[1], FASTWALK_CMDS);
+	React(client, M_FASTWALK, level, sDetail);
+}
+
+CheckAutoStrafe(client, buttons, const Float:vel[3], const Float:angles[3])
+{
+	new level = GetConVarInt(g_hCvarAutoStrafe);
+	new Float:side = (g_fMoveSpeed[client][2] > 0.0) ? g_fMoveSpeed[client][2] : 400.0;
+	if (level <= 0 || (buttons & (IN_MOVELEFT | IN_MOVERIGHT)) || FloatAbs(FloatAbs(vel[1]) - side) > 0.5)
+		return;
+
+	new Float:dYaw = angles[1] - g_fPrevYaw[client];
+	if (dYaw > 180.0)
+		dYaw -= 360.0;
+	else if (dYaw < -180.0)
+		dYaw += 360.0;
+
+	if (dYaw == 0.0 || vel[1] * dYaw >= 0.0)
+		return;
+
+	if (++g_iAutoStrafe[client] < AUTOSTRAFE_CMDS)
+		return;
+
+	g_iAutoStrafe[client] = 0;
+
+	decl String:sDetail[128];
+	FormatEx(sDetail, sizeof(sDetail), "air sidemove %.0f without strafe keys against the turn (%.2f) on %i cmds",
+		vel[1], dYaw, AUTOSTRAFE_CMDS);
+	React(client, M_AUTOSTRAFE, level, sDetail);
+}
+
+CheckCircleStrafe(client, const Float:vel[3])
+{
+	new level = GetConVarInt(g_hCvarCircle);
+	if (level <= 0 || g_fMoveSpeed[client][0] <= 0.0 || g_fMoveSpeed[client][1] <= 0.0 || g_fMoveSpeed[client][2] <= 0.0)
+		return;
+
+	if (vel[0] <= g_fMoveSpeed[client][0] + 1.0 && -vel[0] <= g_fMoveSpeed[client][1] + 1.0
+		&& FloatAbs(vel[1]) <= g_fMoveSpeed[client][2] + 1.0)
+		return;
+
+	if (++g_iCircle[client] < CIRCLE_CMDS)
+		return;
+
+	g_iCircle[client] = 0;
+
+	decl String:sDetail[160];
+	FormatEx(sDetail, sizeof(sDetail), "wishmove %.1f %.1f above cl_forwardspeed %.0f / cl_backspeed %.0f / cl_sidespeed %.0f",
+		vel[0], vel[1], g_fMoveSpeed[client][0], g_fMoveSpeed[client][1], g_fMoveSpeed[client][2]);
+	React(client, M_CIRCLE, level, sDetail);
+}
+
 TeleportLevel(Float:teleport)
 {
 	if (GetConVarBool(g_hCvarTeleportNotice))
@@ -624,9 +733,6 @@ TeleportLevel(Float:teleport)
 	return (teleport > 0.0) ? 3 : 2;
 }
 
-/**
- * Delayed decays (R52 SetBan -> OnBanReleased), postponed while the player is not on a team.
- */
 ScheduleAirstuckDecay(client)
 {
 	CreateTimer(AIRSTUCK_DECAY, Timer_AirstuckDecay, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
@@ -645,10 +751,6 @@ public Action:Timer_AirstuckDecay(Handle:timer, any:userid)
 	return Plugin_Stop;
 }
 
-/**
- * Reaction: 1 = admin notice, 2 = kick, 3 = ban. Returns the action taken (0 = suppressed).
- * Notices for the same check are sent at most once per NOTICE_COOLDOWN seconds.
- */
 React(client, check, level, const String:detail[])
 {
 	if (level <= 0)
@@ -701,16 +803,12 @@ React(client, check, level, const String:detail[])
 	return action;
 }
 
-/**
- * Helpers
- */
 bool:IsPlaying(client)
 {
 	return IS_CLIENT(client) && IsClientInGame(client) && !IsFakeClient(client)
 		&& IsPlayerAlive(client) && !IsClientObserver(client);
 }
 
-/* R52 fn_146748 (entity gravity 0 or 1); a changed movement speed is treated the same. */
 bool:IsNormalGravity(client)
 {
 	new Float:gravity = GetEntityGravity(client);
@@ -744,7 +842,6 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)
