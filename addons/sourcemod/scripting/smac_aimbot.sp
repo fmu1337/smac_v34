@@ -11,16 +11,14 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
+#define AIM_ANGLE_CHANGE	35.0
 
-// SMAC Plus values (stock SMAC: 45 degrees over 0.5 s, checked on kills only).
-#define AIM_ANGLE_CHANGE	35.0	// Max angle change that a player should snap
-// Informant AntiSMAC / Insomnia SnapLimiter cap per-tick snaps and split them into steps under the threshold.
-#define AIM_STEP_MIN		28.0	// Min per-tick step for staircase detection
-#define AIM_STEP_COUNT		2		// Consecutive near-threshold steps before a detection
-#define AIM_HISTORY_CMDS	45		// Usercmds of angle history that are analyzed
-#define AIM_BAN_MIN			3		// Minimum number of detections before an auto-ban is allowed
-#define AIM_MIN_DISTANCE	200.0	// Minimum distance acceptable for a detection.
-#define AIM_MIN_DAMAGE		10		// player_hurt: minimum dmg_health that is analyzed
+#define AIM_STEP_MIN		28.0
+#define AIM_STEP_COUNT		2
+#define AIM_HISTORY_CMDS	45
+#define AIM_BAN_MIN			3
+#define AIM_MIN_DISTANCE	200.0
+#define AIM_MIN_DAMAGE		10
 
 new Handle:g_hCvarAimbotBan = INVALID_HANDLE;
 new Handle:g_IgnoreWeapons = INVALID_HANDLE;
@@ -32,7 +30,6 @@ new g_iAimDetections[MAXPLAYERS];
 new g_iAimbotBan = 0;
 new g_iMaxAngleHistory;
 
-/* Plugin Functions */
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
@@ -40,8 +37,7 @@ public OnPluginStart()
 	OnSettingsChanged(g_hCvarAimbotBan, "", "");
 	HookConVarChange(g_hCvarAimbotBan, OnSettingsChanged);
 	g_iMaxAngleHistory = AIM_HISTORY_CMDS;
-	
-	// Knife, grenades and world damage.
+
 	g_IgnoreWeapons = CreateTrie();
 	new String:sIgnore[][] = {
 		"weapon_knife", "knife", "tknifehs", "tknife", "env_explosion",
@@ -53,7 +49,7 @@ public OnPluginStart()
 	{
 		SetTrieValue(g_IgnoreWeapons, sIgnore[i], 1);
 	}
-	
+
 	HookEntityOutput("trigger_teleport", "OnEndTouch", Teleport_OnEndTouch);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
@@ -72,7 +68,7 @@ public OnClientPutInServer(client)
 public OnSettingsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	new iNewValue = GetConVarInt(convar);
-	
+
 	if (iNewValue > 0 && iNewValue < AIM_BAN_MIN)
 	{
 		SetConVarInt(convar, AIM_BAN_MIN);
@@ -84,7 +80,7 @@ public OnSettingsChanged(Handle:convar, const String:oldValue[], const String:ne
 
 public Teleport_OnEndTouch(const String:output[], caller, activator, Float:delay)
 {
-	/* A client is being teleported in the map. */
+
 	if (IS_CLIENT(activator) && IsClientConnected(activator))
 	{
 		Aimbot_ClearAngles(activator);
@@ -96,7 +92,7 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new userid = GetEventInt(event, "userid");
 	new client = GetClientOfUserId(userid);
-	
+
 	if (IS_CLIENT(client))
 	{
 		Aimbot_ClearAngles(client);
@@ -106,10 +102,10 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// analyzes hits too: the victim survived and took at least 10 damage.
+
 	if (GetEventInt(event, "health") <= 0 || GetEventInt(event, "dmg_health") < AIM_MIN_DAMAGE)
 		return;
-	
+
 	Event_PlayerDeath(event, name, dontBroadcast);
 }
 
@@ -117,19 +113,19 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	decl String:sWeapon[32], dummy;
 	GetEventString(event, "weapon", sWeapon, sizeof(sWeapon));
-	
+
 	if (GetTrieValue(g_IgnoreWeapons, sWeapon, dummy))
 		return;
-		
+
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	
+
 	if (IS_CLIENT(victim) && IS_CLIENT(attacker) && victim != attacker && IsClientInGame(victim) && IsClientInGame(attacker))
 	{
 		decl Float:vVictim[3], Float:vAttacker[3];
 		GetClientAbsOrigin(victim, vVictim);
 		GetClientAbsOrigin(attacker, vAttacker);
-		
+
 		if (GetVectorDistance(vVictim, vAttacker) >= AIM_MIN_DISTANCE)
 		{
 			Aimbot_AnalyzeAngles(attacker);
@@ -139,27 +135,27 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Action:Timer_ClearAngles(Handle:timer, any:userid)
 {
-	/* Delayed because the client's angles can sometimes "spin" after being teleported. */
+
 	new client = GetClientOfUserId(userid);
-	
+
 	if (IS_CLIENT(client))
 	{
 		Aimbot_ClearAngles(client);
 	}
-	
+
 	return Plugin_Stop;
 }
 
 public Action:Timer_DecreaseCount(Handle:timer, any:userid)
 {
-	/* Decrease the detection count by 1. */
+
 	new client = GetClientOfUserId(userid);
-	
+
 	if (IS_CLIENT(client) && g_iAimDetections[client])
 	{
 		g_iAimDetections[client]--;
 	}
-	
+
 	return Plugin_Stop;
 }
 
@@ -171,41 +167,39 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		g_iEyeIndex[client] = 0;
 	}
-		
+
 	return Plugin_Continue;
 }
 
 Aimbot_AnalyzeAngles(client)
 {
-	/* Analyze the client to see if their angles snapped. */
+
 	decl Float:vLastAngles[3], Float:vAngles[3], Float:fAngleDiff;
 	new idx = g_iEyeIndex[client];
 	new iStepStreak;
-	
+
 	for (new i = 0; i < g_iMaxAngleHistory; i++)
 	{
 		if (idx == g_iMaxAngleHistory)
 		{
 			idx = 0;
 		}
-			
+
 		if (IsVectorZero(g_fEyeAngles[client][idx]))
 		{
 			break;
 		}
-		
-		// Nothing to compare on the first iteration.
+
 		if (i == 0)
 		{
 			vLastAngles = g_fEyeAngles[client][idx];
 			idx++;
 			continue;
 		}
-		
+
 		vAngles = g_fEyeAngles[client][idx];
 		fAngleDiff = Aimbot_AngleDelta(vLastAngles, vAngles);
 
-		// Hard snap, or a snap split into steps just under the threshold.
 		if (fAngleDiff >= AIM_STEP_MIN)
 		{
 			iStepStreak++;
@@ -217,12 +211,12 @@ Aimbot_AnalyzeAngles(client)
 
 		if (fAngleDiff > AIM_ANGLE_CHANGE || iStepStreak >= AIM_STEP_COUNT)
 		{
-			// Count one snap once, not once per hit of the spray that follows it.
+
 			Aimbot_ClearAngles(client);
 			Aimbot_Detected(client, fAngleDiff);
 			break;
 		}
-		
+
 		vLastAngles = vAngles;
 		idx++;
 	}
@@ -233,40 +227,38 @@ Float:Aimbot_AngleDelta(const Float:vFrom[3], const Float:vTo[3])
 	decl Float:dx, Float:dy;
 	dx = FloatAbs(vTo[0] - vFrom[0]);
 	dy = FloatAbs(vTo[1] - vFrom[1]);
-	
-	// Wrap each axis on its own, so a yaw crossing +-180 doesn't read as a snap.
+
 	if (dx > 180.0)
 		dx = 360.0 - dx;
 	if (dy > 180.0)
 		dy = 360.0 - dy;
-	
+
 	return SquareRoot(dx * dx + dy * dy);
 }
 
 Aimbot_Detected(client, const Float:deviation)
 {
-	// Extra checks must be done here because of data coming from two events.
+
 	if (IsFakeClient(client) || !IsPlayerAlive(client))
 		return;
 	decl String:sWeapon[32];
 	GetClientWeapon(client, sWeapon, sizeof(sWeapon));
-	
+
 	new Handle:info = CreateKeyValues("");
 	KvSetNum(info, "detection", g_iAimDetections[client]);
 	KvSetFloat(info, "deviation", deviation);
 	KvSetString(info, "weapon", sWeapon);
-	
+
 	if (SMAC_CheatDetected(client, Detection_Aimbot, info) == Plugin_Continue)
 	{
-		// Expire this detection after 10 minutes.
+
 		CreateTimer(600.0, Timer_DecreaseCount, GetClientUserId(client));
-		
-		// Ignore the first detection as it's just as likely to be a false positive.
+
 		if (++g_iAimDetections[client] > 1)
 		{
 			SMAC_PrintAdminNotice("%t", "SMAC_AimbotDetected", client, g_iAimDetections[client], deviation, sWeapon);
 			SMAC_LogAction(client, "is suspected of using an aimbot. (Detection #%i | Deviation: %.0f° | Weapon: %s)", g_iAimDetections[client], deviation, sWeapon);
-			
+
 			if (g_iAimbotBan && g_iAimDetections[client] >= g_iAimbotBan)
 			{
 				SMAC_LogAction(client, "was banned for using an aimbot.");
@@ -274,15 +266,15 @@ Aimbot_Detected(client, const Float:deviation)
 			}
 		}
 	}
-	
+
 	CloseHandle(info);
 }
 
 Aimbot_ClearAngles(client)
 {
-	/* Clear angle history and reset the index. */
+
 	g_iEyeIndex[client] = 0;
-	
+
 	for (new i = 0; i < g_iMaxAngleHistory; i++)
 	{
 		ZeroVector(g_fEyeAngles[client][i]);

@@ -3,16 +3,12 @@
 #include <sdkhooks>
 #include <smac>
 
+#define CS_TEAM_NONE		0
+#define CS_TEAM_SPECTATOR	1
+#define CS_TEAM_T			2
+#define CS_TEAM_CT			3
 
-/**
- * CS:S FarESP Blocking
- */
-#define CS_TEAM_NONE		0	/**< No team yet. */
-#define CS_TEAM_SPECTATOR	1	/**< Spectators. */
-#define CS_TEAM_T			2	/**< Terrorists. */
-#define CS_TEAM_CT			3	/**< Counter-Terrorists. */
-
-#define MAX_RADAR_CLIENTS	36	// Max amount of client data we can include in one message.
+#define MAX_RADAR_CLIENTS	36
 
 public Plugin:myinfo =
 {
@@ -24,14 +20,13 @@ public Plugin:myinfo =
 };
 
 new bool:g_bFarEspEnabled;
-new g_iMaxTraces; //ty for crashfix to alex smirnov (aka Plus)
+new g_iMaxTraces;
 
-// SMAC Plus: 0 = off, 1 = enemies only (radar on), 2 = FFA (everyone, radar off).
 new g_iMode = 1;
-// SMAC Plus: rectangle width divisor = 7.0 + smac_wallhack_Level (master SMAC used 4.0).
+
 new Float:g_fWideDivisor = 7.0;
 new Handle:g_hCvarTime = INVALID_HANDLE;
-// SMAC Plus Anti-SoundESP: -1 = no sound handling, 0 = real sounds, 1-4 = faked for listeners who can't see the source.
+
 new g_iSoundESP = 0;
 new Handle:g_hCvarTickTime = INVALID_HANDLE;
 
@@ -69,28 +64,28 @@ public OnPluginStart()
 	new Handle: hCvar = CreateConVar("smac_wallhack", "1", "Anti-Wallhack mode. (0:Disable, 1:Normal Mode, 2:FFA Mode, Radar OFF)", _, true, 0.0, true, 2.0);
 	g_iMode = GetConVarInt(hCvar);
 	HookConVarChange(hCvar, OnModeChanged);
-	
+
 	hCvar = CreateConVar("smac_wallhack_Level", "0.0", "Degree of rigidity of the Anti-Wallhack. (Easy < 0.0 > Hard; -3.0 = stock SMAC width)", _, true, -3.0, true, 3.0);
 	OnLevelChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnLevelChanged);
-	
+
 	hCvar = CreateConVar("smac_SoundESP", "0", "Anti-SoundESP for listeners who can't see the source. (-1:Disable sound handling, 0:Real sounds, 1:Fake position, 2:Fake position + level/pitch, 3:Volume by distance + level/pitch, 4:All)", _, true, -1.0, true, 4.0);
 	g_iSoundESP = GetConVarInt(hCvar);
 	HookConVarChange(hCvar, OnSoundESPChanged);
-	
+
 	hCvar = CreateConVar("smac_wallhack_maxtraces", "1280", "Max amount of traces that can be executed in one tick.", _, true, 1.0);
 	OnMaxTracesChanged(hCvar, "", "");
 	HookConVarChange(hCvar, OnMaxTracesChanged);
-	
+
 	g_hCvarTime = CreateConVar("smac_wallhack_Time", "0.2", "How long a player stays visible after he was last seen, in seconds.", _, true, 0.1, true, 0.4);
 	HookConVarChange(g_hCvarTime, WallHack_TickOnSettingsChanged);
-	
+
 	g_hCvarTickTime = CreateConVar("smac_wallhack_ticktime", "0", "Legacy (stock SMAC, was 0.75): when above 0, used instead of smac_wallhack_Time.", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarTickTime, WallHack_TickOnSettingsChanged);
 	WallHack_TickOnSettingsChanged(INVALID_HANDLE, "", "");
-	
+
 	g_iTickRate = RoundToFloor(1.0 / GetTickInterval());
-	
+
 	if ((hCvar = FindConVar("sv_minupdaterate")) != INVALID_HANDLE && IsConVarDefault(hCvar))
 		SetConVarInt(hCvar, g_iTickRate);
 	if ((hCvar = FindConVar("sv_maxupdaterate")) != INVALID_HANDLE && IsConVarDefault(hCvar))
@@ -99,13 +94,11 @@ public OnPluginStart()
 		SetConVarInt(hCvar, 0);
 	if ((hCvar = FindConVar("sv_client_max_interp_ratio")) != INVALID_HANDLE && IsConVarDefault(hCvar))
 		SetConVarInt(hCvar, 1);
-	
-	// Initialize.
+
 	g_iDownloadTable = FindStringTable("downloadables");
-	
-	// FEATURECAP_PLAYERRUNCMD_11PARAMS shipped in SourceMod 1.5.0 (not 1.7).
+
 	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires SourceMod 1.5.0 or newer (FEATURECAP_PLAYERRUNCMD_11PARAMS).");
-	
+
 	for (new i = 0; i < sizeof(g_bIsVisible); i++)
 	{
 		for (new j = 0; j < sizeof(g_bIsVisible[]); j++)
@@ -113,18 +106,18 @@ public OnPluginStart()
 			g_bIsVisible[i][j] = true;
 		}
 	}
-	
+
 	AddNormalSoundHook(Hook_NormalSound);
-	
+
 	HookEvent("player_spawn", Event_PlayerStateChanged, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerStateChanged, EventHookMode_Post);
 	HookEvent("player_team", Event_PlayerStateChanged, EventHookMode_Post);
-	
+
 	if (g_iMode)
 	{
 		FarESP_Enable();
 	}
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i))
@@ -133,13 +126,13 @@ public OnPluginStart()
 			Wallhack_UpdateClientCache(i);
 		}
 	}
-	
+
 	for (new i = MaxClients + 1; i < 2048; i++)
 	{
 		if (IsValidEdict(i))
 		{
 			new owner = GetEntPropEnt(i, Prop_Data, "m_hOwnerEntity");
-			
+
 			if (IS_CLIENT(owner))
 			{
 				g_iWeaponOwner[i] = owner;
@@ -147,8 +140,7 @@ public OnPluginStart()
 			}
 		}
 	}
-	
-	// Default sounds to ignore in sound hook.
+
 	g_hIgnoreSounds = CreateTrie();
 	SetTrieValue(g_hIgnoreSounds, "buttons/button14.wav", 1);
 	SetTrieValue(g_hIgnoreSounds, "buttons/combine_button7.wav", 1);
@@ -159,12 +151,12 @@ public OnPluginStart()
 public WallHack_TickOnSettingsChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	new Float:fTime = GetConVarFloat(g_hCvarTickTime);
-	
+
 	if (fTime <= 0.0)
 	{
 		fTime = GetConVarFloat(g_hCvarTime);
 	}
-	
+
 	g_iCacheTicks = TIME_TO_TICK(fTime);
 }
 
@@ -181,7 +173,7 @@ public OnLevelChanged(Handle:convar, const String:oldValue[], const String:newVa
 public OnModeChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	g_iMode = GetConVarInt(convar);
-	
+
 	if (g_iMode)
 	{
 		if (!g_bFarEspEnabled)
@@ -195,8 +187,7 @@ public OnModeChanged(Handle:convar, const String:oldValue[], const String:newVal
 		{
 			FarESP_Disable();
 		}
-		
-		// Everyone is transmitted again.
+
 		for (new i = 0; i < sizeof(g_bIsVisible); i++)
 		{
 			for (new j = 0; j < sizeof(g_bIsVisible[]); j++)
@@ -209,17 +200,17 @@ public OnModeChanged(Handle:convar, const String:oldValue[], const String:newVal
 
 public OnConfigsExecuted()
 {
-	// Ignore all sounds in the download table.
+
 	if (g_iDownloadTable == INVALID_STRING_TABLE)
 		return;
-	
+
 	decl String:sBuffer[PLATFORM_MAX_PATH];
 	new iMaxStrings = GetStringTableNumStrings(g_iDownloadTable);
-	
+
 	for (new i = 0; i < iMaxStrings; i++)
 	{
 		ReadStringTable(g_iDownloadTable, i, sBuffer, sizeof(sBuffer));
-		
+
 		if (strncmp(sBuffer, "sound", 5) == 0)
 		{
 			SetTrieValue(g_hIgnoreSounds, sBuffer[6], 1);
@@ -235,7 +226,7 @@ public OnClientPutInServer(client)
 
 public OnClientDisconnect(client)
 {
-	// Stop checking clients right before they disconnect.
+
 	g_bIsObserver[client] = false;
 	g_bProcess[client] = false;
 	g_bIgnore[client] = false;
@@ -243,7 +234,7 @@ public OnClientDisconnect(client)
 
 public OnClientDisconnect_Post(client)
 {
-	// Clear cache on post to ensure it's not updated again.
+
 	for (new i = 0; i < sizeof(g_iPVSCache); i++)
 	{
 		g_iPVSCache[i][client] = 0;
@@ -254,14 +245,14 @@ public OnClientDisconnect_Post(client)
 
 public Event_PlayerStateChanged(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// Not all data has been updated at this time. Wait until the next tick to update cache.
+
 	CreateTimer(0.001, Timer_PlayerStateChanged, GetEventInt(event, "userid"), TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public Action:Timer_PlayerStateChanged(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	
+
 	if (IS_CLIENT(client) && IsClientInGame(client))
 	{
 		Wallhack_UpdateClientCache(client);
@@ -276,7 +267,7 @@ Wallhack_UpdateClientCache(client)
 	g_bIsObserver[client] = IsClientObserver(client);
 	g_bIsFake[client] = IsFakeClient(client);
 	g_bProcess[client] = IsPlayerAlive(client);
-	
+
 	g_bIgnore[client] = g_bIsFake[client];
 }
 
@@ -328,63 +319,55 @@ public Hook_WeaponDropPost(client, weapon)
 
 public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_MAX_PATH], &entity, &channel, &Float:volume, &level, &pitch, &flags)
 {
-	/* Emit sounds to clients who aren't being transmitted the entity. */
+
 	decl dummy;
-	
+
 	if (!g_iMode || g_iSoundESP < 0)
 		return Plugin_Continue;
-	
+
 	if (!entity || !IsValidEdict(entity) || GetTrieValue(g_hIgnoreSounds, sample, dummy))
 		return Plugin_Continue;
 
 	new iOwner = (entity > MaxClients) ? g_iWeaponOwner[entity] : entity;
-		
+
 	if (!IS_CLIENT(iOwner))
 		return Plugin_Continue;
-	
+
 	decl newClients[MaxClients];
 	new bool:bAddClient[MaxClients+1], newTotal;
-	
-	// Check clients that get the sound by default.
+
 	for (new i = 0; i < numClients; i++)
 	{
 		new client = clients[i];
-		
-		// SourceMod and game engine don't always agree.
+
 		if (!IsClientInGame(client))
 			continue;
-		
-		// These clients need the entity information for prediction.
+
 		if (g_bIsFake[client] || client == iOwner)
 		{
 			newClients[newTotal++] = client;
 			continue;
 		}
-		
-		// Body sounds (footsteps, jumping, etc) will be kept strict to the PVS because they're quiet anyway.
-		// Weapons can be heard from larger distances.
+
 		if (channel == SNDCHAN_BODY)
 			bAddClient[client] = g_bIsVisible[iOwner][client];
 		else
 			bAddClient[client] = true;
 	}
-	
-	// Emit with entity information.
+
 	if (newTotal)
 	{
 		EmitSound(newClients, newTotal, sample, entity, channel, level, flags, volume, pitch);
 		newTotal = 0;
 	}
-	
-	// fakes weapon, item and body sounds only.
+
 	new bool:bFake = (g_iSoundESP > 0 && (channel == SNDCHAN_WEAPON || channel == SNDCHAN_ITEM || channel == SNDCHAN_BODY));
 	decl hiddenClients[MaxClients];
 	new hiddenTotal;
-	
-	// Determine which clients still need this sound.
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
-		// A client in the PVS will be expected to predict the sound even if we're blocking transmit.
+
 		if (bAddClient[i] || ((g_bProcess[i] || g_bIsObserver[i]) && !g_bIsVisible[iOwner][i] && g_iPVSSoundCache[iOwner][i] > g_iTickCount))
 		{
 			if (bFake && !g_bIsVisible[iOwner][i])
@@ -397,117 +380,101 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 			}
 		}
 	}
-	
+
 	decl Float:vOrigin[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vOrigin);
-	
-	// Emit without entity information.
+
 	if (newTotal)
 	{
 		EmitSound(newClients, newTotal, sample, SOUND_FROM_WORLD, channel, level, flags, volume, pitch, _, vOrigin);
 	}
-	
+
 	if (hiddenTotal)
 	{
 		SoundESP_Emit(hiddenClients, hiddenTotal, sample, channel, level, flags, volume, pitch, vOrigin);
 	}
-	
+
 	return Plugin_Stop;
 }
 
-/**
- * Anti-SoundESP (SMAC Plus, smac_SoundESP). For each listener who can't see the source:
- * 1, 2, 4 the sound comes from a random point near the source (x/y -269.7..289, z -180..289);
- * 2+ level 75 and pitch 100, so the weapon can't be told from them;
- * 3, 4 volume 100000 / dist^2 limited to 0.7, nothing below 0.1 (about 1000 units).
- * replayed one sound per server tick from OnPlayerRunCmd and dropped the rest; here every sound
- * is sent right away.
- */
 SoundESP_Emit(const clients[], numClients, const String:sample[], channel, level, flags, Float:volume, pitch, const Float:vSource[3])
 {
 	decl Float:vPos[3], Float:vListener[3], players[1];
-	
+
 	for (new n = 0; n < numClients; n++)
 	{
 		new client = clients[n];
 		new iLevel = level, iPitch = pitch;
 		new Float:fVolume = volume;
-		
+
 		vPos[0] = vSource[0];
 		vPos[1] = vSource[1];
 		vPos[2] = vSource[2];
-		
+
 		if (g_iSoundESP != 3)
 		{
 			vPos[0] += GetRandomFloat(-269.7, 289.0);
 			vPos[1] += GetRandomFloat(-269.7, 289.0);
 			vPos[2] += GetRandomFloat(-180.0, 289.0);
 		}
-		
+
 		if (g_iSoundESP >= 2)
 		{
 			iLevel = SNDLEVEL_NORMAL;
 			iPitch = SNDPITCH_NORMAL;
 		}
-		
+
 		if (g_iSoundESP >= 3)
 		{
 			GetClientAbsOrigin(client, vListener);
 			new Float:fDist = GetVectorDistance(vListener, vSource, true);
-			
+
 			fVolume = (fDist > 0.0) ? 100000.0 / fDist : 0.7;
-			
+
 			if (fVolume < 0.1)
 				continue;
-			
+
 			if (fVolume > 0.7)
 				fVolume = 0.7;
 		}
-		
+
 		players[0] = client;
 		EmitSound(players, 1, sample, SOUND_FROM_WORLD, channel, iLevel, flags, fVolume, iPitch, _, vPos);
 	}
 }
 
-/**
- * OnGameFrame
- */
 public OnGameFrame()
 {
 	g_iTickCount = GetGameTickCount();
-	
-	// Increment to next thread.
+
 	if (++g_iCurrentThread > g_iTotalThreads)
 	{
 		g_iCurrentThread = 1;
-		
-		// Reassign threads
+
 		if (g_iTraceCount)
 		{
-			// Calculate total needed threads for the next pass.
+
 			g_iTotalThreads = g_iTraceCount / g_iMaxTraces + 1;
-			
-			// Assign each client to a thread.
+
 			new iThreadAssign = 1;
-			
+
 			for (new i = 1; i <= MaxClients; i++)
 			{
 				if (g_bProcess[i])
 				{
 					g_iThread[i] = iThreadAssign;
-					
+
 					if (++iThreadAssign > g_iTotalThreads)
 					{
 						iThreadAssign = 1;
 					}
 				}
 			}
-			
+
 			g_iTraceCount = 0;
 		}
 	}
-	
-	// FFA mode keeps the radar off: engine messages stay blocked and nothing is sent instead.
+
 	if (g_bFarEspEnabled && g_iMode == 1)
 	{
 		switch (g_iTickCount % g_iTickRate)
@@ -543,31 +510,29 @@ public OnGameFrame()
 public Action:Hook_SetTransmit(entity, client)
 {
 	static iLastChecked[MAXPLAYERS][MAXPLAYERS];
-	
+
 	if (!g_iMode)
 		return Plugin_Continue;
-	
-	// Cache PVS for sound hook.
+
 	g_iPVSSoundCache[entity][client] = g_iTickCount + g_iCacheTicks;
-	
-	// Data is transmitted multiple times per tick. Only run calculations once.
+
 	if (iLastChecked[entity][client] == g_iTickCount)
 	{
 		return g_bIsVisible[entity][client] ? Plugin_Continue : Plugin_Handled;
 	}
 
 	iLastChecked[entity][client] = g_iTickCount;
-	
+
 	if (g_bProcess[client])
 	{
 		if (g_bProcess[entity] && (g_iMode == 2 || g_iTeam[client] != g_iTeam[entity]) && !g_bIgnore[client])
 		{
 			if (g_iThread[client] == g_iCurrentThread)
 			{
-				// Grab client data before running traces.
+
 				UpdateClientData(client);
 				UpdateClientData(entity);
-				
+
 				if (IsAbleToSee(entity, client))
 				{
 					g_bIsVisible[entity][client] = true;
@@ -586,9 +551,9 @@ public Action:Hook_SetTransmit(entity, client)
 	}
 	else if (!g_bIsFake[client] && g_bProcess[entity] && GetClientObserverMode(client) == OBS_MODE_IN_EYE)
 	{
-		// Observers in first-person will clone the visiblity of their target.
+
 		new iTarget = GetClientObserverTarget(client);
-		
+
 		if (IS_CLIENT(iTarget))
 		{
 			g_bIsVisible[entity][client] = g_bIsVisible[entity][iTarget];
@@ -602,7 +567,7 @@ public Action:Hook_SetTransmit(entity, client)
 	{
 		g_bIsVisible[entity][client] = true;
 	}
-	
+
 	return g_bIsVisible[entity][client] ? Plugin_Continue : Plugin_Handled;
 }
 
@@ -615,32 +580,30 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 {
 	if (!g_bProcess[client])
 		return Plugin_Continue;
-	
+
 	g_vEyeAngles[client] = angles;
 	g_iCmdTickCount[client] = tickcount;
-	
+
 	return Plugin_Continue;
 }
 
 UpdateClientData(client)
 {
-	/* Only update client data once per tick. */
+
 	static iLastCached[MAXPLAYERS];
-	
+
 	if (iLastCached[client] == g_iTickCount)
 		return;
-	
+
 	iLastCached[client] = g_iTickCount;
-	
+
 	GetClientMins(client, g_vMins[client]);
 	GetClientMaxs(client, g_vMaxs[client]);
 	GetClientAbsOrigin(client, g_vAbsCentre[client]);
 	GetClientEyePosition(client, g_vEyePos[client]);
-	
-	// Adjust vectors relative to the model's absolute centre.
-	// SMAC Plus: half height = view offset / 2.2 (follows crouching, a bit lower than the hull).
+
 	new Float:fHalfHeight = (g_vEyePos[client][2] - g_vAbsCentre[client][2]) / 2.2;
-	
+
 	if (fHalfHeight > 0.0)
 	{
 		g_vMaxs[client][2] = fHalfHeight;
@@ -649,65 +612,58 @@ UpdateClientData(client)
 	{
 		g_vMaxs[client][2] /= 2.0;
 	}
-	
+
 	g_vMins[client][2] -= g_vMaxs[client][2];
 	g_vAbsCentre[client][2] += g_vMaxs[client][2];
 
-	// Adjust vectors based on the clients velocity.
 	decl Float:vVelocity[3];
 	GetClientAbsVelocity(client, vVelocity);
-	
+
 	if (!IsVectorZero(vVelocity))
 	{
-		// Lag compensation.
+
 		decl iTargetTick;
-		
+
 		if (g_bIsFake[client])
 		{
 			iTargetTick = g_iTickCount - 1;
 		}
 		else
 		{
-			// Based on CLagCompensationManager::StartLagCompensation.
+
 			new Float:fCorrect = GetClientLatency(client, NetFlow_Outgoing);
 			new iLerpTicks = TIME_TO_TICK(GetEntPropFloat(client, Prop_Data, "m_fLerpTime"));
-			
-			// Assume sv_maxunlag == 1.0f seconds.
+
 			fCorrect += TICK_TO_TIME(iLerpTicks);
 			fCorrect = ClampValue(fCorrect, 0.0, 1.0);
-			
+
 			iTargetTick = g_iCmdTickCount[client] - iLerpTicks;
-			
+
 			if (FloatAbs(fCorrect - TICK_TO_TIME(g_iTickCount - iTargetTick)) > 0.2)
 			{
-				// Difference between cmd time and latency is too big > 200ms.
-				// Use time correction based on latency.
+
 				iTargetTick = g_iTickCount - TIME_TO_TICK(fCorrect);
 			}
 		}
-		
-		// Use velocity before it's modified.
+
 		decl Float:vTemp[3];
 		vTemp[0] = FloatAbs(vVelocity[0]) * 0.01;
 		vTemp[1] = FloatAbs(vVelocity[1]) * 0.01;
 		vTemp[2] = FloatAbs(vVelocity[2]) * 0.01;
-		
-		// Calculate predicted positions for the next frame.
+
 		decl Float:vPredicted[3];
 		ScaleVector(vVelocity, TICK_TO_TIME((g_iTickCount - iTargetTick) * g_iTotalThreads));
 		AddVectors(g_vAbsCentre[client], vVelocity, vPredicted);
-		
-		// Make sure the predicted position is still inside the world.
+
 		TR_TraceHullFilter(vPredicted, vPredicted, Float:{-5.0, -5.0, -5.0}, Float:{5.0, 5.0, 5.0}, MASK_PLAYERSOLID_BRUSHONLY, Filter_WorldOnly);
 		g_iTraceCount++;
-		
+
 		if (!TR_DidHit())
 		{
 			g_vAbsCentre[client] = vPredicted;
 			AddVectors(g_vEyePos[client], vVelocity, g_vEyePos[client]);
 		}
-		
-		// Expand the mins/maxs to help smooth during fast movement.
+
 		if (vTemp[0] > 1.0)
 		{
 			g_vMins[client][0] *= vTemp[0];
@@ -726,44 +682,37 @@ UpdateClientData(client)
 	}
 }
 
-/**
- * Calculations
- */
 bool:IsAbleToSee(entity, client)
 {
-	
-	// Skip all traces if the player isn't within the field of view.
+
 	if (IsInFieldOfView(g_vEyePos[client], g_vEyeAngles[client], g_vAbsCentre[entity]))
 	{
-		// Check if centre is visible.
+
 		if (IsPointVisible(g_vEyePos[client], g_vAbsCentre[entity]))
 			return true;
-		
-		// Check outer 4 corners of player.
+
 		if (IsRectangleVisible(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 1.30))
 			return true;
-		
-		// Check if head is visible (SMAC Plus; stock SMAC traced to a point 50 units in front of the eyes).
+
 		if (IsPointVisible(g_vEyePos[client], g_vEyePos[entity]))
 			return true;
 
-		// Check inner 4 corners of player.
 		if (IsRectangleVisible(g_vEyePos[client], g_vAbsCentre[entity], g_vMins[entity], g_vMaxs[entity], 0.65))
 			return true;
 	}
-	
+
 	return false;
 }
 
 bool:IsInFieldOfView(const Float:start[3], const Float:angles[3], const Float:end[3])
 {
 	decl Float:normal[3], Float:plane[3];
-	
+
 	GetAngleVectors(angles, normal, NULL_VECTOR, NULL_VECTOR);
 	SubtractVectors(end, start, plane);
 	NormalizeVector(plane, plane);
-	
-	return GetVectorDotProduct(plane, normal) > 0.0; // Cosine(Deg2Rad(179.9 / 2.0))
+
+	return GetVectorDotProduct(plane, normal) > 0.0;
 }
 
 public bool:Filter_WorldOnly(entity, mask)
@@ -789,18 +738,15 @@ bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mi
 	new Float:ZnegOffset = mins[2];
 	new Float:WideOffset = ((maxs[0] - mins[0]) + (maxs[1] - mins[1])) / g_fWideDivisor;
 
-	// This rectangle is just a point!
 	if (ZpozOffset == 0.0 && ZnegOffset == 0.0 && WideOffset == 0.0)
 	{
 		return IsPointVisible(start, end);
 	}
 
-	// Adjust to scale.
 	ZpozOffset *= scale;
 	ZnegOffset *= scale;
 	WideOffset *= scale;
-	
-	// Prepare rotation matrix.
+
 	decl Float:angles[3], Float:fwd[3], Float:right[3];
 
 	SubtractVectors(start, end, fwd);
@@ -811,92 +757,80 @@ bool:IsRectangleVisible(const Float:start[3], const Float:end[3], const Float:mi
 
 	decl Float:vRectangle[4][3], Float:vTemp[3];
 
-	// If the player is on the same level as us, we can optimize by only rotating on the z-axis.
 	if (FloatAbs(fwd[2]) <= 0.7071)
 	{
 		ScaleVector(right, WideOffset);
-		
-		// Corner 1, 2
+
 		vTemp = end;
 		vTemp[2] += ZpozOffset;
 		AddVectors(vTemp, right, vRectangle[0]);
 		SubtractVectors(vTemp, right, vRectangle[1]);
-		
-		// Corner 3, 4
+
 		vTemp = end;
 		vTemp[2] += ZnegOffset;
 		AddVectors(vTemp, right, vRectangle[2]);
 		SubtractVectors(vTemp, right, vRectangle[3]);
-		
+
 	}
-	else if (fwd[2] > 0.0) // Player is below us.
+	else if (fwd[2] > 0.0)
 	{
 		fwd[2] = 0.0;
 		NormalizeVector(fwd, fwd);
-		
+
 		ScaleVector(fwd, scale);
 		ScaleVector(fwd, WideOffset);
 		ScaleVector(right, WideOffset);
-		
-		// Corner 1
+
 		vTemp = end;
 		vTemp[2] += ZpozOffset;
 		AddVectors(vTemp, right, vTemp);
 		SubtractVectors(vTemp, fwd, vRectangle[0]);
-		
-		// Corner 2
+
 		vTemp = end;
 		vTemp[2] += ZpozOffset;
 		SubtractVectors(vTemp, right, vTemp);
 		SubtractVectors(vTemp, fwd, vRectangle[1]);
-		
-		// Corner 3
+
 		vTemp = end;
 		vTemp[2] += ZnegOffset;
 		AddVectors(vTemp, right, vTemp);
 		AddVectors(vTemp, fwd, vRectangle[2]);
-		
-		// Corner 4
+
 		vTemp = end;
 		vTemp[2] += ZnegOffset;
 		SubtractVectors(vTemp, right, vTemp);
 		AddVectors(vTemp, fwd, vRectangle[3]);
 	}
-	else // Player is above us.
+	else
 	{
 		fwd[2] = 0.0;
 		NormalizeVector(fwd, fwd);
-		
+
 		ScaleVector(fwd, scale);
 		ScaleVector(fwd, WideOffset);
 		ScaleVector(right, WideOffset);
 
-		// Corner 1
 		vTemp = end;
 		vTemp[2] += ZpozOffset;
 		AddVectors(vTemp, right, vTemp);
 		AddVectors(vTemp, fwd, vRectangle[0]);
-		
-		// Corner 2
+
 		vTemp = end;
 		vTemp[2] += ZpozOffset;
 		SubtractVectors(vTemp, right, vTemp);
 		AddVectors(vTemp, fwd, vRectangle[1]);
-		
-		// Corner 3
+
 		vTemp = end;
 		vTemp[2] += ZnegOffset;
 		AddVectors(vTemp, right, vTemp);
 		SubtractVectors(vTemp, fwd, vRectangle[2]);
-		
-		// Corner 4
+
 		vTemp = end;
 		vTemp[2] += ZnegOffset;
 		SubtractVectors(vTemp, right, vTemp);
 		SubtractVectors(vTemp, fwd, vRectangle[3]);
 	}
 
-	// Run traces on all corners.
 	for (new i = 0; i < 4; i++)
 	{
 		if (IsPointVisible(start, vRectangle[i]))
@@ -924,56 +858,56 @@ FarESP_Enable()
 {
 	if ((g_iPlayerManager = GetPlayerResourceEntity()) == -1)
 		return;
-		
+
 	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
 	g_iPlayerSpotted = FindSendPropInfo("CCSPlayerResource", "m_bPlayerSpotted");
 	#else
 	g_iPlayerSpotted = FindSendPropOffs("CCSPlayerResource", "m_bPlayerSpotted");
-	#endif		
+	#endif
 
 	SDKHook(g_iPlayerManager, SDKHook_ThinkPost, PlayerManager_ThinkPost);
-	
+
 	g_msgUpdateRadar = GetUserMessageId("UpdateRadar");
 	HookUserMessage(g_msgUpdateRadar, Hook_UpdateRadar, true);
-	
+
 	HookEvent("player_death", FarESP_PlayerDeath, EventHookMode_Pre);
-	
+
 	g_hCvarForceCamera = FindConVar("mp_forcecamera");
 	OnForceCameraChanged(g_hCvarForceCamera, "", "");
 	HookConVarChange(g_hCvarForceCamera, OnForceCameraChanged);
-	
+
 	g_iUpdateFrequency = TIME_TO_TICK(2.0);
-	
+
 	g_bFarEspEnabled = true;
 }
 
 FarESP_Disable()
 {
 	SDKUnhook(g_iPlayerManager, SDKHook_ThinkPost, PlayerManager_ThinkPost);
-	
+
 	for (new i = 0; i < sizeof(g_bPlayerSpotted); i++)
 	{
 		g_bPlayerSpotted[i] = false;
 	}
-	
+
 	UnhookUserMessage(g_msgUpdateRadar, Hook_UpdateRadar, true);
-	
+
 	UnhookEvent("player_death", FarESP_PlayerDeath, EventHookMode_Pre);
-	
+
 	UnhookConVarChange(g_hCvarForceCamera, OnForceCameraChanged);
-	
+
 	g_bFarEspEnabled = false;
 }
 
 public Action:FarESP_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	
+
 	if (IS_CLIENT(client) && IsClientInGame(client))
 	{
 		SendRadarClient(client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 	}
-	
+
 	return Plugin_Continue;
 }
 
@@ -1000,7 +934,7 @@ public OnMapEnd()
 
 public Action:Hook_UpdateRadar(UserMsg:msg_id, Handle:bf, const players[], playersNum, bool:reliable, bool:init)
 {
-	// We will send custom messages only.
+
 	return Plugin_Handled;
 }
 
@@ -1008,19 +942,18 @@ public PlayerManager_ThinkPost(entity)
 {
 	if (!g_bFarEspEnabled)
 		return;
-	
-	// Keep track of which players have been spotted.
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (g_bProcess[i] && GetEntData(entity, g_iPlayerSpotted + i, 1))
 		{
-			// Immediately update this client's data.
+
 			if (!g_bPlayerSpotted[i])
 			{
 				g_bPlayerSpotted[i] = true;
 				SendRadarClient(i, USERMSG_BLOCKHOOKS);
 			}
-			
+
 			g_iSpottedCache[i] = g_iTickCount + g_iUpdateFrequency;
 		}
 		else
@@ -1032,10 +965,10 @@ public PlayerManager_ThinkPost(entity)
 
 SendRadarSpotted()
 {
-	// Send scrambled spotted data to all clients.
+
 	decl iClients[MaxClients];
 	new numClients, count;
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (g_bProcess[i])
@@ -1043,20 +976,20 @@ SendRadarSpotted()
 			iClients[numClients++] = i;
 		}
 	}
-	
+
 	if (!numClients)
 		return;
-	
+
 	decl Float:vOrigin[3], Float:vAngles[3];
 	new Handle:bf = StartMessageEx(g_msgUpdateRadar, iClients, numClients, USERMSG_BLOCKHOOKS);
-	
+
 	for (new i = 1; i <= MaxClients && count < MAX_RADAR_CLIENTS; i++)
 	{
 		if (g_bPlayerSpotted[i] && g_bProcess[i])
 		{
 			GetClientAbsOrigin(i, vOrigin);
 			GetClientAbsAngles(i, vAngles);
-			
+
 			BfWriteByte(bf, i);
 			BfWriteSBitLong(bf, RoundToNearest(vOrigin[0] / 4.0), 13);
 			BfWriteSBitLong(bf, RoundToNearest(vOrigin[1] / 4.0), 13);
@@ -1065,60 +998,59 @@ SendRadarSpotted()
 			count++;
 		}
 	}
-	
+
 	BfWriteByte(bf, 0);
 	EndMessage();
 }
 
 SendRadarTeam(team)
 {
-	// Send proper team data to all teammates.
+
 	decl iClients[MaxClients];
 	new numClients;
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
-		// Include dead players observering their teammates.
+
 		if ((g_bProcess[i] || (g_bForceCamera && g_bIsObserver[i])) && g_iTeam[i] == team)
 		{
 			iClients[numClients++] = i;
 		}
 	}
-	
+
 	if (!numClients)
 		return;
-	
+
 	decl Float:vOrigin[3], Float:vAngles[3], client;
 	new Handle:bf = StartMessageEx(g_msgUpdateRadar, iClients, numClients, USERMSG_BLOCKHOOKS);
-	
-	// Limit payload early.
+
 	if (numClients >= MAX_RADAR_CLIENTS)
 		numClients = MAX_RADAR_CLIENTS - 1;
-	
+
 	for (new i = 0; i < numClients; i++)
 	{
 		client = iClients[i];
-		
+
 		GetClientAbsOrigin(client, vOrigin);
 		GetClientAbsAngles(client, vAngles);
-		
+
 		BfWriteByte(bf, client);
 		BfWriteSBitLong(bf, RoundToNearest(vOrigin[0] / 4.0), 13);
 		BfWriteSBitLong(bf, RoundToNearest(vOrigin[1] / 4.0), 13);
 		BfWriteSBitLong(bf, RoundToNearest(vOrigin[2] / 4.0), 13);
 		BfWriteSBitLong(bf, RoundToNearest(vAngles[1]), 9);
 	}
-	
+
 	BfWriteByte(bf, 0);
 	EndMessage();
 }
 
 SendRadarFakeTeam(team)
 {
-	// Send fake data to team.
+
 	decl iReceivers[MaxClients], iSenders[MaxClients];
 	new numReceivers, numSenders, iReceiver;
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (g_bProcess[i])
@@ -1133,23 +1065,21 @@ SendRadarFakeTeam(team)
 			}
 		}
 	}
-	
+
 	if (!numReceivers || !numSenders)
 		return;
-	
+
 	decl Float:vOrigin[3];
 	new Handle:bf = StartMessageEx(g_msgUpdateRadar, iReceivers, numReceivers, USERMSG_BLOCKHOOKS);
-	
-	// Randomize so that every client is ensured fake data.
+
 	SortIntegers(iReceivers, numReceivers, Sort_Random);
-	
-	// Randomize the payload before limiting.
+
 	if (numSenders >= MAX_RADAR_CLIENTS)
 	{
 		SortIntegers(iSenders, numSenders, Sort_Random);
 		numSenders = MAX_RADAR_CLIENTS - 1;
 	}
-	
+
 	for (new i = 0; i < numSenders; i++)
 	{
 		GetClientAbsOrigin(iReceivers[iReceiver++], vOrigin);
@@ -1159,25 +1089,24 @@ SendRadarFakeTeam(team)
 		BfWriteSBitLong(bf, RoundToNearest((vOrigin[1] + MT_GetRandomFloat(-1000.0, 1000.0)) / 4.0), 13);
 		BfWriteSBitLong(bf, RoundToNearest((vOrigin[2] + MT_GetRandomFloat(-1000.0, 1000.0)) / 4.0), 13);
 		BfWriteSBitLong(bf, RoundToNearest(MT_GetRandomFloat(-180.0, 180.0)), 9);
-		
+
 		if (iReceiver >= numReceivers)
 			iReceiver = 0;
  	}
- 	
+
 	BfWriteByte(bf, 0);
 	EndMessage();
 }
 
 SendRadarClient(client, flags)
 {
-	// FFA mode: radar off.
+
 	if (g_iMode != 1)
 		return;
 
-	// A player was spotted and needs to be sent out to all clients.
 	decl iClients[MaxClients];
 	new numClients, iTeam = g_iTeam[client];
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (g_bProcess[i] && g_iTeam[i] != iTeam)
@@ -1185,16 +1114,16 @@ SendRadarClient(client, flags)
 			iClients[numClients++] = i;
 		}
 	}
-	
+
 	if (!numClients)
 		return;
-	
+
 	decl Float:vOrigin[3], Float:vAngles[3];
 	new Handle:bf = StartMessageEx(g_msgUpdateRadar, iClients, numClients, flags);
-	
+
 	GetClientAbsOrigin(client, vOrigin);
 	GetClientAbsAngles(client, vAngles);
-	
+
 	BfWriteByte(bf, client);
 	BfWriteSBitLong(bf, RoundToNearest(vOrigin[0] / 4.0), 13);
 	BfWriteSBitLong(bf, RoundToNearest(vOrigin[1] / 4.0), 13);
@@ -1207,32 +1136,32 @@ SendRadarClient(client, flags)
 
 SendRadarObservers()
 {
-	// Send all player data to all observers.
+
 	decl iClients[MaxClients];
 	new numClients, count;
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
-		// Include teammate-observers if forcecamera is disabled.
+
 		if (g_bIsObserver[i] && (!g_bForceCamera || g_iTeam[i] <= CS_TEAM_SPECTATOR))
 		{
 			iClients[numClients++] = i;
 		}
 	}
-	
+
 	if (!numClients)
 		return;
-	
+
 	decl Float:vOrigin[3], Float:vAngles[3];
 	new Handle:bf = StartMessageEx(g_msgUpdateRadar, iClients, numClients, USERMSG_BLOCKHOOKS);
-	
+
 	for (new i = 1; i <= MaxClients && count < MAX_RADAR_CLIENTS; i++)
 	{
 		if (g_bProcess[i])
 		{
 			GetClientAbsOrigin(i, vOrigin);
 			GetClientAbsAngles(i, vAngles);
-			
+
 			BfWriteByte(bf, i);
 			BfWriteSBitLong(bf, RoundToNearest(vOrigin[0] / 4.0), 13);
 			BfWriteSBitLong(bf, RoundToNearest(vOrigin[1] / 4.0), 13);
@@ -1241,7 +1170,7 @@ SendRadarObservers()
 			count++;
 		}
 	}
-	
+
 	BfWriteByte(bf, 0);
 	EndMessage();
 }

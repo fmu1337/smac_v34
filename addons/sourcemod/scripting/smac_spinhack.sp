@@ -2,7 +2,6 @@
 #include <sdktools>
 #include <smac>
 
-/* Plugin Info */
 public Plugin:myinfo =
 {
 	name = "SMAC: Spinhack Detector",
@@ -12,9 +11,9 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-#define SPIN_DETECTIONS		15		// Seconds of non-stop spinning before spinhack is detected
-#define SPIN_ANGLE_CHANGE	1440.0	// Max angle deviation over one second before being flagged
-#define SPIN_SENSITIVITY	6		// Ignore players with a higher mouse sensitivity than this
+#define SPIN_DETECTIONS		15
+#define SPIN_ANGLE_CHANGE	1440.0
+#define SPIN_SENSITIVITY	6
 
 new Float:g_fPrevAngle[MAXPLAYERS+1];
 new Float:g_fAngleDiff[MAXPLAYERS+1];
@@ -23,13 +22,11 @@ new Float:g_fSensitivity[MAXPLAYERS+1];
 
 new g_iSpinCount[MAXPLAYERS+1];
 
-/* Plugin Functions */
 public OnPluginStart()
 {
-	LoadTranslations("smac.phrases");	
+	LoadTranslations("smac.phrases");
 	CreateTimer(1.0, Timer_CheckSpins, _, TIMER_REPEAT);
 }
-
 
 public OnClientDisconnect(client)
 {
@@ -45,16 +42,16 @@ public Action:Timer_CheckSpins(Handle:timer)
 		{
 			continue;
 		}
-		
+
 		if (g_fAngleDiff[i] > SPIN_ANGLE_CHANGE && IsPlayerAlive(i))
 		{
 			g_iSpinCount[i]++;
-			
+
 			if (g_iSpinCount[i] == 1)
 			{
 				QueryClientConVar(i, "sensitivity", Query_MouseCheck, GetClientUserId(i));
 			}
-				
+
 			if (g_iSpinCount[i] == SPIN_DETECTIONS && g_fSensitivity[i] <= SPIN_SENSITIVITY)
 			{
 				Spinhack_Detected(i);
@@ -64,10 +61,10 @@ public Action:Timer_CheckSpins(Handle:timer)
 		{
 			g_iSpinCount[i] = 0;
 		}
-		
+
 		g_fAngleDiff[i] = 0.0;
 	}
-	
+
 	return Plugin_Continue;
 }
 
@@ -83,12 +80,12 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 {
 	if (!(buttons & IN_LEFT || buttons & IN_RIGHT))
 	{
-		// Only checking the Z axis here.
+
 		g_fAngleBuffer = FloatAbs(angles[1] - g_fPrevAngle[client]);
 		g_fAngleDiff[client] += (g_fAngleBuffer > 180.0) ? (g_fAngleBuffer - 360.0) * -1.0 : g_fAngleBuffer;
 		g_fPrevAngle[client] = angles[1];
 	}
-	
+
 	return Plugin_Continue;
 }
 

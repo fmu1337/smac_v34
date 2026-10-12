@@ -30,7 +30,7 @@ enum CvarComp {
 	Comp_Between,
 	Comp_Outside,
 	Comp_NonExist,
-	Comp_Integer		/* a whole number between value and value2 */
+	Comp_Integer
 }
 
 enum CvarAction {
@@ -45,9 +45,9 @@ stock bool:IsValidConVarName(const String:name[])
 {
 	if (name[0] == '\0')
 		return false;
-	
+
 	new length = strlen(name);
-	
+
 	for (new i = 0; i < length; i++)
 	{
 		if (!IsValidConVarChar(name[i]))
@@ -55,11 +55,10 @@ stock bool:IsValidConVarName(const String:name[])
 			return false;
 		}
 	}
-	
+
 	return true;
 }
 
-// Useful for older engines (original, Dark Messiah, and Episode 1, etc) which do not automatically replicate.
 stock ReplicateToAll(Handle:convar, const String:value[])
 {
 	for (new i = 1; i <= MaxClients; i++)
@@ -75,7 +74,7 @@ stock SetTimer(&Handle:hTimer, Handle:hNewTimer=INVALID_HANDLE)
 {
 	new Handle:hTemp = hTimer;
 	hTimer = hNewTimer;
-	
+
 	if (hTemp != INVALID_HANDLE)
 	{
 		CloseHandle(hTemp);
@@ -113,31 +112,31 @@ stock CvarComp:GetCompTypeInt(const String:sCompType[])
 {
 	if (StrEqual(sCompType, "equal"))
 		return Comp_Equal;
-		
+
 	if (StrEqual(sCompType, "strequal"))
 		return Comp_StrEqual;
-		
+
 	if (StrEqual(sCompType, "replicated"))
 		return Comp_Replicated;
-		
+
 	if (StrEqual(sCompType, "greater"))
 		return Comp_Greater;
-		
+
 	if (StrEqual(sCompType, "less"))
 		return Comp_Less;
-		
+
 	if (StrEqual(sCompType, "between"))
 		return Comp_Between;
-		
+
 	if (StrEqual(sCompType, "outside"))
 		return Comp_Outside;
-		
+
 	if (StrEqual(sCompType, "nonexist"))
 		return Comp_NonExist;
-		
+
 	if (StrEqual(sCompType, "integer"))
 		return Comp_Integer;
-	
+
 	return Comp_Invalid;
 }
 
@@ -192,22 +191,22 @@ stock CvarAction:GetCActionInt(const String:sAction[])
 {
 	if (StrEqual(sAction, "warn"))
 		return Action_Warn;
-		
+
 	if (StrEqual(sAction, "mute"))
 		return Action_Mute;
-		
+
 	if (StrEqual(sAction, "kick"))
 		return Action_Kick;
-		
+
 	if (StrEqual(sAction, "ban"))
 		return Action_Ban;
-	
+
 	return Action_Invalid;
 }
 
 stock GetCActionString(CvarAction:CAction, String:sAction[], iSize)
 {
-	// Was incorrectly switching on CCompType (typo); fixed for all SM versions.
+
 	switch (CAction)
 	{
 		case Action_Warn:

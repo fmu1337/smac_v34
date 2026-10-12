@@ -3,40 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * Usercmd consistency checks. Nothing is punished: a check that crosses its threshold within one
- * WINDOW (30 s) is logged and shown to admins (smac_usercmd_notify), and raw samples plus periodic
- * summaries go to logs/smac_usercmd_diag.log so thresholds can be tuned on real players.
- *
- * MoveGrid  The client builds forwardmove / sidemove from keys only:
- *               forwardmove = a * cl_forwardspeed - b * cl_backspeed,  sidemove = (c - d) * cl_sidespeed
- *           with a..d from KeyState (0, 0.25, 0.5, 0.75, 1); +speed, ducking and ScaleMovements
- *           (the clamp to maxspeed) scale both by the same factor. So |side / forward| always
- *           belongs to a small set of ratios. Cheats rotate the move vector after changing the
- *           angles (insomnia FixMove, pizzahook autostrafe, sega Correct_Movement) and get any
- *           ratio. Counted on cmds where both are non-zero. Joystick, +strafe with the mouse
- *           and cl_mouselook 0 also give other ratios; joystick 1 clients are skipped.
- *
- * SnapBack  The view jumps by >= SNAP_MIN degrees for exactly one cmd and the next cmd is back
- *           within SNAP_RETURN of where it was. A hand can't flick and return within one tick;
- *           silent aim (aim only on the shot cmd) and anti-aim jitter do exactly that.
- *           With +attack on the jump cmd it is counted as a silent shot, otherwise as jitter.
- *
- * FakeLag   Usercmds that arrive in the same server tick form a batch. A client that holds
- *           bSendPacket false (insomnia/pizzahook fakelag, sega Minimum/Maximum_Choked_Commands)
- *           delivers 8..15 cmds at once several times a second; a jitter or lag spike does that
- *           now and then. Only counted while the client's incoming loss is low.
- *
- * Roll      A client never puts roll into its view angles. pizzahook moves the spread
- *           compensation into viewangles.z with values below the +-30 smac_eyetest allows.
- *
- * Window thresholds (notice when reached):
- *   MoveGrid  >= 40 off-grid cmds and at least half of the cmds with both move axes
- *   SnapBack  >= 3 silent shots, or >= 20 jitter snaps
- *   FakeLag   >= 30 batches of >= 8 cmds
- *   Roll      >= 10 cmds with |roll| > 0.01
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC: Usercmd diagnostics",
@@ -46,7 +12,7 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-#define RATIO_TOLERANCE		0.003	/* relative */
+#define RATIO_TOLERANCE		0.003
 #define MAX_RATIOS			128
 #define SNAP_MIN			2.0
 #define SNAP_RETURN			0.1
@@ -79,20 +45,17 @@ new String:g_sLog[PLATFORM_MAX_PATH];
 
 new const String:g_sSpeedCvars[][] = { "cl_forwardspeed", "cl_backspeed", "cl_sidespeed", "joystick" };
 
-/* Client move speeds; MoveGrid starts once all of them are known. */
 new Float:g_fSpeed[MAXPLAYERS+1][3];
 new g_iKnown[MAXPLAYERS+1];
 new bool:g_bJoystick[MAXPLAYERS+1];
 new Float:g_fRatios[MAXPLAYERS+1][MAX_RATIOS];
 new g_iRatios[MAXPLAYERS+1];
 
-/* SnapBack history: [0] = two cmds ago, [1] = previous cmd. */
 new Float:g_fAng[MAXPLAYERS+1][2][2];
 new g_iHist[MAXPLAYERS+1];
 new g_iPrevCmd[MAXPLAYERS+1];
 new bool:g_bPrevAttack[MAXPLAYERS+1];
 
-/* Statistics since the last summary. */
 new g_iCmds[MAXPLAYERS+1];
 new g_iMove2[MAXPLAYERS+1];
 new g_iOffGrid[MAXPLAYERS+1];
@@ -102,11 +65,9 @@ new g_iBigBatches[MAXPLAYERS+1];
 new g_iRoll[MAXPLAYERS+1];
 new g_iSamples[MAXPLAYERS+1];
 
-/* FakeLag: the current batch. */
 new g_iBatchTick[MAXPLAYERS+1];
 new g_iBatchSize[MAXPLAYERS+1];
 
-/* Counters of the current notice window. */
 new g_iWin[MAXPLAYERS+1][Win_Count];
 
 public OnPluginStart()
@@ -184,7 +145,6 @@ public Query_Speed(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 	if (GetClientOfUserId(data >> 2) != client)
 		return;
 
-	/* Every answer counts: a missing speed leaves 0 and MoveGrid stays off for this client. */
 	new idx = data & 3;
 	if (idx == 3)
 		g_bJoystick[client] = (result == ConVarQuery_Okay && StringToInt(cvarValue) != 0);
@@ -195,10 +155,6 @@ public Query_Speed(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 		BuildRatios(client);
 }
 
-/*
- * All |side / forward| a keyboard can produce:
- *   forward in { |a * fwd - b * back| }, side in { |c - d| * side }, a..d in {0, .25, .5, .75, 1}.
- */
 BuildRatios(client)
 {
 	new Float:fFwd = g_fSpeed[client][0], Float:fBack = g_fSpeed[client][1], Float:fSide = g_fSpeed[client][2];
@@ -290,7 +246,7 @@ CheckMoveGrid(client, const Float:vel[3], const Float:angles[3], cmdnum)
 
 CheckSnapBack(client, buttons, const Float:angles[3], cmdnum)
 {
-	/* Lost cmds would look like a jump: start over after a gap. */
+
 	if (cmdnum != g_iPrevCmd[client] + 1)
 		g_iHist[client] = 0;
 	g_iPrevCmd[client] = cmdnum;
@@ -335,7 +291,6 @@ CheckSnapBack(client, buttons, const Float:angles[3], cmdnum)
 		g_iHist[client]++;
 }
 
-/* Cmds processed in the same server tick came in one burst. */
 CheckBatch(client)
 {
 	new tick = GetGameTickCount();
@@ -370,7 +325,6 @@ CheckRoll(client, const Float:angles[3], cmdnum)
 	}
 }
 
-/* Largest per-axis difference, yaw wrapped to +-180. */
 Float:AngleDist(const Float:a[], const Float:b[])
 {
 	new Float:fPitch = FloatAbs(a[0] - b[0]);
@@ -409,9 +363,6 @@ WriteSummary(client, const String:reason[])
 		g_iSilent[client], g_iJitter[client], g_iBigBatches[client], g_iRoll[client]);
 }
 
-/**
- * Admin notices: each check at most once per window.
- */
 public Action:Timer_Window(Handle:timer)
 {
 	new bool:bNotify = GetConVarBool(g_hCvarEnable) && GetConVarBool(g_hCvarNotify);

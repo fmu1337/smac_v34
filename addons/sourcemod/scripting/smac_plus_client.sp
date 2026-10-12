@@ -3,24 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * SMAC Plus: client input rate and settings.
- *
- *
- * Impulse spam more than smac_css_Impulse cmds with an impulse in one second.
- * Sensitivity outside [1; 20] (kicks), and more than |smac_antispam_Mouse_Sensitivity|
- * changes in one map (queried once a minute).
- * FakeSendPacket[Max] more than ceil(tickrate * smac_SpeedUp) usercmds per second (counts 4
- * for >= 2x tickrate) for more than |smac_SpeedLimitDetect| seconds in a row.
- * FakeSendPacket[Min] fewer than round(tickrate * 0.2) usercmds per second for more than
- * 2 * |smac_SpeedLimitDetect| seconds in a row.
- * Both are ignored when the client sends <= 25 packets/s either way, or when
- * its outgoing data and packets are both > 2.9x the incoming (network gates).
- *
- * Signed cvars: +N ban, -N kick ; smac_plus_client_notice_only (default 1)
- * turns every punishment of this module into an admin notice.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: Client",
@@ -116,9 +98,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return Plugin_Continue;
 }
 
-/**
- * Sensitivity (query callback).
- */
 public Action:Timer_QueryAll(Handle:timer)
 {
 	for (new i = 1; i <= MaxClients; i++)
@@ -139,7 +118,7 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 
 	if (sens < SENS_MIN || sens > SENS_MAX)
 	{
-		/* Reported once per connection; the value is queried every minute. */
+
 		new level = GetConVarInt(g_hCvarSensLimits);
 		if (level > 0 && !g_bSensReported[client])
 		{
@@ -150,7 +129,6 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 		return;
 	}
 
-	/* counts every value that differs from the previous answer. */
 	new changes = GetConVarInt(g_hCvarSensChanges);
 	if (g_fSens[client] > 0.0 && sens != g_fSens[client] && changes != 0)
 	{
@@ -166,9 +144,6 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	g_fSens[client] = sens;
 }
 
-/**
- * Usercmd rate (OnTimerUp: SpeedLimit / FakeSendPacket).
- */
 public Action:Timer_Second(Handle:timer)
 {
 	new Float:speedUp = GetConVarFloat(g_hCvarSpeedUp);
@@ -222,7 +197,6 @@ public Action:Timer_Second(Handle:timer)
 	return Plugin_Continue;
 }
 
-/* A real connection problem shows up in the packet and data rates. */
 CheckSendPacket(client, bool:bMax, cmds, limit)
 {
 	new Float:dataOut = GetClientAvgData(client, NetFlow_Outgoing);
@@ -241,9 +215,6 @@ CheckSendPacket(client, bool:bMax, cmds, limit)
 	React(client, bMax ? "FakeSendPacket[Max]" : "FakeSendPacket[Min]", limit, sDetail);
 }
 
-/**
- * Reaction: sign > 0 ban, < 0 kick, 0 admin notice.
- */
 React(client, const String:name[], sign, const String:detail[])
 {
 	new action = 1;
@@ -294,7 +265,6 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)

@@ -3,26 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * Interpolation (lerp) checks, after Little Anti-Cheat (lilac_nolerp, lilac_max_lerp).
- *
- * The server keeps every player's interpolation time in m_fLerpTime and lag compensation
- * rewinds targets by tickcount - lerp. So:
- *
- *   NoLerp   - m_fLerpTime below one update interval (1 / sv_maxupdaterate). A normal client
- *              cannot get there (cl_interp_ratio >= 1 keeps lerp >= 1 / cl_updaterate), so it
- *              means a tampered client. LilAC bans on the first one.
- *   Max lerp - m_fLerpTime above smac_lerp_max ms. That is a legit setting (cl_interp 0.2+),
- *              but it widens the lag compensation window: the player shoots where enemies were.
- *              LilAC kicks for it; here it is notice or kick, never ban.
- *
- * smac_lerp_fix clamps m_fLerpTime into [1 / sv_maxupdaterate, smac_lerp_max] on every
- * attack cmd, before lag compensation reads it. The engine only rewrites m_fLerpTime when
- * the client changes its settings, and the client's own interpolation is not touched.
- *
- * Defaults: admin notice only, fix on.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC: Lerp Checks",
@@ -121,7 +101,6 @@ public Action:Timer_Check(Handle:timer)
 
 		new Float:lerp = GetEntPropFloat(i, Prop_Data, "m_fLerpTime");
 
-		/* LilAC skips a minimum below 5 ms (sv_maxupdaterate > 200): too close to call. */
 		if (noLerpLevel > 0 && minLerp >= 0.005 && lerp < minLerp * MIN_LERP_BUFFER)
 		{
 			if (lerp != g_fReportedNoLerp[i])
@@ -164,7 +143,6 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* level: 1 = notice, 2 = kick, 3 = ban. */
 Report(client, Handle:info, &count, level, const String:name[], const String:detail[])
 {
 	count++;

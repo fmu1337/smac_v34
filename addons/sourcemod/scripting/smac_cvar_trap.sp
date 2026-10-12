@@ -3,32 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * Cvar trap via the MOTD (VGUIMenu "info") exit command.
- *
- * Insomnia (CSS v34) and cheats built on it reset xbox_autothrottle / xbox_throttlebias /
- * xbox_throttlespoof to 1 / 100 / 200 every frame (Hooked_PaintTraverse, "leet ruski antiban"):
- * SteamID Protect keeps a password in xbox_autothrottle. smac_nsb marks a different
- * client cvar; Insomnia resets the xbox trio anyway.
- *
- *   1. On connect the client's xbox_throttlebias is queried. Anything but 100 means nothing
- *      resets it, so the check is skipped.
- *   2. The MOTD sent at connect (VGUIMenu "info") is held until that answer arrives
- *      (TRAP_HOLD at most) and is then sent again with the exit command
- *          xbox_throttlebias <random>;smac_cvar_trap_ack <token>;<original cmd>
- *      The client runs it through engine->ClientCmd when the player presses OK.
- *   3. smac_cvar_trap_ack is unknown on the client and is forwarded to the server: the line has
- *      run, so the cvar was set before it. smac_cvar_trap_delay seconds later the cvar is queried
- *      again. Back to 100 = something reset it (Insomnia antiban).
- *
- * The random value is left in place (xbox_* do nothing on PC): on the next map the first query
- * sees it and skips the check, until a cheat resets it to 100 again.
- * xbox_throttlespoof (NSB) and xbox_autothrottle (SteamID Protect) are not touched.
- *
- * Only on the 2006 engine (CSS v34): on Orange Box the MOTD "cmd" is a number and
- * engine->ClientCmd only runs FCVAR_CLIENTCMD_CAN_EXECUTE commands.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC: Cvar Trap",
@@ -46,10 +20,10 @@ public Plugin:myinfo =
 
 enum TrapState {
 	State_None = 0,
-	State_Query,		/* waiting for the first answer */
-	State_Armed,		/* the cvar is at its default, waiting for the MOTD */
-	State_Sent,		/* the MOTD with the trap was sent, waiting for the ack */
-	State_Check,		/* ack received, waiting for the second answer */
+	State_Query,
+	State_Armed,
+	State_Sent,
+	State_Check,
 	State_Done
 };
 
@@ -85,7 +59,6 @@ public OnPluginStart()
 	RegConsoleCmd(TRAP_ACK, Command_Ack);
 }
 
-/* The game sends the connect MOTD from its own ClientPutInServer, before ours: arm here. */
 public OnClientConnected(client)
 {
 	ResetClient(client);
@@ -118,9 +91,6 @@ ResetClient(client)
 	}
 }
 
-/**
- * Step 1: is the cvar at its default?
- */
 public Query_First(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[], any:userid)
 {
 	if (GetClientOfUserId(userid) != client || g_iState[client] != State_Query)
@@ -128,7 +98,7 @@ public Query_First(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 
 	if (result != ConVarQuery_Okay || StringToFloat(cvarValue) != TRAP_DEFAULT)
 	{
-		/* Not at the default: nothing resets it right now. */
+
 		g_iState[client] = State_Done;
 		SendHeldMotd(client, false);
 		return;
@@ -138,7 +108,6 @@ public Query_First(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 	SendHeldMotd(client, true);
 }
 
-/* The answer did not come in time: let the MOTD through unchanged. */
 public Action:Timer_Hold(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
@@ -150,9 +119,6 @@ public Action:Timer_Hold(Handle:timer, any:userid)
 	return Plugin_Stop;
 }
 
-/**
- * Step 2: hold the MOTD until the first answer, then add the trap to its exit command.
- */
 public Action:Hook_VGUIMenu(UserMsg:msg_id, Handle:bf, const players[], playersNum, bool:reliable, bool:init)
 {
 	if (g_bResending || playersNum != 1)
@@ -180,7 +146,6 @@ public Action:Hook_VGUIMenu(UserMsg:msg_id, Handle:bf, const players[], playersN
 		CloseHandle(g_hMotd[client]);
 	g_hMotd[client] = kv;
 
-	/* A usermessage can't be sent from inside a usermessage hook. */
 	if (g_iState[client] == State_Armed)
 		CreateTimer(0.1, Timer_SendArmed, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 
@@ -207,7 +172,6 @@ SendHeldMotd(client, bool:bTrap)
 		decl String:sCmd[TRAP_MAX_CMD], String:sNew[256];
 		KvGetString(kv, "cmd", sCmd, sizeof(sCmd));
 
-		/* The 2006 client keeps a 255-char exit command; a numeric one is the Orange Box format. */
 		if (strlen(sCmd) >= TRAP_MAX_CMD - 1 || (sCmd[0] && IsNumeric(sCmd)))
 		{
 			g_iState[client] = State_Done;
@@ -243,9 +207,6 @@ bool:IsNumeric(const String:str[])
 	return true;
 }
 
-/**
- * Step 3: the exit command ran; check the cvar a moment later.
- */
 public Action:Command_Ack(client, args)
 {
 	if (!IS_CLIENT(client) || g_iState[client] != State_Sent || args < 1)
@@ -285,7 +246,6 @@ public Query_Check(QueryCookie:cookie, client, ConVarQueryResult:result, const S
 	decl String:sDetail[128];
 	FormatEx(sDetail, sizeof(sDetail), "%s set to %d, read back \"%s\"", TRAP_CVAR, g_iTrap[client], cvarValue);
 
-	/* Something else wrote it (another plugin, a config): log only. */
 	if (fValue != TRAP_DEFAULT)
 	{
 		SMAC_LogAction(client, "Cvar Trap: changed by something else | %s", sDetail);

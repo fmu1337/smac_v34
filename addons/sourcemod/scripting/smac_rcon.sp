@@ -16,43 +16,38 @@ public OnPluginStart()
 {
 	g_hCvarRconPass = FindConVar("rcon_password");
 	HookConVarChange(g_hCvarRconPass, OnRconPassChanged);
-	
+
 	LoadBlockedCommands();
 }
 
-/**
- * SMAC Plus: every command listed in cfg/sourcemod/smac_cmd_block.cfg (one per line,
- * "//" starts a comment) is blocked for players. blocked them for the server console too;
- * here the console and rcon can still use them.
- */
 LoadBlockedCommands()
 {
 	new Handle:hFile = OpenFile("cfg/sourcemod/smac_cmd_block.cfg", "r");
-	
+
 	if (hFile == INVALID_HANDLE)
 		return;
-	
+
 	decl String:sLine[128];
 	new count;
-	
+
 	while (!IsEndOfFile(hFile) && ReadFileLine(hFile, sLine, sizeof(sLine)))
 	{
 		new comment = StrContains(sLine, "//");
-		
+
 		if (comment != -1)
 		{
 			sLine[comment] = '\0';
 		}
-		
+
 		TrimString(sLine);
-		
+
 		if (sLine[0] == '\0' || FindCharInString(sLine, ' ') != -1)
 			continue;
-		
+
 		RegConsoleCmd(sLine, Command_Blocked);
 		count++;
 	}
-	
+
 	CloseHandle(hFile);
 	LogMessage("[SMAC] %d commands blocked from smac_cmd_block.cfg", count);
 }

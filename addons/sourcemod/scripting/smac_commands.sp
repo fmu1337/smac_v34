@@ -1,7 +1,6 @@
 #include <sourcemod>
 #include <smac>
 
-/* Plugin Info */
 public Plugin:myinfo =
 {
 	name = "SMAC: Command Monitor",
@@ -10,7 +9,6 @@ public Plugin:myinfo =
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
-
 
 enum ActionType {
 	Action_Block = 0,
@@ -23,16 +21,16 @@ new bool:g_bLogCommands;
 new Handle:g_hLogCommands = INVALID_HANDLE;
 
 new String:g_sLogPath[PLATFORM_MAX_PATH];
-/* Plugin Functions */
+
 public OnPluginStart()
-{				
-	
+{
+
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), "logs/SMAC_commands.log");
 	LoadTranslations("smac.phrases");
 	g_hLogCommands = SMAC_CreateConVar("smac_commands_log", "0", "Log command usage. Use only for debugging purposes.", _, true, 0.0);
 	OnSettingsChanged1(g_hLogCommands, "", "");
 	HookConVarChange(g_hLogCommands, OnSettingsChanged1);
-	
+
 	AddCommandListener(Command_Say, "say");
 	AddCommandListener(Command_Say, "say_team");
 	AddCommandListener(Command_BlockEntExploit, "ent_create");
@@ -88,9 +86,7 @@ public OnPluginStart()
 	SetTrieValue(g_hBlockedCmds, "wc_update_entity", Action_Block);
 	SetTrieValue(g_hBlockedCmds, "changelevel", Action_Ban);
 	SetTrieValue(g_hBlockedCmds, "speed.toggle", Action_Kick);
-	
 
-	
 	AddCommandListener(Command_CommandListener);
 
 	RegAdminCmd("smac_addcmd", Command_AddCmd, ADMFLAG_ROOT, "Block a command.");
@@ -106,7 +102,7 @@ public Action:Commands_EventDisconnect(Handle:event, const String:name[], bool:d
 	iLength = strlen(sReason)+strlen(sTemp);
 	GetEventString(event, "networkid", sTemp, sizeof(sTemp));
 	iLength += strlen(sTemp);
-	
+
 	if (iLength > 235)
 	{
 		if (IS_CLIENT(client) && IsClientConnected(client))
@@ -117,13 +113,13 @@ public Action:Commands_EventDisconnect(Handle:event, const String:name[], bool:d
 		{
 			SMAC_Log("Bad disconnect reason, length %d, \"%s\"", iLength, sReason);
 		}
-		
+
 		SetEventString(event, "reason", "Bad disconnect message");
 		return Plugin_Continue;
 	}
-	
+
 	iLength = strlen(sReason);
-	
+
 	for (new i = 0; i < iLength; i++)
 	{
 		if (sReason[i] < 32 && sReason[i] != '\n')
@@ -136,12 +132,12 @@ public Action:Commands_EventDisconnect(Handle:event, const String:name[], bool:d
 			{
 				SMAC_Log("Bad disconnect reason, \"%s\" len = %d. Possible corruption or attack.", sReason, iLength);
 			}
-			
+
 			SetEventString(event, "reason", "Bad disconnect message");
 			return Plugin_Continue;
 		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
@@ -150,14 +146,14 @@ public Action:Command_AddCmd(client, args)
 	if (args == 2)
 	{
 		decl String:sCommand[PLATFORM_MAX_PATH], String:sAction[8];
-		
+
 		GetCmdArg(1, sCommand, sizeof(sCommand));
 		StringToLower(sCommand);
-		
+
 		GetCmdArg(2, sAction, sizeof(sAction));
-		
+
 		new ActionType:cAction = Action_Block;
-		
+
 		switch (StringToInt(sAction))
 		{
 			case 1:
@@ -169,13 +165,13 @@ public Action:Command_AddCmd(client, args)
 				cAction = Action_Kick;
 			}
 		}
-		
+
 		SetTrieValue(g_hBlockedCmds, sCommand, cAction);
 		ReplyToCommand(client, "%s has been added.", sCommand);
-		
+
 		return Plugin_Handled;
 	}
-	
+
 	ReplyToCommand(client, "Usage: smac_addcmd <cmd> <action>");
 	return Plugin_Handled;
 }
@@ -185,7 +181,7 @@ public Action:Command_RemoveCmd(client, args)
 	if (args == 1)
 	{
 		decl String:sCommand[PLATFORM_MAX_PATH];
-		
+
 		GetCmdArg(1, sCommand, sizeof(sCommand));
 		StringToLower(sCommand);
 
@@ -197,10 +193,10 @@ public Action:Command_RemoveCmd(client, args)
 		{
 			ReplyToCommand(client, "%s was not found.", sCommand);
 		}
-		
+
 		return Plugin_Handled;
 	}
-	
+
 	ReplyToCommand(client, "Usage: smac_removecmd <cmd>");
 	return Plugin_Handled;
 }
@@ -213,16 +209,15 @@ public Action:Command_Say(client, const String:command[], args)
 	new iSpaceNum;
 	decl String:sMsg[256], String:sChar;
 	new iLen = GetCmdArgString(sMsg, sizeof(sMsg));
-	
-	// SMAC Plus: over 240 bytes, or nothing but spaces (and quotes).
+
 	if (iLen > 240)
 	{
 		PrintToChat(client, "%t", "SMAC_SayBlock");
 		return Plugin_Stop;
 	}
-	
+
 	new bool:bOnlySpaces = (iLen > 0);
-	
+
 	for (new i = 0; i < iLen; i++)
 	{
 		if (sMsg[i] != ' ' && sMsg[i] != '"')
@@ -231,17 +226,17 @@ public Action:Command_Say(client, const String:command[], args)
 			break;
 		}
 	}
-	
+
 	if (bOnlySpaces)
 	{
 		PrintToChat(client, "%t", "SMAC_SayBlock");
 		return Plugin_Stop;
 	}
-	
+
 	for (new i = 0; i < iLen; i++)
 	{
 		sChar = sMsg[i];
-		
+
 		if (sChar == ' ')
 		{
 			if (iSpaceNum++ >= 64)
@@ -250,14 +245,14 @@ public Action:Command_Say(client, const String:command[], args)
 				return Plugin_Stop;
 			}
 		}
-			
+
 		if (sChar < 32 && !IsCharMB(sChar))
 		{
 			PrintToChat(client, "%t", "SMAC_SayBlock");
 			return Plugin_Stop;
 		}
 	}
-	
+
 	return Plugin_Continue;
 }
 
@@ -265,59 +260,55 @@ public Action:Command_BlockEntExploit(client, const String:command[], args)
 {
 	if (!IS_CLIENT(client))
 		return Plugin_Continue;
-	
+
 	if (!IsClientInGame(client))
 		return Plugin_Stop;
-	
+
 	decl String:sArgString[512];
-	
+
 	if (GetCmdArgString(sArgString, sizeof(sArgString)) > 500)
 		return Plugin_Stop;
-	
-	if (StrContains(sArgString, "admin") != -1 || 
-	    StrContains(sArgString, "alias", false) != -1 || 
-	    StrContains(sArgString, "logic_auto") != -1 || 
-	    StrContains(sArgString, "logic_autosave") != -1 || 
-	    StrContains(sArgString, "logic_branch") != -1 || 
-	    StrContains(sArgString, "logic_case") != -1 || 
-	    StrContains(sArgString, "logic_collision_pair") != -1 || 
-	    StrContains(sArgString, "logic_compareto") != -1 || 
-	    StrContains(sArgString, "logic_lineto") != -1 || 
-	    StrContains(sArgString, "logic_measure_movement") != -1 || 
-	    StrContains(sArgString, "logic_multicompare") != -1 || 
-	    StrContains(sArgString, "logic_navigation") != -1 || 
-	    StrContains(sArgString, "logic_relay") != -1 || 
-	    StrContains(sArgString, "logic_timer") != -1 || 
-	    StrContains(sArgString, "ma_") != -1 || 
-	    StrContains(sArgString, "meta") != -1 || 
-	    StrContains(sArgString, "mp_", false) != -1 || 
-	    StrContains(sArgString, "point_clientcommand") != -1 || 
-	    StrContains(sArgString, "point_servercommand") != -1 || 
-	    StrContains(sArgString, "quit", false) != -1 || 
-	    StrContains(sArgString, "quti") != -1 || 
-	    StrContains(sArgString, "rcon", false) != -1 || 
-	    StrContains(sArgString, "restart", false) != -1 || 
-	    StrContains(sArgString, "sm") != -1 || 
-	    StrContains(sArgString, "sv_", false) != -1 || 
+
+	if (StrContains(sArgString, "admin") != -1 ||
+	    StrContains(sArgString, "alias", false) != -1 ||
+	    StrContains(sArgString, "logic_auto") != -1 ||
+	    StrContains(sArgString, "logic_autosave") != -1 ||
+	    StrContains(sArgString, "logic_branch") != -1 ||
+	    StrContains(sArgString, "logic_case") != -1 ||
+	    StrContains(sArgString, "logic_collision_pair") != -1 ||
+	    StrContains(sArgString, "logic_compareto") != -1 ||
+	    StrContains(sArgString, "logic_lineto") != -1 ||
+	    StrContains(sArgString, "logic_measure_movement") != -1 ||
+	    StrContains(sArgString, "logic_multicompare") != -1 ||
+	    StrContains(sArgString, "logic_navigation") != -1 ||
+	    StrContains(sArgString, "logic_relay") != -1 ||
+	    StrContains(sArgString, "logic_timer") != -1 ||
+	    StrContains(sArgString, "ma_") != -1 ||
+	    StrContains(sArgString, "meta") != -1 ||
+	    StrContains(sArgString, "mp_", false) != -1 ||
+	    StrContains(sArgString, "point_clientcommand") != -1 ||
+	    StrContains(sArgString, "point_servercommand") != -1 ||
+	    StrContains(sArgString, "quit", false) != -1 ||
+	    StrContains(sArgString, "quti") != -1 ||
+	    StrContains(sArgString, "rcon", false) != -1 ||
+	    StrContains(sArgString, "restart", false) != -1 ||
+	    StrContains(sArgString, "sm") != -1 ||
+	    StrContains(sArgString, "sv_", false) != -1 ||
 	    StrContains(sArgString, "taketimer") != -1)
 	{
 		return Plugin_Stop;
 	}
-	
+
 	return Plugin_Continue;
 }
 
 public Action:Command_CommandListener(client, const String:command[], argc)
 {
-	if (!IS_CLIENT(client))// || (IsClientConnected(client) && IsFakeClient(client)))
+	if (!IS_CLIENT(client))
 		return Plugin_Continue;
-		
 
-//	if (!IsClientInGame(client))	return Plugin_Stop;
-
-	// NOTE: InternalDispatch automatically lower cases "command".
 	new ActionType:cAction = Action_Block;
-	
+
 	if (GetTrieValue(g_hBlockedCmds, command, cAction))
 	{
 		if (cAction != Action_Block)
@@ -326,12 +317,12 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 			GetCmdArgString(sArgString, sizeof(sArgString));
 
 			if (g_bLogCommands) LogToFileEx(g_sLogPath, "%L used command: %s %s", client, command, sArgString);
-			
+
 			new Handle:info = CreateKeyValues("");
 			KvSetString(info, "command", command);
 			KvSetString(info, "argstring", sArgString);
 			KvSetNum(info, "action", _:cAction);
-			
+
 			if (SMAC_CheatDetected(client, Detection_BannedCommand, info) == Plugin_Continue)
 			{
 				if (cAction == Action_Ban)
@@ -347,17 +338,15 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 					KickClient(client, "Command %s violation", command);
 				}
 			}
-			
+
 			CloseHandle(info);
 		}
-		
+
 		return Plugin_Stop;
 	}
-	
 
 	return Plugin_Continue;
 }
-
 
 public OnSettingsChanged1(Handle:convar, const String:oldValue[], const String:newValue[])
 {

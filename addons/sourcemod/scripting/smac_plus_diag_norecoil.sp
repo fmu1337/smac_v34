@@ -3,27 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * SMAC Plus No Recoil A/B: diagnostics only. Nothing is punished.
- *
- * Compares usercmd angles with m_angEyeAngles from the OnPlayerRunCmd pre-hook.
- * If m_angEyeAngles there always equals the previous cmd's angles, No Recoil A would
- * fire on every spray with mouse movement. This plugin measures that on a live server
- * and replays the A/B logic, writing the result to logs/smac_norecoil_diag.log.
- *
- *   on a shot (FireBullets TE): A keeps the cmd angles; B is armed (state 1, max 0).
- *   +attack held:
- *     A: cmd angles != eye angles and the kept angles == eye angles on an axis -> counter + 1,
- *        kept := cmd angles; cmd angles == eye angles -> counter 0. A counter of 1..50 becomes a
- *        deadline tickcount + 7 that drops by 1 per cmd; tickcount reaching it -> 1101.
- *     B: pitch changed and cmd pitch != eye pitch -> state + 1 and the max |dPitch| is tracked;
- *        otherwise (pitch unchanged, or equal to eye pitch) -> state 0.
- *   +attack released: A counter > 0 -> 1101. B state > 0, pitch changed, != eye pitch, state + 1 > 1
- *     and |dPitch| >= 1.1 and > 1.5 * max -> 1102. B state 0.
- *   1101 / 1102 -> 1..3 s later the final counter + 1; more than |smac_NoR_Ban| (5) -> would
- *   punish, else it decays in 300 s.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: No Recoil diagnostics",
@@ -46,21 +25,19 @@ new Handle:g_hCvarNoRBan = INVALID_HANDLE;
 new String:g_sLog[PLATFORM_MAX_PATH];
 
 new bool:g_bHasPrev[MAXPLAYERS+1];
-new Float:g_fAng[MAXPLAYERS+1][2][2];		/* [0] = previous cmd, [1] = this cmd */
+new Float:g_fAng[MAXPLAYERS+1][2][2];
 new g_iPrevButtons[MAXPLAYERS+1];
 
-/* No Recoil A/B state. */
 new Float:g_fKept[MAXPLAYERS+1][2];
 new g_iA[MAXPLAYERS+1];
 new g_iB[MAXPLAYERS+1];
 new Float:g_fBMax[MAXPLAYERS+1];
 new g_iFinal[MAXPLAYERS+1];
 
-/* Statistics. */
 new g_iCmds[MAXPLAYERS+1];
-new g_iEyeNotPrev[MAXPLAYERS+1];		/* eye angles != previous cmd angles */
-new g_iEyeIsCur[MAXPLAYERS+1];			/* eye angles == this cmd angles while the aim moved */
-new g_iHeldMoving[MAXPLAYERS+1];		/* cmds with +attack held and the aim moving */
+new g_iEyeNotPrev[MAXPLAYERS+1];
+new g_iEyeIsCur[MAXPLAYERS+1];
+new g_iHeldMoving[MAXPLAYERS+1];
 new g_iShots[MAXPLAYERS+1];
 new g_i1101[MAXPLAYERS+1];
 new g_i1102[MAXPLAYERS+1];
@@ -127,7 +104,6 @@ public Action:TE_FireBullets(const String:te_name[], const clients[], numClients
 
 	g_iShots[client]++;
 
-	/* A keeps the angles of the shot cmd; B is armed. */
 	g_fKept[client][0] = g_fAng[client][1][0];
 	g_fKept[client][1] = g_fAng[client][1][1];
 	g_iB[client] = 1;
@@ -159,7 +135,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	new Float:eye1 = GetEntPropFloat(client, Prop_Send, "m_angEyeAngles[1]");
 	new bool:bMoved = (angles[0] != g_fAng[client][0][0] || angles[1] != g_fAng[client][0][1]);
 
-	/* The question: does the pre-hook see the previous cmd's angles in m_angEyeAngles? */
 	g_iCmds[client]++;
 	if (eye0 != g_fAng[client][0][0] || eye1 != g_fAng[client][0][1])
 	{
@@ -240,7 +215,6 @@ HoldB(client, const Float:angles[3], Float:eye0)
 	if (g_iB[client] <= 0)
 		return;
 
-	/* an unchanged pitch while held disarms B as well. */
 	if (angles[0] != g_fAng[client][0][0] && angles[0] != eye0)
 	{
 		g_iB[client]++;
@@ -277,7 +251,6 @@ Float:PitchStep(client)
 	return FloatAbs(NormalizeAngle(g_fAng[client][0][0]) - NormalizeAngle(g_fAng[client][1][0]));
 }
 
-/* After 1101/1102, 1..3 s later the final counter + 1. */
 Fire(client, code, const String:detail[])
 {
 	if (code == 1101)

@@ -4,18 +4,6 @@
 #include <sdkhooks>
 #include <smac>
 
-/*
- * SMAC Plus: server-side protections.
- *
- *
- * No_Team_Flash 1 = a flashbang does not blind the thrower's teammates;
- * 2 / 3 = players of team 2 (T) / 3 (CT) are never blinded.
- * Remembers the thrower on flashbang_detonate and, 0.005 s after
- * player_blind, sets m_flFlashMaxAlpha to 0.5 (the blind is not drawn).
- * Control_Entity 1 = when an entity with index > 2003 is created (the engine limit is 2048),
- * log it and reload the map before the server crashes.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: Protect",
@@ -54,9 +42,6 @@ public OnMapStart()
 	g_bRestarting = false;
 }
 
-/**
- * No_Team_Flash
- */
 public Event_FlashDetonate(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -73,11 +58,9 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 	if (!IS_CLIENT(client) || !IsClientInGame(client))
 		return;
 
-	/* 2 / 3: that team is never blinded. */
 	if (mode >= 2 && GetClientTeam(client) != mode)
 		return;
 
-	/* player_blind can come before flashbang_detonate; judge a moment later. */
 	CreateTimer(FLASH_DELAY, Timer_Unblind, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -103,9 +86,6 @@ public Action:Timer_Unblind(Handle:timer, any:userid)
 	return Plugin_Stop;
 }
 
-/**
- * Control_Entity
- */
 public OnEntityCreated(entity, const String:classname[])
 {
 	if (entity <= MaxClients || entity >= MAX_EDICTS_INDEX || entity <= g_iMaxEntity)

@@ -2,22 +2,6 @@
 #include <sourcemod>
 #include <smac>
 
-/*
- * SMAC Plus: server protections beyond stock smac_client / smac_commands / smac_rcon.
- *
- * Half-connected command a client command from a client that is connected but not in game
- * (Rcon: SMAC_Hack + addip; "menuclosed" is only dropped).
- * Rcon command a client command named rcon* from a non-admin (Cvars: ban).
- * Argument overflow the absolute values of the numeric arguments add up to more than
- * 3e9 (Cvars: kick; ucp_* and say are skipped).
- * Iniuria (SIC) voice_loopback / voice_inputfromfile sent as a command after more than
- * 20 commands in the same second ("cheat class Iniuria CS:S").
- * Validate auth the client is in game but still not authorized 10 s after joining
- * (Client: kick SMAC_FailedAuth).
- *
- * Defaults block the command and notify admins; the kick/ban is level 2 (3 for Iniuria).
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: Server",
@@ -107,7 +91,6 @@ public Action:Command_Listener(client, const String:command[], argc)
 
 	decl String:sArgs[192];
 
-	/* Rcon: commands before the client is in game. */
 	if (!IsClientInGame(client))
 	{
 		new level = GetConVarInt(g_hCvarHalfConnected);
@@ -134,7 +117,6 @@ public Action:Command_Listener(client, const String:command[], argc)
 	if (StrEqual(command, "say", false) || StrEqual(command, "say_team", false))
 		return Plugin_Continue;
 
-	/* Cvars: rcon from a client that is not an admin. */
 	if (StrContains(command, "rcon", false) == 0 && !CheckCommandAccess(client, "smac_plus_rcon", ADMFLAG_RCON, true))
 	{
 		new level = GetConVarInt(g_hCvarRcon);
@@ -152,7 +134,6 @@ public Action:Command_Listener(client, const String:command[], argc)
 		}
 	}
 
-	/* Cvars: numeric arguments that overflow. */
 	if (argc > 1 && StrContains(command, "ucp_", false) != 0)
 	{
 		new level = GetConVarInt(g_hCvarOverflow);
@@ -170,7 +151,6 @@ public Action:Command_Listener(client, const String:command[], argc)
 		}
 	}
 
-	/* Cvars: Iniuria floods voice_loopback / voice_inputfromfile as commands. */
 	if (g_iCmds[client] > INIURIA_CMDS
 		&& (StrEqual(command, "voice_loopback", false) || StrEqual(command, "voice_inputfromfile", false)))
 	{
@@ -205,7 +185,6 @@ bool:ArgsOverflow(argc)
 	return false;
 }
 
-/* Logs and notifies (rate-limited per client); returns false if another plugin handled it. */
 bool:Detected(client, const String:name[], const String:detail[])
 {
 	new Handle:info = CreateKeyValues("");
@@ -225,7 +204,6 @@ bool:Detected(client, const String:name[], const String:detail[])
 	return true;
 }
 
-/* level: 1 notice (done), 2 kick, 3 ban; lowered by the network gate. */
 Punish(client, level, const String:name[])
 {
 	if (level < 2 || IsImmune(client))
@@ -258,7 +236,6 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)

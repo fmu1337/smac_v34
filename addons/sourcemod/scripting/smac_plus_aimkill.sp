@@ -3,23 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * SMAC Plus: AIM_Kill (anti-aimbot decoys).
- *
- *
- * Every player gets an invisible prop_dynamic_override:
- * slot 0 du_crate_64x64_stone.mdl parented to the face attachment, angles 120 35 35,
- * SOLID_VPHYSICS, bounds +-89.9;
- * slot 1 (smac_AIM_Kill 2) a random grenade model at the player's position, SOLID_BBOX.
- * Both use collision group 10 (COLLISION_GROUP_IN_VEHICLE), which the engine's ShouldCollide
- * rejects for every other group: bullets, movement and the client's own traces ignore them.
- * A cheat that traces with its own filter hits the box in front of the head and treats the
- * target as hidden. Render mode none, alpha 0, no shadows.
- *
- * creates the decoys on its 1 s ticker (every 5th second) when they are missing and removes
- * them on spawn; there the feature also needs its anti-wallhack enabled, here it does not.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: AIM_Kill",
@@ -77,7 +60,6 @@ public OnMapStart()
 	for (new i = 0; i < sizeof(g_sPosModels); i++)
 		PrecacheModel(g_sPosModels[i], true);
 
-	/* Entities are gone after a map change. */
 	for (new i = 0; i <= MaxClients; i++)
 	{
 		for (new s = 0; s < SLOTS; s++)
@@ -170,7 +152,6 @@ CreateDecoy(client, slot)
 		SetVariantString("!activator");
 		AcceptEntityInput(ent, "SetParent", client, ent);
 
-		/* CS:S player models: "forward" is the eye attachment (uses "facemask" on CS:GO). */
 		SetVariantString("forward");
 		AcceptEntityInput(ent, "SetParentAttachment", ent, ent);
 		DispatchKeyValue(ent, "angles", "120 35 35");

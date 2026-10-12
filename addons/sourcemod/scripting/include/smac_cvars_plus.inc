@@ -1,7 +1,4 @@
-/*
- * SMAC Plus cvar table for smac_cvars.sp when smac_cvars_plus is not 0.
- * Entries already checked by smac_cvars keep their own settings.
- */
+
 
 #if defined _smac_cvars_plus_included
   #endinput
@@ -10,7 +7,7 @@
 
 AddPlusCvars()
 {
-	/* Hack / takeover plugins and cheat consoles (must not exist). */
+
 	AddPlusCvar(Order_First, "0penscript", Comp_NonExist, Action_Ban);
 	AddPlusCvar(Order_First, "aim_bot", Comp_NonExist, Action_Ban);
 	AddPlusCvar(Order_First, "aim_fov", Comp_NonExist, Action_Ban);
@@ -84,7 +81,6 @@ AddPlusCvars()
 	AddPlusCvar(Order_First, "zb_version", Comp_NonExist, Action_Kick);
 	AddPlusCvar(Order_First, "voicerecord", Comp_NonExist, Action_Kick);
 
-	/* SteamID changers and cheat menus (must not exist). */
 	AddPlusCvar(Order_First, "cs_show_team", Comp_NonExist, Action_Ban);
 	AddPlusCvar(Order_First, "starts", Comp_NonExist, Action_Ban);
 	AddPlusCvar(Order_First, "rragg_err_id", Comp_NonExist, Action_Ban);
@@ -170,7 +166,6 @@ AddPlusCvars()
 	AddPlusCvar(Order_First, "ru_show_team", Comp_NonExist, Action_Ban);
 	AddPlusCvar(Order_First, "show_team", Comp_NonExist, Action_Ban);
 
-	/* Client settings with fixed values. */
 	AddPlusCvar(Order_Last, "snd_show", Comp_Equal, Action_Ban, "0.0");
 	AddPlusCvar(Order_Last, "r_flashlightfov", Comp_Equal, Action_Kick, "45.0");
 	AddPlusCvar(Order_Last, "cl_wpn_sway_scale", Comp_Equal, Action_Kick, "1.0");

@@ -5,11 +5,9 @@
 
 #include <smac_stocks>
 
-/* Globals */
 #define SMAC_VERSION	"v34.R2"
 #define SMAC_URL		"https://vk.com/by_danyas"
 #define SMAC_AUTHOR		"Danyas"
-
 
 enum DetectionType {
 	Detection_Unknown = 0,
@@ -27,30 +25,27 @@ enum DetectionType {
 	Detection_Speedhack = 700,
 	Detection_Spinhack = 800,
 
-	/* SMAC Plus (smac_plus_*.sp). */
 	Detection_AirStuck = 3500,
 	Detection_LagExploit = 3800,
 	Detection_Backtrack = 5200,
 	Detection_PlusPSilent = 7100,
-	Detection_PlusAim = 7200,		/* PRG 301-304, AGTNL 200/201, AGT, Trigger, AGTAF */
-	Detection_PlusMovement = 7300,	/* Fast Run, Advanced BHop, HaX2, Eye Angles 04, Teleport, Airstuck Fast, Spinhack */
-	Detection_PlusInput = 7400,		/* AutoTrigger, Advanced Trigger/AutoFire, Fast AIM, RCS, CheatCFG */
-	Detection_PlusClient = 7500,		/* Impulse spam, sensitivity, FakeSendPacket */
-	Detection_PlusServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
-	Detection_PlusFakeStatus = 7700,	/* Changer Player Status: a client flagged as a bot sends mouse input */
+	Detection_PlusAim = 7200,
+	Detection_PlusMovement = 7300,
+	Detection_PlusInput = 7400,
+	Detection_PlusClient = 7500,
+	Detection_PlusServer = 7600,
+	Detection_PlusFakeStatus = 7700,
 
-	/* From other anti-cheats (LilAC / Oryx / Cow AC). */
-	Detection_Lerp = 7800,			/* smac_lerp: NoLerp, max lerp (Little Anti-Cheat) */
-	Detection_Strafe = 7900,		/* smac_strafe: strafe sync, perfect turn, steady turn, silent strafe, AHK mouse (Oryx / BASH / Cow AC) */
+	Detection_Lerp = 7800,
+	Detection_Strafe = 7900,
 
-	/* Detections from the CSS v34 cheat sources (insomnia, pizzahook, sega). */
-	Detection_CvarTrap = 8000,		/* smac_cvar_trap: xbox_throttlebias reset to its default (Insomnia antiban) */
-	Detection_Usercmd = 8100,		/* smac_usercmd: MoveGrid, SnapBack, FakeLag, Roll (notices only) */
-	Detection_Nsb = 8200,			/* smac_nsb: client is on the no-steam ban list */
+	Detection_CvarTrap = 8000,
+	Detection_Usercmd = 8100,
+	Detection_Nsb = 8200,
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11
-// Newer compilers require an explicit type; older ones create the GameType tag implicitly.
+
 enum GameType {
 	Game_Unknown = 0,
 	Game_CSS,
@@ -67,7 +62,6 @@ enum GameType {
 };
 #endif
 
-/* Natives */
 native GameType:SMAC_GetGameType();
 native SMAC_Log(const String:format[], any:...);
 native SMAC_LogAction(client, const String:format[], any:...);
@@ -76,11 +70,9 @@ native SMAC_PrintAdminNotice(const String:format[], any:...);
 native Handle:SMAC_CreateConVar(const String:name[], const String:defaultValue[], const String:description[]="", flags=0, bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0);
 native Action:SMAC_CheatDetected(client, DetectionType:type = Detection_Unknown, Handle:info = INVALID_HANDLE);
 
-/* Forwards */
 forward Action:SMAC_OnCheatDetected(client, const String:module[], DetectionType:type, Handle:info);
 
-
-public SharedPlugin:__pl_smac = 
+public SharedPlugin:__pl_smac =
 {
 	name = "smac",
 	file = "smac.smx",

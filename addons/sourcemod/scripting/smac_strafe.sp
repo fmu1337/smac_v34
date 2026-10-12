@@ -3,36 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * Optional strafe-hack module. Ships in plugins/disabled; move it to plugins/ to use it.
- *
- * Ideas from GPLv3 sources (rewritten for SourceMod 1.6 / CSS v34):
- *   Oryx AC strafe module (Rusty, shavit) - BASH remake, perfect turn rate, steady turn;
- *   Cow Anti-Cheat (Eric Edson) - silent strafe, AHK strafe.
- *
- *   Strafe Sync    - in the air, for every strafe: the tick the A/D (W/S) key changed minus the
- *                    tick the mouse changed direction. Humans scatter around a few ticks; a
- *                    strafe hack or a sync script hits 0 again and again. Every 30 strafes:
- *                    sum |offset| < 15 low, < 9 medium; zeroes > 18 low, > 22 medium, > 25 high.
- *   Perfect Turn   - the yaw change per tick equals the optimal air-strafe angle
- *                    asin(30 / speed) of the previous tick within 1/128 of it.
- *                    10 ticks in a row low, 33 medium, 48 high.
- *   Steady Turn    - the same yaw change (within 1/128) for 50 ticks without +left / +right:
- *                    a forged constant turn. Low. Oryx also had a ground-only "prestrafe tool"
- *                    variant tied to 1.2 deg/tick; this one covers it without the constant.
- *   Silent Strafe  - sidemove changes sign on every cmd. Keys cannot do that (one cmd per tick,
- *                    keys change once per frame), a strafe hack does. 10 in a row medium,
- *                    20 high.
- *   AHK Mouse      - in the air, while above the jump height, the same |mouse dx| >= 10 for 25
- *                    cmds in a row (a script moving the mouse). 10 such runs medium.
- *
- * Low is logged only, medium also notifies admins, high also kicks/bans when the check's
- * cvar is 2/3. Defaults: 1 (log and notice, never punish). Nothing is judged for 60 ticks after
- * a spawn, a trigger_teleport or a position jump, on ladders / noclip or in water.
- *
- * sm_strafe_stats <target> prints the last 30 strafe offsets.
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC: Strafe Checks",
@@ -115,7 +85,6 @@ public OnPluginStart()
 	g_hCvarCheck[CHECK_AHK] = SMAC_CreateConVar("smac_strafe_ahk", "1", "AHK Mouse (constant mouse dx in the air, Cow AC): 0=off, 1=log/notice", _, true, 0.0, true, 1.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
-	// mouse[2] needs the 11-parameter OnPlayerRunCmd (SourceMod 1.5.0+); only AHK Mouse uses it.
 	g_bMouse = (GetFeatureStatus(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS) == FeatureStatus_Available);
 
 	RegAdminCmd("sm_strafe_stats", Command_StrafeStats, ADMFLAG_GENERIC, "sm_strafe_stats <target> - last strafe key/mouse offsets in ticks");
@@ -198,7 +167,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	new Float:delta = angles[1] - g_fPrevYaw[client];
 	g_fPrevYaw[client] = angles[1];
 
-	// A position jump bigger than the movement allows is a teleport we did not see.
 	decl Float:vOrigin[3], Float:vVelocity[3];
 	GetClientAbsOrigin(client, vOrigin);
 	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", vVelocity);
@@ -271,7 +239,6 @@ Finish(client, buttons, const Float:vel[3], bool:bOnGround, const Float:vOrigin[
 	else if (delta < -180.0)
 		delta += 360.0;
 
-	// Tiny deltas keep the previous turn (Oryx returns before storing them).
 	if (FloatAbs(delta) >= MIN_DELTA)
 	{
 		g_fPrevDelta[client] = delta;
@@ -282,8 +249,6 @@ Finish(client, buttons, const Float:vel[3], bool:bOnGround, const Float:vOrigin[
 	}
 }
 
-/* Oryx BASH remake: key transition tick minus mouse direction transition tick.
-   Keys are tracked on every air tick, the mouse only when it moved. */
 CheckSync(client, buttons, Float:delta, Float:deltaAbs)
 {
 	new prev = g_iPrevButtons[client];
@@ -375,7 +340,6 @@ AnalyzeSync(client)
 	Report(client, CHECK_SYNC, severity, "Strafe Sync", sDetail);
 }
 
-/* Oryx: perfect turn rate and +left/right bypasser (steady turn). */
 CheckTurn(client, buttons, Float:deltaAbs, bool:bOnGround, const Float:vOrigin[3], const Float:vVelocity[3])
 {
 	decl String:sDetail[96];
@@ -418,7 +382,6 @@ CheckTurn(client, buttons, Float:deltaAbs, bool:bOnGround, const Float:vOrigin[3
 	}
 }
 
-/* Cow AC: sidemove changes sign on every cmd. */
 CheckSilentStrafe(client, Float:side)
 {
 	new Float:prev = g_fPrevSide[client];
@@ -441,7 +404,6 @@ CheckSilentStrafe(client, Float:side)
 	}
 }
 
-/* Cow AC: the same |mouse dx| for many cmds while above the jump height. */
 CheckAhkMouse(client, dx, const Float:vOrigin[3])
 {
 	if (AbsValue(dx) < AHK_MIN_DX || vOrigin[2] <= g_fJumpZ[client])
@@ -493,7 +455,6 @@ bool:IsSurfing(client, const Float:vOrigin[3])
 		decl Float:vNormal[3];
 		TR_GetPlaneNormal(hTrace, vNormal);
 
-		// A plane steeper than 0.7 is a surf ramp (physics_main.cpp).
 		bSurf = (vNormal[2] >= -0.7 && vNormal[2] <= 0.7);
 	}
 
@@ -551,7 +512,6 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* Low: log. Medium: log + admin notice. High: also kick (2) / ban (3) when the cvar says so. */
 Report(client, check, severity, const String:name[], const String:detail[])
 {
 	new count = ++g_iDetects[client][check];

@@ -3,7 +3,6 @@
 #include <sdkhooks>
 #include <smac>
 
-/* Plugin Info */
 public Plugin:myinfo =
 {
 	name = "SMAC: Eye Angle Test",
@@ -13,36 +12,13 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-/*
- * Eyetest 01-04 as in SMAC Plus:
- * 01 cmdnum went back (Detection_UserCmdReuse)
- * 02 cmdnum repeated, tickcount is not prev or prev+1 (Detection_UserCmdTamperingTickcount)
- * 03 cmdnum repeated, movement/score buttons changed (Detection_UserCmdTamperingButtons)
- * 04 pitch outside +-89.9 or roll outside +-30 (Detection_Eyeangles)
- * 04L |yaw| above 100000 with legal pitch and roll (lisp yaw: insomnia sends ~697000;
- * the yaw is wrapped to +-180)
- * 05 angles exactly (0, 0, 0) for 16 cmds in a row while the mouse moves
- * (insomnia "AntiSMAC": zero angles between shots, the aim only on the shot cmd)
- * 04L and 05 react by smac_eyetest_new_reaction (default 1 = admin notice) until checked on
- * live servers.
- * Differences from stock SMAC: a violation is reported only when a second one of the same kind
- * comes within EYE_DECAY seconds, checks pause for 5 s (not 30 s) after a violation, the roll
- * limit is 30 (was 90) and the reaction is set by smac_eyetest_reaction.
- * smac_NoS_NoR gives every +attack usercmd a new random seed.
- * A large cmdnum skip on +attack is reported as nospread seed hunting (smac_eyetest_seed_ban),
- * and illegal angles are clamped so anti-aim gains nothing even when the reaction is off.
- */
-
 #define EYE_MAX_PITCH	89.9
 #define EYE_MAX_ROLL	30.0
-#define EYE_MAX_YAW		100000.0	// lisp yaw; a real client never gets near it
+#define EYE_MAX_YAW		100000.0
 #define EYE_ZERO_STREAK	16
-#define EYE_DECAY		528.0	// SetBan(..., 528) releases one violation
-#define EYE_PAUSE		5.0		// checks pause for 5 s worth of cmds after a violation
+#define EYE_DECAY		528.0
+#define EYE_PAUSE		5.0
 
-// ForceSeed / SeedHelp (insomnia, informant, 420hook): skip command_number until
-// (MD5_PseudoRandom(cmdnum) & 255) matches a desired seed. Average skip ~128.
-// Small gaps can be choke/lag; large gaps on IN_ATTACK are nospread seed hunting.
 #define SEED_SKIP_MIN_DELTA		16
 #define SEED_SKIP_DETECT_BAN	3
 
@@ -102,7 +78,6 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	// Convars.
 	g_hCvarReaction = SMAC_CreateConVar("smac_eyetest_reaction", "3", "Eye test 01-04 reaction: 0=off, 1=admin notice, 2=kick, 3=ban (SMAC Plus: 3)", _, true, 0.0, true, 3.0);
 	g_hCvarNewReaction = SMAC_CreateConVar("smac_eyetest_new_reaction", "1", "Reaction for lisp yaw (04L) and zero angles (05): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarNoSpread = SMAC_CreateConVar("smac_NoS_NoR", "1", "No Spread / No Recoil block (SMAC Plus): a new random seed on every +attack usercmd. 0 = only when cmdnums are skipped (stock SMAC).", _, true, 0.0, true, 1.0);
@@ -110,19 +85,18 @@ public OnPluginStart()
 	g_hCvarSeedBan = SMAC_CreateConVar("smac_eyetest_seed_ban", "1", "Automatically ban players for nospread seed hunting (command_number skips on attack).", _, true, 0.0, true, 1.0);
 
 	g_iPauseCmds = TIME_TO_TICK(EYE_PAUSE);
-	
+
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		OnClientDisconnect_Post(i);
 	}
 
-	// FEATURECAP_PLAYERRUNCMD_11PARAMS shipped in SourceMod 1.5.0 (not 1.7).
 	RequireFeature(FeatureType_Capability, FEATURECAP_PLAYERRUNCMD_11PARAMS, "This module requires SourceMod 1.5.0 or newer (FEATURECAP_PLAYERRUNCMD_11PARAMS).");
 }
 
 public OnClientDisconnect(client)
 {
-	// Clients don't actually disconnect on map change. They start sending the new cmdnums before _Post fires.
+
 	g_bPrevAlive[client] = false;
 	g_iPrevButtons[client] = -1;
 	g_iPrevCmdNum[client] = -1;
@@ -153,23 +127,19 @@ public OnClientPutInServer(client)
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
-	// Ignore bots
+
 	if (IsFakeClient(client))
 		return Plugin_Continue;
 
-	// NULL commands
 	if (cmdnum <= 0)
 		return Plugin_Handled;
 
-	// No Spread / No Recoil block: the cheat can't predict the spread of a shot it doesn't know the seed of.
 	if ((buttons & IN_ATTACK) && GetConVarBool(g_hCvarNoSpread))
 		seed = GetURandomInt();
 
-	// Block old cmds after a client resets their tickcount.
 	if (tickcount <= 0)
 		g_TickStatus[client] = State_Resetting;
 
-	// Fixes issues caused by client timeouts.
 	new bool:bAlive = IsPlayerAlive(client);
 
 	if (!bAlive || !g_bPrevAlive[client] || cmdnum <= g_iPauseUntilCmd[client])
@@ -198,7 +168,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		return Plugin_Continue;
 	}
 
-	// Check for valid cmd values being sent. The command number cannot decrement.
 	if (g_iPrevCmdNum[client] > cmdnum)
 	{
 		if (g_TickStatus[client] != State_Okay)
@@ -224,7 +193,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		return Plugin_Handled;
 	}
 
-	// Other than the incremented tickcount, nothing should have changed.
 	if (g_iPrevCmdNum[client] == cmdnum)
 	{
 		if (g_TickStatus[client] != State_Okay)
@@ -233,7 +201,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			return Plugin_Handled;
 		}
 
-		// The tickcount should be incremented. also lets the same tickcount through.
 		if (tickcount != g_iPrevTickCount[client] && tickcount != g_iPrevTickCount[client] + 1)
 		{
 			g_iPauseUntilCmd[client] = cmdnum + g_iPauseCmds;
@@ -252,7 +219,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			return Plugin_Handled;
 		}
 
-		// Check for specific buttons in order to avoid compatibility issues with server-side plugins.
 		if (((g_iPrevButtons[client] ^ buttons) & (IN_FORWARD|IN_BACK|IN_MOVELEFT|IN_MOVERIGHT|IN_SCORE)))
 		{
 			g_iPauseUntilCmd[client] = cmdnum + g_iPauseCmds;
@@ -270,7 +236,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			return Plugin_Handled;
 		}
 
-		// Track so we can predict the next cmdnum.
 		g_iCmdNumOffset[client]++;
 	}
 	else
@@ -278,12 +243,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		new iExpected = g_iPrevCmdNum[client] + g_iCmdNumOffset[client];
 		new iSkipDelta = cmdnum - iExpected;
 
-		// Passively block cheats from skipping to desired seeds (ForceSeed / SeedHelp).
 		if ((buttons & IN_ATTACK) && iSkipDelta != 0 && g_iPrevCmdNum[client] > 0)
 		{
 			seed = GetURandomInt();
 
-			// Large skips while firing = nospread seed search (avg ~128 for &255 match).
 			if (iSkipDelta >= SEED_SKIP_MIN_DELTA)
 			{
 				EyeTest_SeedSkipDetected(client, cmdnum, iExpected, iSkipDelta, seed);
@@ -302,13 +265,11 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_TickStatus[client] = State_Okay;
 	}
 
-	// Eye Angles 04: pitch +-89.9, roll +-30.
 	new flags = GetEntityFlags(client);
 
 	if (flags & (FL_FROZEN|FL_ATCONTROLS))
 		return Plugin_Continue;
 
-	// Eyetest 05: moving the mouse always changes the view, so (0, 0, 0) can't repeat while it moves.
 	if (angles[0] == 0.0 && angles[1] == 0.0 && angles[2] == 0.0 && (mouse[0] != 0 || mouse[1] != 0))
 	{
 		if (++g_iZeroStreak[client] >= EYE_ZERO_STREAK && !IsBotAuth(client))
@@ -351,13 +312,11 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	decl String:sDetail[128];
 	FormatEx(sDetail, sizeof(sDetail), "Eye Angles: %.0f %.0f %.0f", angles[0], angles[1], angles[2]);
 
-	// Only the yaw is out of range: lisp yaw (04L).
 	new bool:bOnlyLisp = (fPitch >= -EYE_MAX_PITCH && fPitch <= EYE_MAX_PITCH && fRoll >= -EYE_MAX_ROLL && fRoll <= EYE_MAX_ROLL);
 	Eyetest_Violation(client, bOnlyLisp ? ET_LISP : ET_ANGLES, info, sDetail);
 
 	CloseHandle(info);
 
-	// Neutralize illegal AA / lisp even when the reaction is off or a forward blocked it.
 	if (fPitch > EYE_MAX_PITCH)
 		angles[0] = EYE_MAX_PITCH;
 	else if (fPitch < -EYE_MAX_PITCH)
@@ -376,7 +335,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return Plugin_Changed;
 }
 
-// Strict bot checking - https://bugs.alliedmods.net/show_bug.cgi?id=5294
 bool:IsBotAuth(client)
 {
 	decl String:sAuthID[MAX_AUTHID_LENGTH];
@@ -438,7 +396,6 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 	if (level <= 0)
 		return;
 
-	// the first violation only arms a decay, the next one of the same kind is reported.
 	if (++g_iViolations[client][check] <= 0)
 	{
 		CreateTimer(EYE_DECAY, Timer_Decay, (GetClientUserId(client) << 3) | check, TIMER_FLAG_NO_MAPCHANGE);
@@ -476,7 +433,6 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 		}
 	}
 
-	// after a notice the next violation is reported again, after a kick/ban it takes 30 more.
 	g_iViolations[client][check] = (level > 1) ? -30 : -2;
 }
 

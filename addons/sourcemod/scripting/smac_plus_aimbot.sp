@@ -3,49 +3,6 @@
 #include <sdktools>
 #include <smac>
 
-/*
- * SMAC Plus: aimbot detectors.
- *
- *
- * Thresholds come from the client's sensitivity:
- * thr2 = sens * 0.033, thr3 = min(thr2 * 2.6, 0.7), s = round(sens).
- * dYaw = |yaw(cmd) - yaw(prev cmd)| without 360 wrapping.
- *
- * Target trace: ray from the eyes along the cmd angles; counts only an
- * enemy player at >= 200 units. Modes 1/2 add a small probe to the yaw and lower the
- * eyes by probe*180 while nothing was hit, and track hitgroup stability: the first two
- * distinct hitgroups are remembered, hits in them count up, a third one breaks the run.
- *
- * On ground, no mouse input (mouse[0] == mouse[1] == 0):
- * PRG Pass.Mode:301 dYaw > thr2 several cmds while the trace keeps the same hitgroups (>= 4)
- * PRG Pass.Mode:302 same streak > 5 cmds, hitgroups >= 2, after a 301 was seen
- * AGTNL Mode:200 0.005 < dYaw < 0.007 on an enemy, not zoomed, once per 22 cmds
- * Mouse moving:
- * AGTNL Mode:201 mouse moves but pitch and yaw change < 0.005; 6 such cmds (>= 22 apart,
- * one decays every 5 s)
- * PRG Pass.Mode:303 on ground, steady mouse (|dmouse| <= s on an axis), trace mode 2 hitgroups >= 10
- * PRG Pass.Mode:304 same streak > 11, hitgroups >= 8, after a 303 was seen
- * While firing:
- * AGTWS Mode:100 +attack pressed with a snap (dYaw >= thr3); within 7 cmds yaw freezes exactly
- * (dYaw == 0) while pitch still changes, on an enemy
- * AMSAF Mode:101 shot right after the view moved without mouse input, with a mouse flick of
- * quantized size (multiples of s); two more held cmds are scored by the same
- * quantization plus the target trace; score > 1 at release adds to the counter
- * Accurate Analysis Module (player_hurt with dmg >= 10 / player_death, distance >= 200):
- * AGT Mode:299/288 weighted hit counter while the aim was still turning without mouse
- * Trigger 199/188 same, only for hits within 2 cmds after the +attack press
- * AGTAF 99/88, 109/108 hits during the PRG 303 steady-mouse streak with stable hitgroups
- * UsingWH Mode:103 6-tick window from the first shot after +attack: aim change above thr2
- * per axis on ground without mouse input sums to >= thr5 = max(sens / 8.5, 0.2)
- * and the shot did damage (mode 102 is dead code and omitted)
- * (first number = kill, second = hurt)
- *
- * Counters start at -1: a detector reports when its counter reaches
- * "Warning" and punishes when it exceeds |Ban|. Every detection schedules a decrement
- * (420 s, 303/304 and AGTNL 300 s), postponed while the player is a spectator.
- * Defaults are admin-notice only (all Ban cvars 0).
- */
-
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: Aimbot",
@@ -58,9 +15,9 @@ public Plugin:myinfo =
 #define UNKNOWN_THR			100.0
 #define QUERY_INTERVAL		60.0
 
-#define MIN_TARGET_DIST_SQ	40000.0		/* 200 units */
-#define DIST_NEAR_SQ		302500.0	/* 550 units */
-#define DIST_FAR_SQ			1690000.0	/* 1300 units */
+#define MIN_TARGET_DIST_SQ	40000.0
+#define DIST_NEAR_SQ		302500.0
+#define DIST_FAR_SQ			1690000.0
 
 #define NL_MIN_STEP			0.005
 #define NL_MAX_STEP			0.007
@@ -76,25 +33,23 @@ public Plugin:myinfo =
 #define AGTWS_WINDOW		7
 #define WH_WINDOW			6
 
-/* Counters (cnt[] slots). */
-#define C_TRIGGER	0	/* Trigger 188/199 */
-#define C_STREAK	1	/* PRG 301/302 streak */
-#define C_AGT		2	/* AGT 288/299 */
-#define C_PRG301	3	
-#define C_PRG302	4	
-#define C_STEADY	5	/* PRG 303/304 streak */
-#define C_PRG303	6	
-#define C_PRG304	7	
-#define C_AGTAF1	8	/* AGTAF 88/99 */
-#define C_AGTNL		9	
-#define C_AGTAF2	10	/* AGTAF 108/109 */
-#define C_NL201		11	
-#define C_AMSAF		12	/* AMSAF 101 */
-#define C_AGTWS		13	/* AGTWS 100 */
-#define C_USINGWH	14	/* UsingWH 103 */
+#define C_TRIGGER	0
+#define C_STREAK	1
+#define C_AGT		2
+#define C_PRG301	3
+#define C_PRG302	4
+#define C_STEADY	5
+#define C_PRG303	6
+#define C_PRG304	7
+#define C_AGTAF1	8
+#define C_AGTNL		9
+#define C_AGTAF2	10
+#define C_NL201		11
+#define C_AMSAF		12
+#define C_AGTWS		13
+#define C_USINGWH	14
 #define C_COUNT		15
 
-/* Detector groups (cvar pairs). */
 #define G_PRG		0
 #define G_AGT		1
 #define G_TR		2
@@ -109,10 +64,10 @@ new Handle:g_hCvarWarn[G_COUNT];
 new Handle:g_hCvarBan[G_COUNT];
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
 
-new Handle:g_hTrieExclude = INVALID_HANDLE;		/* knife, grenades, world */
-new Handle:g_hTriePistol = INVALID_HANDLE;		/* pistols */
-new Handle:g_hTrieSniper = INVALID_HANDLE;		/* snipers */
-new Handle:g_hTrieGrenade = INVALID_HANDLE;		/* grenades: aim checks skipped */
+new Handle:g_hTrieExclude = INVALID_HANDLE;
+new Handle:g_hTriePistol = INVALID_HANDLE;
+new Handle:g_hTrieSniper = INVALID_HANDLE;
+new Handle:g_hTrieGrenade = INVALID_HANDLE;
 
 new g_iCnt[MAXPLAYERS+1][C_COUNT];
 new Float:g_fNl201Time[MAXPLAYERS+1];
@@ -132,12 +87,9 @@ new g_iTriggerUntil[MAXPLAYERS+1];
 new g_iNlCooldown[MAXPLAYERS+1];
 new bool:g_bGrenade[MAXPLAYERS+1];
 
-/* Trace state (g1ece0 probe, g1ebd8 last hit, g1d848 / g1de78 / g1e3a0). */
-/* Last cmd with mouse input (mouseSt[0..1], angles g57b0c[2..3]). */
 new g_iLastMouse[MAXPLAYERS+1][2];
 new Float:g_fLastMouseAng[MAXPLAYERS+1][2];
 
-/* AMSAF state (cnt[10], cnt[11], g58874, g576ec, mouseSt[5..6], g57b0c[0..1]). */
 new g_iAmsStage[MAXPLAYERS+1];
 new g_iAmsStep[MAXPLAYERS+1];
 new g_iAmsScore[MAXPLAYERS+1];
@@ -147,16 +99,14 @@ new g_iAmsWindowEnd[MAXPLAYERS+1];
 new g_iAmsStillCmd[MAXPLAYERS+1];
 new Float:g_fAmsEye[MAXPLAYERS+1][2];
 
-/* AGTWS: cmd of the +attack press that snapped (g4d81c[2]). */
 new g_iSnapCmd[MAXPLAYERS+1];
 
 new Float:g_fProbe[MAXPLAYERS+1];
 new g_iLastHit[MAXPLAYERS+1];
-new g_iHit1[MAXPLAYERS+1][4];	/* count, hits, hitgroup A, hitgroup B */
+new g_iHit1[MAXPLAYERS+1][4];
 new g_iHit2[MAXPLAYERS+1][4];
 new g_iHit2b[MAXPLAYERS+1];
 
-/* UsingWH 103 (whState[0], [1], [6], [9], [10], g53fc4): window after the first shot. */
 new g_iWhEnd[MAXPLAYERS+1];
 new g_iWhShotTick[MAXPLAYERS+1];
 new g_iWhDmg[MAXPLAYERS+1];
@@ -166,7 +116,7 @@ new Float:g_fWhSum[MAXPLAYERS+1];
 new bool:g_bWhGround[MAXPLAYERS+1];
 new bool:g_bWhNoMouse[MAXPLAYERS+1];
 new g_iWhPrevMouse[MAXPLAYERS+1];
-new Float:g_fWhAng[MAXPLAYERS+1][2][2];	/* [0] = this cmd, [1] = previous cmd */
+new Float:g_fWhAng[MAXPLAYERS+1][2][2];
 
 public OnPluginStart()
 {
@@ -294,7 +244,6 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || result != ConVarQuery_Okay)
 		return;
 
-	/* Kicks for sensitivity outside [1; 20]; here it is clamped instead. */
 	new Float:sens = StringToFloat(cvarValue);
 	if (sens < 1.0)
 		sens = 1.0;
@@ -312,9 +261,6 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	g_bSensKnown[client] = true;
 }
 
-/**
- * Usercmd analysis
- */
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
 	if (!IsPlaying(client))
@@ -335,14 +281,12 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_fDYaw[client] = FloatAbs(g_fPrevAng[client][1] - angles[1]);
 		g_bGrenade[client] = IsHoldingGrenade(client);
 
-		/* Keeps the last non-zero mouse input. */
 		if (bMouse)
 		{
 			g_iLastMouse[client][0] = AbsValue(mouse[0]);
 			g_iLastMouse[client][1] = AbsValue(mouse[1]);
 		}
 
-		/* Trigger window: the +attack press and the next cmd. */
 		if (g_iTriggerUntil[client] != -1 && cmdnum > g_iTriggerUntil[client])
 			g_iTriggerUntil[client] = -1;
 
@@ -370,12 +314,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return Plugin_Continue;
 }
 
-/* mouse[0] == mouse[1] == 0 */
 CheckNoMouse(client, const Float:angles[3], cmdnum)
 {
 	CheckNoMouseAim(client, angles, cmdnum);
 
-	/* Any cmd without mouse input ends the AMSAF shot and the steady-mouse streak. */
 	if (g_iAmsStage[client] > 1)
 		AmsafEvaluate(client);
 	g_iCnt[client][C_STEADY] = -1;
@@ -425,7 +367,6 @@ CheckNoMouseAim(client, const Float:angles[3], cmdnum)
 		return;
 	}
 
-	/* Null Level 200: micro step without mouse input. */
 	if (g_fDYaw[client] > NL_MIN_STEP && g_fDYaw[client] < NL_MAX_STEP)
 	{
 		if (GetFov(client) <= NL_MIN_FOV || cmdnum <= g_iNlCooldown[client] || !GroupEnabled(G_AGTNL))
@@ -449,16 +390,14 @@ CheckNoMouseAim(client, const Float:angles[3], cmdnum)
 	ResetHit1(client);
 }
 
-/* Mouse is moving. */
 CheckMouse(client, buttons, const Float:angles[3], cmdnum, prevMouse0, prevMouse1, Float:dPitch)
 {
-	/* Null Level 201: the mouse moves, the view does not. */
+
 	if (cmdnum > g_iNlCooldown[client] && GroupEnabled(G_AGTNL)
 		&& dPitch < NL_MIN_STEP && g_fDYaw[client] < NL_MIN_STEP)
 	{
 		g_iNlCooldown[client] = cmdnum + NL_COOLDOWN;
 
-		/* Decays this counter by one every 5 s. */
 		if (g_iCnt[client][C_NL201] > -1 && g_fNl201Time[client] > 0.0)
 		{
 			new steps = RoundToFloor((GetGameTime() - g_fNl201Time[client]) / NL201_DECAY);
@@ -485,7 +424,6 @@ CheckMouse(client, buttons, const Float:angles[3], cmdnum, prevMouse0, prevMouse
 			CheckAmsafHeld(client, buttons, angles, cmdnum);
 	}
 
-	/* Any mouse input ends the no-mouse streak. */
 	g_iCnt[client][C_STREAK] = -1;
 	ResetHit1(client);
 
@@ -493,7 +431,6 @@ CheckMouse(client, buttons, const Float:angles[3], cmdnum, prevMouse0, prevMouse
 	g_fLastMouseAng[client][1] = angles[1];
 }
 
-/* PRG 303/304: steady mouse movement while the trace stays on the same hitgroups. */
 CheckSteadyMouse(client, const Float:angles[3], prevMouse0, prevMouse1)
 {
 	new s = g_iSensRound[client];
@@ -541,9 +478,6 @@ CheckSteadyMouse(client, const Float:angles[3], prevMouse0, prevMouse1)
 	}
 }
 
-/**
- * AGTWS Mode:100 and AMSAF Mode:101 (attack section of OnPlayerRunCmd)
- */
 CheckAttack(client, buttons, const Float:vel[3], const Float:angles[3], cmdnum)
 {
 	if (!(buttons & IN_ATTACK))
@@ -554,7 +488,7 @@ CheckAttack(client, buttons, const Float:vel[3], const Float:angles[3], cmdnum)
 
 	if (!(g_iPrevButtons[client] & IN_ATTACK))
 	{
-		/* +attack press: remember a snap for AGTWS, arm AMSAF. */
+
 		if (g_fDYaw[client] >= g_fThr3[client])
 			g_iSnapCmd[client] = cmdnum;
 
@@ -574,7 +508,6 @@ CheckAgtws(client, const Float:angles[3], cmdnum)
 	if (g_iSnapCmd[client] <= 0 || !GroupEnabled(G_AGTWS) || g_fDYaw[client] != 0.0)
 		return;
 
-	/* Yaw froze exactly after the snap, while pitch was still corrected. */
 	if (cmdnum - g_iSnapCmd[client] <= AGTWS_WINDOW
 		&& (g_fPrevAng[client][0] != angles[0] || g_fPrevAng[client][1] != angles[1]))
 	{
@@ -595,7 +528,6 @@ ResetAmsaf(client)
 	g_bAmsFlat[client] = false;
 }
 
-/* Bucket of a mouse delta in units of s: 0 (none), 1..cap (m <= k*s), cap+1 above. */
 Bucket(m, s, cap)
 {
 	if (m <= 0)
@@ -610,7 +542,7 @@ Bucket(m, s, cap)
 
 ArmAmsaf(client, const Float:vel[3], cmdnum)
 {
-	/* Standing still (no wishmove) at the press, or the mouse was moving while attacking. */
+
 	if (vel[0] == 0.0 && vel[1] == 0.0)
 		g_iAmsStillCmd[client] = cmdnum;
 	if (cmdnum - g_iAmsStillCmd[client] > 1)
@@ -618,7 +550,6 @@ ArmAmsaf(client, const Float:vel[3], cmdnum)
 
 	g_iAmsWindowEnd[client] = cmdnum + AMS_WINDOW;
 
-	/* The view must have moved since the last cmd with mouse input. */
 	decl Float:vEye[3];
 	GetClientEyeAngles(client, vEye);
 	if (vEye[0] == g_fLastMouseAng[client][0] && vEye[1] == g_fLastMouseAng[client][1])
@@ -652,7 +583,6 @@ ArmAmsaf(client, const Float:vel[3], cmdnum)
 	}
 }
 
-/* Mouse moving on the ground (runs this inside the mouse branch). */
 CheckAmsafHeld(client, buttons, const Float:angles[3], cmdnum)
 {
 	if (!(buttons & IN_ATTACK))
@@ -735,7 +665,6 @@ CheckAmsafHeld(client, buttons, const Float:angles[3], cmdnum)
 	g_iAmsStillCmd[client] = cmdnum;
 }
 
-/* End of the shot. */
 AmsafEvaluate(client)
 {
 	new score = g_iAmsScore[client];
@@ -760,7 +689,6 @@ AmsafEvaluate(client)
 	if (Evaluate(client, G_AMSAF, C_AMSAF, 480.0, "AimBot (Analysis Module Shooting After Firing)", sMode, sWeapon))
 		return;
 
-	/* Schedules one decay per score point (480 / 540 / 600 s). */
 	if (g_iCnt[client][C_AMSAF] > -1)
 	{
 		ScheduleDecay(client, C_AMSAF, 540.0);
@@ -771,16 +699,13 @@ AmsafEvaluate(client)
 
 ResetPrg(client)
 {
-	/* (14): grenades in hand reset the aim streaks. */
+
 	g_iCnt[client][C_STREAK] = -1;
 	g_iCnt[client][C_STEADY] = -1;
 	ResetHit1(client);
 	ResetHit2(client);
 }
 
-/**
- * Target trace. Returns the enemy client or -1.
- */
 TraceTarget(client, const Float:angles[3], mode)
 {
 	decl Float:vEye[3], Float:vAng[3], Float:vEnd[3];
@@ -900,13 +825,6 @@ public bool:TraceFilter_NotSelf(entity, contentsMask, any:client)
 	return entity != client;
 }
 
-/**
- * UsingWH Mode:103. Despite the name it does not use the
- * anti-wallhack: the first shot after +attack (and every third one after it) opens a
- * 6-tick window; on ground and without mouse input the per-axis aim change above thr2
- * is summed. If the shot did damage and the sum reached thr5 = max(sens / 8.5, 0.2),
- * the counter grows. Mode 102 is omitted: its state never advances.
- */
 UsingWhCmd(client, buttons, const Float:angles[3], const mouse[2])
 {
 	g_fWhAng[client][1][0] = g_fPrevAng[client][0];
@@ -936,7 +854,6 @@ UsingWhCmd(client, buttons, const Float:angles[3], const mouse[2])
 	}
 }
 
-/* Hooks the FireBullets temp entity ("Shotgun Shot" in CS:S). */
 public Action:TE_FireBullets(const String:te_name[], const clients[], numClients, Float:delay)
 {
 	new client = TE_ReadNum("m_iPlayer") + 1;
@@ -1024,9 +941,6 @@ Float:NormalizeAngle(Float:angle)
 	return angle;
 }
 
-/**
- * Accurate Analysis Module (player_hurt / player_death)
- */
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	if (GetEventInt(event, "health") <= 0 || GetEventInt(event, "dmg_health") < 10)
@@ -1042,7 +956,6 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
-	/* The victim's aim counters relax on death. */
 	if (IS_CLIENT(victim) && IsClientInGame(victim))
 	{
 		RelaxOnDeath(victim, C_TRIGGER, DECAY_LONG);
@@ -1081,13 +994,11 @@ AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill, dmg)
 	if (dist < MIN_TARGET_DIST_SQ)
 		return;
 
-	/* Accurate Analysis adds the damage to the UsingWH window (whState[6]). */
 	g_iWhDmg[attacker] += dmg;
 
 	new bool:bPistol = GetTrieValue(g_hTriePistol, sWeapon, dummy);
 	new bool:bSniper = GetTrieValue(g_hTrieSniper, sWeapon, dummy);
 
-	/* AGT / Trigger: the aim was still turning without mouse input at the hit. */
 	new Float:dYaw = g_fDYaw[attacker];
 	new streak = g_iCnt[attacker][C_STREAK];
 	if ((dYaw >= g_fThr3[attacker] && streak > -1) || (dYaw > g_fThr2[attacker] && streak > 0))
@@ -1120,7 +1031,6 @@ AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill, dmg)
 		}
 	}
 
-	/* AGTAF: hits during the PRG 303 steady-mouse streak with stable hitgroups. */
 	if (!GroupEnabled(G_AGTAF))
 		return;
 
@@ -1148,7 +1058,6 @@ AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill, dmg)
 	}
 }
 
-/* AAM bonus by distance band, headshot and weapon group. */
 HitBonus(Float:dist, bool:headshot, bool:bPistol, bool:bSniper)
 {
 	if (dist < DIST_NEAR_SQ)
@@ -1170,16 +1079,11 @@ HitBonus(Float:dist, bool:headshot, bool:bPistol, bool:bSniper)
 	return bPistol ? 2 : 1;
 }
 
-/**
- * Reporting (semantics)
- */
 bool:GroupEnabled(group)
 {
 	return GetConVarInt(g_hCvarWarn[group]) > 0 || GetConVarInt(g_hCvarBan[group]) != 0;
 }
 
-/* Counter already incremented by the caller; returns true if the client was removed.
- nothing is reported below the Warning value; each step schedules a decay. */
 bool:Evaluate(client, group, counter, Float:delay, const String:name[], const String:mode[], const String:weapon[])
 {
 	new ban = GetConVarInt(g_hCvarBan[group]);
@@ -1231,7 +1135,6 @@ bool:Evaluate(client, group, counter, Float:delay, const String:name[], const St
 	return false;
 }
 
-/* For detectors whose counter is incremented here. */
 Detect(client, group, counter, Float:delay, const String:name[], const String:mode[])
 {
 	g_iCnt[client][counter]++;
@@ -1241,10 +1144,6 @@ Detect(client, group, counter, Float:delay, const String:name[], const String:mo
 	Evaluate(client, group, counter, delay, name, mode, sWeapon);
 }
 
-/**
- * SetBan(client, code, delay) -> OnBanReleased: decrement the counter after the delay,
- * postponed while the player is not on a team.
- */
 ScheduleDecay(client, counter, Float:delay)
 {
 	new Handle:pack;
@@ -1272,9 +1171,6 @@ public Action:Timer_Decay(Handle:timer, Handle:pack)
 	return Plugin_Stop;
 }
 
-/**
- * Helpers
- */
 bool:IsPlaying(client)
 {
 	return IS_CLIENT(client) && IsClientInGame(client) && !IsFakeClient(client)
@@ -1307,7 +1203,6 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= 0.15)

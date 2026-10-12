@@ -1,7 +1,6 @@
 #include <sourcemod>
 #include <smac>
 
-/* Plugin Info */
 public Plugin:myinfo =
 {
 	name = "SMAC: Command Spam",
@@ -17,7 +16,6 @@ new Handle:g_hCvarCmdSpamKick = INVALID_HANDLE;
 new g_iCmdSpamLimit = 25;
 new g_iCmdCount[MAXPLAYERS+1] = {0, ...};
 
-/* Plugin Functions */
 public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
@@ -28,15 +26,10 @@ public OnPluginStart()
 
 	g_hCvarCmdSpamKick = SMAC_CreateConVar("smac_antispam_cmds_kick", "1", "Kick (1) or only notify admins and log (0) on command spam.", _, true, 0.0, true, 1.0);
 
-	// Commands that never count towards the limit.
 	g_hIgnoredCmds = CreateTrie();
-//	SetTrieValue(g_hIgnoredCmds, "buy", true); // AntiBuy DDOS
-//	SetTrieValue(g_hIgnoredCmds, "buyammo1", true);
-//	SetTrieValue(g_hIgnoredCmds, "buyammo2", true);
+
 	SetTrieValue(g_hIgnoredCmds, "setpause", true);
-//	SetTrieValue(g_hIgnoredCmds, "spec_mode", true);
-//	SetTrieValue(g_hIgnoredCmds, "spec_next", true);
-//	SetTrieValue(g_hIgnoredCmds, "spec_prev", true);
+
 	SetTrieValue(g_hIgnoredCmds, "unpause", true);
 	SetTrieValue(g_hIgnoredCmds, "use", true);
 	SetTrieValue(g_hIgnoredCmds, "vban", true);
@@ -104,8 +97,6 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 	if (!IS_CLIENT(client))
 		return Plugin_Continue;
 
-	// NOTE: InternalDispatch automatically lower cases "command".
-	// also never counts ucp_* (UCP anti-cheat client) commands.
 	new bool:bIgnored;
 	if (!g_iCmdSpamLimit || GetTrieValue(g_hIgnoredCmds, command, bIgnored) || strncmp(command, "ucp_", 4) == 0)
 		return Plugin_Continue;
@@ -113,7 +104,6 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 	if (++g_iCmdCount[client] <= g_iCmdSpamLimit)
 		return Plugin_Continue;
 
-	// Report once per burst; the rest of the burst is just dropped.
 	if (g_iCmdCount[client] == g_iCmdSpamLimit + 1)
 	{
 		decl String:sArgString[192];

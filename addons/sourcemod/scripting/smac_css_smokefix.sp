@@ -3,7 +3,6 @@
 #include <sdkhooks>
 #include <smac>
 
-/* Plugin Info */
 public Plugin:myinfo =
 {
 	name = "SMAC: Smoke Fix",
@@ -13,23 +12,9 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-/*
- * Smoke on CSS v34 is thin and does not hide players from smac_wallhack. Based on
- * "SMAC v34 Advanced Smoke Fix & Anti-Wallhack" by DjAudition (forum.clientmod.ru, thread 1118),
- * but without its copy of smac_wallhack: on every smoke this module
- *   - spawns extra env_particlesmokegrenade emitters at full stage, so the cloud is denser;
- *   - after smac_smokefix_delay seconds places an invisible solid sphere (rxg/smokevol, r ~150)
- *     over the cloud. It is never sent to clients and collides with nothing, but it is solid for
- *     server traces, so smac_wallhack (MASK_VISIBLE, players skipped) treats players inside or
- *     behind the smoke as hidden and stops transmitting them;
- *   - optionally removes map fog, func_smokevolume and func_dustmotes on round start.
- * smac_wallhack must be loaded and enabled. The model was resized by the author to match the v34
- * cloud; don't replace it with rxg/smokevol from other sources.
- */
-
 #define SMOKE_MODEL			"models/rxg/smokevol.mdl"
-#define SMOKE_MODEL_ZOFS	65.5	// Sphere centre above the detonation point
-#define SMOKE_BLOCK_END		18.0	// Seconds after detonation: blocker removed (cloud fades from ~17 s)
+#define SMOKE_MODEL_ZOFS	65.5
+#define SMOKE_BLOCK_END		18.0
 #define SMOKE_FADE_START	17.0
 #define SMOKE_FADE_END		22.0
 #define SMOKE_MAX_DENSITY	4
@@ -110,7 +95,6 @@ public Event_SmokeDetonate(Handle:event, const String:name[], bool:dontBroadcast
 		new ref = EntIndexToEntRef(iEntity);
 		new Float:fDelay = GetConVarFloat(g_hCvarDelay);
 
-		// Blocker removal is scheduled from detonation, so a delay past it never places one.
 		if (fDelay < SMOKE_BLOCK_END)
 			CreateTimer(fDelay, Timer_StartBlocker, ref, TIMER_FLAG_NO_MAPCHANGE);
 
@@ -148,7 +132,6 @@ public Action:Timer_StartBlocker(Handle:timer, any:ref)
 	AcceptEntityInput(iEntity, "DisableShadow");
 	SDKHook(iEntity, SDKHook_ShouldCollide, Hook_ShouldCollide);
 
-	// Never sent to clients: they don't predict against it and can't find it.
 	SetEdictFlags(iEntity, (GetEdictFlags(iEntity) & ~FL_EDICT_ALWAYS) | FL_EDICT_DONTSEND);
 
 	return Plugin_Stop;
@@ -156,8 +139,7 @@ public Action:Timer_StartBlocker(Handle:timer, any:ref)
 
 public bool:Hook_ShouldCollide(entity, collisiongroup, contentsmask, bool:originalResult)
 {
-	// Players, bullets, grenades and dropped weapons pass through. Plugin traces with their own
-	// filter (smac_wallhack) don't ask this hook, so the sphere still blocks them.
+
 	return false;
 }
 
