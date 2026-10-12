@@ -1,6 +1,8 @@
 #include <sourcemod>
 #pragma semicolon 1
 
+/* Stub so the old kigen-nsb.smx can load. New servers should use smac_nsb instead. */
+
 public Plugin:myinfo =
 {
 	name = "Kigen's Anti-Cheat",
