@@ -199,7 +199,7 @@ public Action:Command_JoinClass(client, const String:command[], args)
 	{
 		decl String:sAuthID[MAX_AUTHID_LENGTH], dummy;
 		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false) && GetTrieValue(g_hClientSpawned, sAuthID, dummy))
+		if (GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false) && GetTrieValue(g_hClientSpawned, sAuthID, dummy))
 		#else
 		if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false) && GetTrieValue(g_hClientSpawned, sAuthID, dummy))
 		#endif
@@ -244,7 +244,7 @@ public Action:Timer_PlayerSpawned(Handle:timer, any:userid)
 
 		decl String:sAuthID[MAX_AUTHID_LENGTH];
 		#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
-		if (!GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
+		if (GetClientAuthId(client, AuthId_Steam2, sAuthID, sizeof(sAuthID), false))
 		#else
 		if (GetClientAuthString(client, sAuthID, sizeof(sAuthID), false))
 		#endif

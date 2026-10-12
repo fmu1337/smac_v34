@@ -48,6 +48,15 @@ PLUGINS=(
 	smac_spinhack.sp
 	smac_status.sp
 	smac_wallhack.sp
+	smac_plus_netcode.sp
+	smac_plus_aimbot.sp
+	smac_plus_movement.sp
+	smac_plus_input.sp
+	smac_plus_client.sp
+	smac_plus_server.sp
+	smac_plus_aimkill.sp
+	smac_plus_protect.sp
+	smac_plus_diag_norecoil.sp
 )
 
 mkdir -p "$OUT_DIR"
