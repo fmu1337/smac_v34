@@ -37,7 +37,8 @@ enum DetectionType {
 	Detection_PlusInput = 7400,		/* AutoTrigger, Advanced Trigger/AutoFire, Fast AIM, RCS, CheatCFG */
 	Detection_PlusClient = 7500,		/* Impulse spam, sensitivity, FakeSendPacket */
 	Detection_PlusServer = 7600,		/* half-connected commands, rcon commands, argument overflow, Iniuria, auth */
-	Detection_PlusFakeStatus = 7700,	/* Changer Player Status: a client flagged as a bot sends mouse input */
+	Detection_PlusFakeStatus = 7700,
+	Detection_CvarTrap = 8000,	/* Changer Player Status: a client flagged as a bot sends mouse input */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

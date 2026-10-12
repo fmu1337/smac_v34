@@ -59,6 +59,7 @@ PLUGINS=(
 	smac_plus_aimkill.sp
 	smac_plus_protect.sp
 	smac_plus_diag_norecoil.sp
+	smac_cvar_trap.sp
 )
 
 mkdir -p "$OUT_DIR"
