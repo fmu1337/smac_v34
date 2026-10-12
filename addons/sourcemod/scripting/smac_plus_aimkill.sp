@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: AIM_Kill (anti-aimbot decoys).
+ * SMAC Plus: AIM_Kill (anti-aimbot decoys).
  *
  *
  * Every player gets an invisible prop_dynamic_override:

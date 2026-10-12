@@ -3,7 +3,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: server protections from 001_SMAC_Rcon, 001_SMAC_Cvars and 001_SMAC_Client
+ * SMAC Plus: server protections from 001_SMAC_Rcon, 001_SMAC_Cvars and 001_SMAC_Client
  * that stock SMAC (smac_client, smac_commands, smac_rcon) does not have.
  *
  *   Half-connected command  a client command from a client that is connected but not in game

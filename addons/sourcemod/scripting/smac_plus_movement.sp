@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: movement detectors.
+ * SMAC Plus: movement detectors.
  *
  *
  * Per usercmd:

@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: client input rate and settings.
+ * SMAC Plus: client input rate and settings.
  *
  *
  *   Impulse spam      more than smac_css_Impulse cmds with an impulse in one second.

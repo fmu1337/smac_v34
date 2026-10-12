@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: aimbot detectors.
+ * SMAC Plus: aimbot detectors.
  *
  *
  * Thresholds come from the client's sensitivity (queried like R52):
@@ -37,7 +37,7 @@
  *   AGTAF 99/88, 109/108  hits during the PRG 303 steady-mouse streak with stable hitgroups
  * UsingWH Mode:103   6-tick window from the first shot after +attack: aim change above thr2
  *                    per axis on ground without mouse input sums to >= thr5 = max(sens / 8.5, 0.2)
- *                    and the shot did damage (R52 102 is dead code there and not ported)
+ *                    and the shot did damage (R52 102 is dead code there and omitted)
  *   (first number = kill, second = hurt)
  *
  * Counters start at -1 like R52: a detector reports when its counter reaches
@@ -905,7 +905,7 @@ public bool:TraceFilter_NotSelf(entity, contentsMask, any:client)
  * anti-wallhack: the first shot after +attack (and every third one after it) opens a
  * 6-tick window; on ground and without mouse input the per-axis aim change above thr2
  * is summed. If the shot did damage and the sum reached thr5 = max(sens / 8.5, 0.2),
- * the counter grows. R52 Mode:102 is not ported: its state never leaves -1 in R52.
+ * the counter grows. R52 Mode:102 is omitted: its state never leaves -1 in R52.
  */
 UsingWhCmd(client, buttons, const Float:angles[3], const mouse[2])
 {

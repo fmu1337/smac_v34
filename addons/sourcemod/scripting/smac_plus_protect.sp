@@ -5,7 +5,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: server-side protections from 001_SMAC_Global.
+ * SMAC Plus: server-side protections from 001_SMAC_Global.
  *
  *
  *   No_Team_Flash   1 = a flashbang does not blind the thrower's teammates;

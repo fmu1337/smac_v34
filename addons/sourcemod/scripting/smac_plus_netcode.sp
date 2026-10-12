@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: usercmd / netcode detectors.
+ * SMAC Plus: usercmd / netcode detectors.
  *
  *
  *   Airstuck        - cmdnum advances by exactly 1 but the client tickcount repeats

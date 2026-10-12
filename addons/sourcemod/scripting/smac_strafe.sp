@@ -6,7 +6,7 @@
 /*
  * Optional strafe-hack module. Ships in plugins/disabled; move it to plugins/ to use it.
  *
- * Ported ideas (GPLv3 sources, rewritten for SourceMod 1.6 / CSS v34):
+ * Ideas from GPLv3 sources (rewritten for SourceMod 1.6 / CSS v34):
  *   Oryx AC strafe module (Rusty, shavit) - BASH remake, perfect turn rate, steady turn;
  *   Cow Anti-Cheat (Eric Edson) - silent strafe, AHK strafe.
  *

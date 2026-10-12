@@ -4,7 +4,7 @@
 #include <smac>
 
 /*
- * SMAC Plus port: weapon / input detectors.
+ * SMAC Plus: weapon / input detectors.
  *
  *
  * AutoTrigger (R52 fn_37a058, smac_autotrigger_ban):
