@@ -22,7 +22,7 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Amount of commands allowed per second, kick above it. (0 = Disabled; SMAC Plus: -25, stock SMAC: 35; the sign is accepted for R52 configs)");
+	g_hCvarCmdSpam = SMAC_CreateConVar("smac_antispam_cmds", "-25", "Amount of commands allowed per second, kick above it. (0 = Disabled; SMAC Plus: -25, stock SMAC: 35; the sign is accepted for configs)");
 	OnSettingsChanged(g_hCvarCmdSpam, "", "");
 	HookConVarChange(g_hCvarCmdSpam, OnSettingsChanged);
 
@@ -105,7 +105,7 @@ public Action:Command_CommandListener(client, const String:command[], argc)
 		return Plugin_Continue;
 
 	// NOTE: InternalDispatch automatically lower cases "command".
-	// R52 also never counts ucp_* (UCP anti-cheat client) commands.
+	// also never counts ucp_* (UCP anti-cheat client) commands.
 	new bool:bIgnored;
 	if (!g_iCmdSpamLimit || GetTrieValue(g_hIgnoredCmds, command, bIgnored) || strncmp(command, "ucp_", 4) == 0)
 		return Plugin_Continue;

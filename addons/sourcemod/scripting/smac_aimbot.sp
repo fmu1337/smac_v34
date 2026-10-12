@@ -41,7 +41,7 @@ public OnPluginStart()
 	HookConVarChange(g_hCvarAimbotBan, OnSettingsChanged);
 	g_iMaxAngleHistory = AIM_HISTORY_CMDS;
 	
-	// R52 trie 4104: knife, grenades and world damage.
+	// Knife, grenades and world damage.
 	g_IgnoreWeapons = CreateTrie();
 	new String:sIgnore[][] = {
 		"weapon_knife", "knife", "tknifehs", "tknife", "env_explosion",
@@ -106,7 +106,7 @@ public Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// R52 analyzes hits too: the victim survived and took at least 10 damage.
+	// analyzes hits too: the victim survived and took at least 10 damage.
 	if (GetEventInt(event, "health") <= 0 || GetEventInt(event, "dmg_health") < AIM_MIN_DAMAGE)
 		return;
 	

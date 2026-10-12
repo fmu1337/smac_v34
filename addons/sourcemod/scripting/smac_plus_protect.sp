@@ -5,15 +5,15 @@
 #include <smac>
 
 /*
- * SMAC Plus: server-side protections from 001_SMAC_Global.
+ * SMAC Plus: server-side protections.
  *
  *
- *   No_Team_Flash   1 = a flashbang does not blind the thrower's teammates;
- *                   2 / 3 = players of team 2 (T) / 3 (CT) are never blinded.
- *                   R52 remembers the thrower on flashbang_detonate and, 0.005 s after
- *                   player_blind, sets m_flFlashMaxAlpha to 0.5 (the blind is not drawn).
- *   Control_Entity  1 = when an entity with index > 2003 is created (the engine limit is 2048),
- *                   log it and reload the map before the server crashes.
+ * No_Team_Flash 1 = a flashbang does not blind the thrower's teammates;
+ * 2 / 3 = players of team 2 (T) / 3 (CT) are never blinded.
+ * Remembers the thrower on flashbang_detonate and, 0.005 s after
+ * player_blind, sets m_flFlashMaxAlpha to 0.5 (the blind is not drawn).
+ * Control_Entity 1 = when an entity with index > 2003 is created (the engine limit is 2048),
+ * log it and reload the map before the server crashes.
  */
 
 public Plugin:myinfo =
@@ -40,8 +40,8 @@ new bool:g_bRestarting;
 
 public OnPluginStart()
 {
-	g_hCvarNoTeamFlash = SMAC_CreateConVar("smac_No_Team_Flash", "0", "Flashbangs: 0=normal, 1=do not blind the thrower's teammates, 2=team T is never blinded, 3=team CT is never blinded (R52: 0)", _, true, 0.0, true, 3.0);
-	g_hCvarControlEntity = SMAC_CreateConVar("smac_Control_Entity", "1", "Reload the map when an entity index above 2003 is created (the limit is 2048): 0=off, 1=on (R52: 1)", _, true, 0.0, true, 1.0);
+	g_hCvarNoTeamFlash = SMAC_CreateConVar("smac_No_Team_Flash", "0", "Flashbangs: 0=normal, 1=do not blind the thrower's teammates, 2=team T is never blinded, 3=team CT is never blinded", _, true, 0.0, true, 3.0);
+	g_hCvarControlEntity = SMAC_CreateConVar("smac_Control_Entity", "1", "Reload the map when an entity index above 2003 is created (the limit is 2048): 0=off, 1=on", _, true, 0.0, true, 1.0);
 
 	HookEvent("flashbang_detonate", Event_FlashDetonate, EventHookMode_Post);
 	HookEvent("player_blind", Event_PlayerBlind, EventHookMode_Post);
@@ -77,7 +77,7 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 	if (mode >= 2 && GetClientTeam(client) != mode)
 		return;
 
-	/* player_blind can come before flashbang_detonate; R52 judges a moment later. */
+	/* player_blind can come before flashbang_detonate; judge a moment later. */
 	CreateTimer(FLASH_DELAY, Timer_Unblind, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 }
 

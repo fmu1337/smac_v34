@@ -7,17 +7,17 @@
  * SMAC Plus: client input rate and settings.
  *
  *
- *   Impulse spam      more than smac_css_Impulse cmds with an impulse in one second.
- *   Sensitivity       outside [1; 20] (R52 kicks), and more than |smac_antispam_Mouse_Sensitivity|
- *                     changes in one map (queried once a minute).
- *   FakeSendPacket[Max]  more than ceil(tickrate * smac_SpeedUp) usercmds per second (counts 4
- *                     for >= 2x tickrate) for more than |smac_SpeedLimitDetect| seconds in a row.
- *   FakeSendPacket[Min]  fewer than round(tickrate * 0.2) usercmds per second for more than
- *                     2 * |smac_SpeedLimitDetect| seconds in a row.
- *                     Both are ignored when the client sends <= 25 packets/s either way, or when
- *                     its outgoing data and packets are both > 2.9x the incoming (R52 gates).
+ * Impulse spam more than smac_css_Impulse cmds with an impulse in one second.
+ * Sensitivity outside [1; 20] (kicks), and more than |smac_antispam_Mouse_Sensitivity|
+ * changes in one map (queried once a minute).
+ * FakeSendPacket[Max] more than ceil(tickrate * smac_SpeedUp) usercmds per second (counts 4
+ * for >= 2x tickrate) for more than |smac_SpeedLimitDetect| seconds in a row.
+ * FakeSendPacket[Min] fewer than round(tickrate * 0.2) usercmds per second for more than
+ * 2 * |smac_SpeedLimitDetect| seconds in a row.
+ * Both are ignored when the client sends <= 25 packets/s either way, or when
+ * its outgoing data and packets are both > 2.9x the incoming (network gates).
  *
- * Signed cvars keep the R52 meaning (+N ban, -N kick); smac_plus_client_notice_only (default 1)
+ * Signed cvars: +N ban, -N kick ; smac_plus_client_notice_only (default 1)
  * turns every punishment of this module into an admin notice.
  */
 
@@ -65,7 +65,7 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarImpulse = SMAC_CreateConVar("smac_css_Impulse", "12", "Max cmds with an impulse (flashlight, spray, ...) per second before a kick. (0 = off)", _, true, 0.0, true, 100.0);
-	g_hCvarSensLimits = SMAC_CreateConVar("smac_plus_sensitivity_limits", "1", "Sensitivity outside [1; 20]: 0=off, 1=admin notice, 2=kick (R52: kick)", _, true, 0.0, true, 2.0);
+	g_hCvarSensLimits = SMAC_CreateConVar("smac_plus_sensitivity_limits", "1", "Sensitivity outside [1; 20]: 0=off, 1=admin notice, 2=kick", _, true, 0.0, true, 2.0);
 	g_hCvarSensChanges = SMAC_CreateConVar("smac_antispam_Mouse_Sensitivity", "-5", "Sensitivity changes per map: +N = ban, -N = kick after more than N changes, 0 = off", _, true, -100.0, true, 100.0);
 	g_hCvarSpeedUp = SMAC_CreateConVar("smac_SpeedUp", "1.2", "FakeSendPacket[Max]: allowed usercmds per second as a multiple of the tickrate. (0 = off)", _, true, 0.0, true, 3.0);
 	g_hCvarSpeedLimit = SMAC_CreateConVar("smac_SpeedLimitDetect", "-7", "FakeSendPacket: +N = ban, -N = kick after more than N seconds over the limit (2N seconds under it), 0 = off", _, true, -100.0, true, 100.0);
@@ -117,7 +117,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 }
 
 /**
- * Sensitivity (R52 query callback).
+ * Sensitivity (query callback).
  */
 public Action:Timer_QueryAll(Handle:timer)
 {
@@ -150,7 +150,7 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 		return;
 	}
 
-	/* R52 counts every value that differs from the previous answer. */
+	/* counts every value that differs from the previous answer. */
 	new changes = GetConVarInt(g_hCvarSensChanges);
 	if (g_fSens[client] > 0.0 && sens != g_fSens[client] && changes != 0)
 	{
@@ -167,7 +167,7 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 }
 
 /**
- * Usercmd rate (R52 OnTimerUp: SpeedLimit / FakeSendPacket).
+ * Usercmd rate (OnTimerUp: SpeedLimit / FakeSendPacket).
  */
 public Action:Timer_Second(Handle:timer)
 {
@@ -222,7 +222,7 @@ public Action:Timer_Second(Handle:timer)
 	return Plugin_Continue;
 }
 
-/* R52 fn_2d84: a real connection problem shows up in the packet and data rates. */
+/* A real connection problem shows up in the packet and data rates. */
 CheckSendPacket(client, bool:bMax, cmds, limit)
 {
 	new Float:dataOut = GetClientAvgData(client, NetFlow_Outgoing);
@@ -294,7 +294,7 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
+/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)

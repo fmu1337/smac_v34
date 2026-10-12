@@ -7,34 +7,34 @@
  * SMAC Plus: weapon / input detectors.
  *
  *
- * AutoTrigger (R52 fn_37a058, smac_autotrigger_ban):
- *   A button state that flips on every cmd (one steady cmd in between is tolerated) is a
- *   burst: +attack 5 flips (Auto-Fire), +moveleft / +moveright 5 (Auto-Strafe), +duck 5
- *   (Auto-Duck), +jump 25 (Auto-Scroll). Holding +left and +right more than 6 cmds each
- *   within one second is an AutoHotKeys burst. 7 bursts of one type = detection; every
- *   type loses one burst every 4 s.
+ * AutoTrigger:
+ * A button state that flips on every cmd (one steady cmd in between is tolerated) is a
+ * burst: +attack 5 flips (Auto-Fire), +moveleft / +moveright 5 (Auto-Strafe), +duck 5
+ * (Auto-Duck), +jump 25 (Auto-Scroll). Holding +left and +right more than 6 cmds each
+ * within one second is an AutoHotKeys burst. 7 bursts of one type = detection; every
+ * type loses one burst every 4 s.
  * Advanced Trigger (code 305): +attack pressed again after a press that lasted exactly 1 cmd.
  * Advanced AutoFire (code 306): checked every second - the last +attack press lasted
- *   exactly 1 cmd and the button is released now.
+ * exactly 1 cmd and the button is released now.
  * Fast AIM Detect (code 408): +attack pressed on a cmd where pitch and yaw both changed
- *   opens a 6-tick window; damage inside it extends the window by 6 ticks. Releasing the
- *   button inside the window with the angles exactly equal to the previous cmd's.
+ * opens a 6-tick window; damage inside it extends the window by 6 ticks. Releasing the
+ * button inside the window with the angles exactly equal to the previous cmd's.
  * Recoil Control System -F / -H: inside that window |dPitch| + |dYaw| of every cmd is
- *   summed per second; the cmd that landed a hit goes to the -H sum instead. -F: sum > 40
- *   in 10 seconds; -H: sum > 4 in 4 seconds (each such second decays in 420 s).
+ * summed per second; the cmd that landed a hit goes to the -H sum instead. -F: sum > 40
+ * in 10 seconds; -H: sum > 4 in 4 seconds (each such second decays in 420 s).
  * 2X (code 406): first click held exactly 4-5 cmds, released 1-4 cmds, second click held 3-4 cmds.
  * KnifeBot (code 400): knife +attack2 window of 6 ticks; the buttons of the hit cmd and of the
- *   cmd before it come back in that order. Off by default (quick human stabs match it too).
+ * cmd before it come back in that order. Off by default (quick human stabs match it too).
  * CheatCFG (smac_css_CheatCFG):
- *   Stop Movement  - +attack alone right after a cmd with exactly one movement key
- *                    (or forward/back + one side key), more than 7 times;
- *   Fast Switch    - the weapon is switched at most 2 ticks after +attack while it is held,
- *                    more than 7 times;
- *   Fast Reload    - the weapon's attack timers change while the same weapon is held, no
- *                    new shot was fired and the clip at the last shot was not empty; 3 times.
+ * Stop Movement - +attack alone right after a cmd with exactly one movement key
+ * (or forward/back + one side key), more than 7 times;
+ * Fast Switch - the weapon is switched at most 2 ticks after +attack while it is held,
+ * more than 7 times;
+ * Fast Reload - the weapon's attack timers change while the same weapon is held, no
+ * new shot was fired and the clip at the last shot was not empty; 3 times.
  *
- * Knife, grenades and world damage are skipped (R52 trie 4103/4104).
- * Defaults are admin-notice only where noted. Defaults are admin-notice only.
+ * Knife, grenades and world damage are skipped (knife / grenades / world).
+ * Defaults are admin-notice only.
  */
 
 public Plugin:myinfo =
@@ -46,7 +46,7 @@ public Plugin:myinfo =
 	url = SMAC_URL
 };
 
-/* AutoTrigger types (R52 fn_37a058 argument). */
+/* AutoTrigger types (argument). */
 #define AT_FIRE				1
 #define AT_STRAFE_LEFT		2
 #define AT_STRAFE_RIGHT		3
@@ -142,11 +142,11 @@ new g_iHotkeyLeft[MAXPLAYERS+1];
 new g_iHotkeyRight[MAXPLAYERS+1];
 new g_iSecond;
 
-/* Advanced Trigger / AutoFire (R52 g4d81c[0], g4d81c[1]) */
+/* Advanced Trigger / AutoFire (g4d81c[0], g4d81c[1]) */
 new g_iClickButtons[MAXPLAYERS+1];
 new bool:g_bReleased[MAXPLAYERS+1];
 
-/* Fast AIM window and RCS sums (R52 g54ca8[7], g54ca8[8], rcs[0..2]) */
+/* Fast AIM window and RCS sums (g54ca8[7], g54ca8[8], rcs[0..2]) */
 new g_iWindowEnd[MAXPLAYERS+1];
 new g_iWindowDmg[MAXPLAYERS+1];
 new Float:g_fRcsLast[MAXPLAYERS+1];
@@ -163,11 +163,11 @@ new g_iPressTick[MAXPLAYERS+1];
 /* Buttons of the last two cmds ([1] = newest), for patterns taken while a cmd runs. */
 new g_iBtnHist[MAXPLAYERS+1][2];
 
-/* 2X (R52 g4d81c[3], g4d81c[4]): hold length of the click, then 100 + hold of the second one. */
+/* 2X (g4d81c[3], g4d81c[4]): hold length of the click, then 100 + hold of the second one. */
 new g_i2XState[MAXPLAYERS+1];
 new g_i2XUp[MAXPLAYERS+1];
 
-/* KnifeBot (R52 whState[2..5]): window end, buttons before / at the hit, step. */
+/* KnifeBot (whState[2..5]): window end, buttons before / at the hit, step. */
 new g_iKnifeEnd[MAXPLAYERS+1];
 new g_iKnifePrev[MAXPLAYERS+1];
 new g_iKnifeHit[MAXPLAYERS+1];
@@ -177,21 +177,21 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only (R52: 2)", _, true, -1.0, true, 4.0);
+	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only", _, true, -1.0, true, 4.0);
 	g_hCvarTriggerWarn = SMAC_CreateConVar("smac_AdvancedTrigger_Warning", "3", "Advanced Trigger detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarTriggerBan = SMAC_CreateConVar("smac_AdvancedTrigger_Ban", "0", "Advanced Trigger: +N ban / -N kick after more than N detections, 0 = never (R52: 5)", _, true, -100.0, true, 100.0);
+	g_hCvarTriggerBan = SMAC_CreateConVar("smac_AdvancedTrigger_Ban", "0", "Advanced Trigger: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarAutoFireWarn = SMAC_CreateConVar("smac_AdvancedAutoFire_Warning", "3", "Advanced AutoFire detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarAutoFireBan = SMAC_CreateConVar("smac_AdvancedAutoFire_Ban", "0", "Advanced AutoFire: +N ban / -N kick after more than N detections, 0 = never (R52: 5)", _, true, -100.0, true, 100.0);
+	g_hCvarAutoFireBan = SMAC_CreateConVar("smac_AdvancedAutoFire_Ban", "0", "Advanced AutoFire: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarFastAimWarn = SMAC_CreateConVar("smac_Fast_AIM_Detect_Warning", "3", "Fast AIM Detect detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvarFastAimBan = SMAC_CreateConVar("smac_Fast_AIM_Detect_Ban", "0", "Fast AIM Detect: +N ban / -N kick after more than N detections, 0 = never (R52: 5)", _, true, -100.0, true, 100.0);
+	g_hCvarFastAimBan = SMAC_CreateConVar("smac_Fast_AIM_Detect_Ban", "0", "Fast AIM Detect: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarRcsHurt = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Hurt", "4", "Recoil Control System -H: max aim change per second on hits, +N = ban, -N = kick, 0 = off", _, true, -1000.0, true, 1000.0);
 	g_hCvarRcsFire = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_Fire", "-40", "Recoil Control System -F: max aim change per second while firing, +N = ban, -N = kick, 0 = off", _, true, -1000.0, true, 1000.0);
 	g_hCvarRcsNotice = SMAC_CreateConVar("smac_Advanced_Eye_Angle_Test_notice_only", "1", "Recoil Control System: only notify admins instead of the kick/ban set by the sign.", _, true, 0.0, true, 1.0);
-	g_hCvarCheatCfg = SMAC_CreateConVar("smac_css_CheatCFG", "1", "CheatCFG (Stop Movement, Fast Switch, Fast Reload): 0=off, 1=admin notice, 2=kick, 3=ban (4-6 = same, R52 league mode) (R52: 3)", _, true, 0.0, true, 6.0);
+	g_hCvarCheatCfg = SMAC_CreateConVar("smac_css_CheatCFG", "1", "CheatCFG (Stop Movement, Fast Switch, Fast Reload): 0=off, 1=admin notice, 2=kick, 3=ban (4-6 = same, league mode)", _, true, 0.0, true, 6.0);
 	g_hCvar2XWarn = SMAC_CreateConVar("smac_method_2X_Warning", "8", "Using the button 2X for fire: detections before admins are notified. (0 = never)", _, true, 0.0);
-	g_hCvar2XBan = SMAC_CreateConVar("smac_method_2X_Ban", "0", "Using the button 2X for fire: +N ban / -N kick after more than N detections, 0 = never (R52: 10)", _, true, -100.0, true, 100.0);
-	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: detections before admins are notified, 0 = never (R52: 1; off by default)", _, true, 0.0);
-	g_hCvarKnifeBan = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Ban", "0", "KnifeBot: +N ban / -N kick after more than N detections, 0 = never (R52: 2)", _, true, -100.0, true, 100.0);
+	g_hCvar2XBan = SMAC_CreateConVar("smac_method_2X_Ban", "0", "Using the button 2X for fire: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
+	g_hCvarKnifeWarn = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Warning", "0", "KnifeBot: detections before admins are notified, 0 = never", _, true, 0.0);
+	g_hCvarKnifeBan = SMAC_CreateConVar("smac_KnifeBot_UsingWH_Ban", "0", "KnifeBot: +N ban / -N kick after more than N detections, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
@@ -255,8 +255,8 @@ public OnClientPutInServer(client)
 	g_iKnifeStep[client] = -1;
 }
 
-/* R52 hooks the FireBullets temp entity ("Shotgun Shot" in CS:S); the clip is already
-   decremented when it is sent. */
+/* Hooks the FireBullets temp entity ("Shotgun Shot" in CS:S); the clip is already
+ decremented when it is sent. */
 public Action:TE_FireBullets(const String:te_name[], const clients[], numClients, Float:delay)
 {
 	new client = TE_ReadNum("m_iPlayer") + 1;
@@ -333,7 +333,7 @@ Store(client, buttons, const Float:angles[3])
 	g_fPrevAng[client][1] = angles[1];
 }
 
-/* R52: a flipped button ends the chain for this cmd (only the first one in this order counts). */
+/* A flipped button ends the chain for this cmd (only the first one in this order counts). */
 CheckAutoTrigger(client, buttons, prev)
 {
 	new value = GetConVarInt(g_hCvarAutoTrigger);
@@ -393,7 +393,7 @@ AddBurst(client, type)
 
 	g_iBursts[client][type] = 0;
 
-	/* R52: -1 off, 0 notice, 1/3 kick, 2/4 ban; 3 and 4 only judge Auto-Fire. */
+	/* -1 off, 0 notice, 1/3 kick, 2/4 ban; 3 and 4 only judge Auto-Fire. */
 	new value = GetConVarInt(g_hCvarAutoTrigger);
 	if (value <= -1 || (value >= 3 && type != AT_FIRE))
 		return;
@@ -410,7 +410,7 @@ AddBurst(client, type)
 }
 
 /**
- * Advanced Trigger: R52 keeps the buttons of the last +attack press until it is held a
+ * Advanced Trigger: keeps the buttons of the last +attack press until it is held a
  * second cmd; a new press while they are kept means the previous click lasted 1 cmd.
  */
 OnAttackPress(client, buttons, tickcount)
@@ -478,8 +478,8 @@ OnAttackUp(client, prev, const Float:angles[3], tickcount)
 	Evaluate(client, C_FASTAIM, warn, ban, "AimBot: Fast AIM Detect", "aim turned on the shot, damage, aim frozen on release");
 }
 
-/* R52 opens the window on a press where pitch and yaw both changed and sums the aim
-   change of the cmds inside it (Recoil Control System). */
+/* Opens the window on a press where pitch and yaw both changed and sums the aim
+ change of the cmds inside it (Recoil Control System). */
 CheckWindow(client, prev, const Float:angles[3], tickcount)
 {
 	if (GetConVarInt(g_hCvarFastAimWarn) <= 0 && GetConVarInt(g_hCvarFastAimBan) == 0
@@ -523,7 +523,7 @@ public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 	if (!IS_CLIENT(attacker) || !IS_CLIENT(victim) || attacker == victim)
 		return;
 
-	/* R52 fn_145c70: the attacker's buttons before and during the cmd that hit. */
+	/* Attacker buttons before and during the hit cmd. */
 	if (g_iKnifeEnd[attacker] != 0)
 	{
 		if (g_iKnifePrev[attacker] == -1)
@@ -550,8 +550,8 @@ public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 	if (GetVectorDistance(vA, vV, true) < MIN_HIT_DIST_SQ || g_iWindowEnd[attacker] <= 0)
 		return;
 
-	/* R52 Accurate Analysis: damage extends the window once; the aim change of the hit cmd
-	   moves from the -F sum to the -H sum. */
+	/* Accurate Analysis: damage extends the window once; the aim change of the hit cmd
+ moves from the -F sum to the -H sum. */
 	if (g_iWindowDmg[attacker] == 0)
 		g_iWindowEnd[attacker] += FASTAIM_WINDOW;
 	g_iWindowDmg[attacker] += dmg;
@@ -562,7 +562,7 @@ public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 }
 
 /**
- * CheatCFG (R52, smac_css_CheatCFG).
+ * CheatCFG (, smac_css_CheatCFG).
  */
 CheckCheatCfg(client, buttons, prev, tickcount)
 {
@@ -647,7 +647,7 @@ bool:IsStopKeys(prev)
 	return false;
 }
 
-/* R52: 1 notice, 2 kick, 3 ban; 4-6 are the same plus league-only checks. */
+/* 1 notice, 2 kick, 3 ban; 4-6 are the same plus league-only checks. */
 CheatCfgLevel()
 {
 	new value = GetConVarInt(g_hCvarCheatCfg);
@@ -657,7 +657,7 @@ CheatCfgLevel()
 }
 
 /**
- * Second ticker (R52 OnTimerUp)
+ * Second ticker (OnTimerUp)
  */
 public Action:Timer_Second(Handle:timer)
 {
@@ -752,7 +752,7 @@ RcsSecond(client, counter, seconds, value, const String:name[], Float:sum)
 }
 
 /**
- * 2X (R52 fn_14ee54 / fn_146230): the first click held exactly 4-5 cmds, released for at most
+ * 2X: the first click held exactly 4-5 cmds, released for at most
  * 4 cmds, the second click held exactly 3-4 cmds. Called on every cmd without +attack.
  */
 Check2XUp(client)
@@ -784,7 +784,7 @@ Check2XUp(client)
 }
 
 /**
- * KnifeBot (R52, code 400): +attack2 with the knife opens a 6-tick window. If a hit lands
+ * KnifeBot (, code 400): +attack2 with the knife opens a 6-tick window. If a hit lands
  * in it, the buttons before and during the hit cmd are kept; when the following cmds show
  * the hit buttons again and then the buttons from before, the counter grows.
  * Called on every cmd without +attack.
@@ -838,7 +838,7 @@ CheckKnifeBot(client, buttons, tickcount)
 }
 
 /**
- * Warning/Ban counters (R52): the counter starts at -1; admins are notified from Warning on,
+ * Warning/Ban counters: the counter starts at -1; admins are notified from Warning on,
  * more than |Ban| punishes (+ ban, - kick) and resets it to -1. Each step decays in 420 s.
  */
 Evaluate(client, counter, warn, ban, const String:name[], const String:detail[])
@@ -861,7 +861,7 @@ Evaluate(client, counter, warn, ban, const String:name[], const String:detail[])
 		React(client, name, name, 1, value, detail);
 }
 
-/* R52 SetBan -> OnBanReleased, postponed while the player is not on a team. */
+/* SetBan -> OnBanReleased, postponed while the player is not on a team. */
 ScheduleDecay(client, counter, Float:delay = DECAY)
 {
 	new Handle:pack;
@@ -971,7 +971,7 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
+/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)

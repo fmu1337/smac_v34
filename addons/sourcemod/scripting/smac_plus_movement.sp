@@ -8,40 +8,39 @@
  *
  *
  * Per usercmd:
- *   Fast Run            wishmove without the matching key (sidemove > 0 without +moveright, ...)
- *                       while |vel.x| or |vel.y| > 289; more than 22 such cmds (reset on death).
- *   Advanced BunnyHop   (R52 fn_344b08, on every +jump press on the ground)
- *                       n = +jump presses since the previous ground jump, ema = (9*ema + n) / 10.
- *                       ema < 1.1 (one press per jump) and horizontal speed >= 350 on 12 jumps.
- *                       Jumping in place (< sqrt(30) units) or a fast fall skips 2 jumps.
- *   AutoHotKeys, Auto-Jump  ema > 15 and n repeats exactly for more than 15 jumps.
- *   HaX2                perfect-hop EMA (+jump pressed on the very cmd the player landed)
- *                       reaches 0.8 (about 11 perfect hops in a row).
+ * Fast Run wishmove without the matching key (sidemove > 0 without +moveright,...)
+ * while |vel.x| or |vel.y| > 289; more than 22 such cmds (reset on death).
+ * Advanced BunnyHop 
+ * n = +jump presses since the previous ground jump, ema = (9*ema + n) / 10.
+ * ema < 1.1 (one press per jump) and horizontal speed >= 350 on 12 jumps.
+ * Jumping in place (< sqrt(30) units) or a fast fall skips 2 jumps.
+ * AutoHotKeys, Auto-Jump ema > 15 and n repeats exactly for more than 15 jumps.
+ * HaX2 perfect-hop EMA (+jump pressed on the very cmd the player landed)
+ * reaches 0.8 (about 11 perfect hops in a row).
  * Every second:
- *   Airstuck: Fast Detect   velocity has no zero component and no component changed by 0.7,
- *                       flags exactly 0x10280/0x10282 (as R52); 3 hits, each decays in 420 s.
- *   BunnyHop: Fast Detect   |vel.x| or |vel.y| > 289.
- *   Teleport Hack       |vel.z| < 360 and the player moved more than |SpeedTeleport| units
- *                       in one second.
- *   Teleport Hack: Fast Detect  vel.z > 1250 (R52 uses |vel.z|; falling is left out here).
- *   Spinhack            sum of |dYaw| (wrapped) in one second > 420 * sensitivity or > 4096;
- *                       more than 5 such seconds in one life.
+ * Airstuck: Fast Detect velocity has no zero component and no component changed by 0.7,
+ * flags exactly 0x10280/0x10282; 3 hits, each decays in 420 s.
+ * BunnyHop: Fast Detect |vel.x| or |vel.y| > 289.
+ * Teleport Hack |vel.z| < 360 and the player moved more than |SpeedTeleport| units
+ * in one second.
+ * Teleport Hack: Fast Detect vel.z > 1250 (uses |vel.z|; falling is left out here).
+ * Spinhack sum of |dYaw| (wrapped) in one second > 420 * sensitivity or > 4096;
+ * more than 5 such seconds in one life.
  *
- * All second checks need normal gravity (R52: entity gravity 0 or 1; here also no
- * m_flLaggedMovementValue change), are skipped on ladders, noclip and fly movetypes and
- * without a knife (R52), and after spawn / trigger_teleport (added for safety).
+ * All second checks need normal gravity, are skipped on ladders, noclip and fly movetypes and
+ * without a knife, and after spawn / trigger_teleport (added for safety).
  *
- * Added in smac_v34 (not in R52), from the 420hook source. Per usercmd, walk
+ * Added in smac_v34, from the 420hook source. Per usercmd, walk
  * movetype only, admin notice by default:
- *   FastWalk            on the ground forwardmove or sidemove zigzags: the change flips sign on every
- *                       cmd with the same size (>= 100), 20 cmds in a row. Keys can't do that per tick.
- *   AutoStrafe          in the air sidemove = +-cl_sidespeed without +moveleft / +moveright, opposite
- *                       to the yaw turn; 60 such cmds in one life.
- *   CircleStrafe        forwardmove / sidemove above the client's cl_forwardspeed, cl_backspeed or
- *                       cl_sidespeed; 10 such cmds in one life.
- *   (a wishmove rotated by a movement fix is counted by smac_usercmd MoveGrid)
+ * FastWalk on the ground forwardmove or sidemove zigzags: the change flips sign on every
+ * cmd with the same size (>= 100), 20 cmds in a row. Keys can't do that per tick.
+ * AutoStrafe in the air sidemove = +-cl_sidespeed without +moveleft / +moveright, opposite
+ * to the yaw turn; 60 such cmds in one life.
+ * CircleStrafe forwardmove / sidemove above the client's cl_forwardspeed, cl_backspeed or
+ * cl_sidespeed; 10 such cmds in one life.
+ * (a wishmove rotated by a movement fix is counted by smac_usercmd MoveGrid)
  *
- * Defaults are admin-notice only where noted. Defaults are admin-notice only.
+ * Defaults are admin-notice only.
  */
 
 public Plugin:myinfo =
@@ -154,7 +153,7 @@ new Float:g_fNextNotice[MAXPLAYERS+1][M_COUNT];
 /* Fast Run */
 new g_iFastRun[MAXPLAYERS+1];
 
-/* Advanced BunnyHop (R52 fn_344b08 state) */
+/* Advanced BunnyHop (state) */
 new g_iJumpPresses[MAXPLAYERS+1];
 new Float:g_fPressEma[MAXPLAYERS+1];
 new g_iRepeat[MAXPLAYERS+1];
@@ -184,12 +183,12 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run and BunnyHop: Fast Detect (speed > 289): 0=off, 1=admin notice, 2=kick, 3=ban (R52: 2)", _, true, 0.0, true, 3.0);
-	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only (R52: 2)", _, true, -1.0, true, 4.0);
+	g_hCvarFastRun = SMAC_CreateConVar("smac_FD_BHOP", "1", "Fast Run and BunnyHop: Fast Detect (speed > 289): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAutoTrigger = SMAC_CreateConVar("smac_autotrigger_ban", "0", "AutoTrigger (Auto-Fire/Strafe/Duck/Scroll), Advanced BunnyHop, HaX2, Auto-Jump: -1=off, 0=admin notice, 1=kick, 2=ban, 3/4=kick/ban for Auto-Fire only", _, true, -1.0, true, 4.0);
 	g_hCvarAirstuck = SMAC_CreateConVar("smac_Airstuck_reaction", "1", "Airstuck: 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarTeleport = SMAC_CreateConVar("smac_SpeedTeleport", "-1500.0", "Teleport Hack: max distance per second, +N = ban, -N = kick, 0 = off (also Teleport Hack: Fast Detect)", _, true, -50000.0, true, 50000.0);
 	g_hCvarTeleportNotice = SMAC_CreateConVar("smac_SpeedTeleport_notice_only", "1", "Teleport Hack: only notify admins instead of the kick/ban set by smac_SpeedTeleport.", _, true, 0.0, true, 1.0);
-	g_hCvarSpin = SMAC_CreateConVar("smac_plus_spinhack_reaction", "1", "Spinhack (R52 per-second yaw sum): 0=off, 1=admin notice, 2=kick, 3=ban (R52: kick)", _, true, 0.0, true, 3.0);
+	g_hCvarSpin = SMAC_CreateConVar("smac_plus_spinhack_reaction", "1", "Spinhack (per-second yaw sum): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarFastWalk = SMAC_CreateConVar("smac_FastWalk_reaction", "1", "FastWalk (on-ground move zigzag every cmd, 420hook): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarAutoStrafe = SMAC_CreateConVar("smac_AutoStrafe_reaction", "1", "AutoStrafe (air sidemove without strafe keys, following the turn): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
 	g_hCvarCircle = SMAC_CreateConVar("smac_CircleStrafe_reaction", "1", "CircleStrafe (wishmove above the client's cl_forwardspeed/cl_backspeed/cl_sidespeed): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
@@ -259,7 +258,7 @@ public Query_MoveSpeed(QueryCookie:cookie, client, ConVarQueryResult:result, con
 	g_fMoveSpeed[client][axis] = FloatAbs(StringToFloat(cvarValue));
 }
 
-/* State R52 clears on death / while not in game. */
+/* State clears on death / while not in game. */
 ResetLife(client)
 {
 	g_iFastRun[client] = 0;
@@ -273,7 +272,7 @@ ResetLife(client)
 	ResetPrev(client);
 }
 
-/* R52 fn_180078. */
+/*. */
 ResetPrev(client)
 {
 	ZeroVector(g_fPrevVel[client]);
@@ -295,7 +294,7 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || result != ConVarQuery_Okay)
 		return;
 
-	/* R52 kicks for sensitivity outside [1; 20]; here it is clamped instead. */
+	/* Kicks for sensitivity outside [1; 20]; here it is clamped instead. */
 	new Float:sens = StringToFloat(cvarValue);
 	if (sens < 1.0)
 		sens = 1.0;
@@ -395,7 +394,7 @@ CheckFastRun(client, buttons, const Float:vel[3])
 	React(client, M_FASTRUN, GetConVarInt(g_hCvarFastRun), sDetail);
 }
 
-/* R52 smac_autotrigger_ban: -1 off, 0 notice, 1 kick, 2 ban; 3 and more skip these checks. */
+/* smac_autotrigger_ban: -1 off, 0 notice, 1 kick, 2 ban; 3 and more skip these checks. */
 AutoTriggerLevel()
 {
 	new value = GetConVarInt(g_hCvarAutoTrigger);
@@ -446,7 +445,7 @@ CheckJump(client, buttons, flags)
 	}
 }
 
-/* R52 fn_344b08. */
+/*. */
 AnalyzeJump(client)
 {
 	new n = g_iJumpPresses[client];
@@ -538,7 +537,7 @@ JumpReact(client, check, const String:detail[])
 }
 
 /**
- * Second ticker (R52 OnTimerUp)
+ * Second ticker (OnTimerUp)
  */
 public Action:Timer_Second(Handle:timer)
 {
@@ -808,7 +807,7 @@ TeleportLevel(Float:teleport)
 }
 
 /**
- * Delayed decays (R52 SetBan -> OnBanReleased), postponed while the player is not on a team.
+ * Delayed decays (SetBan -> OnBanReleased), postponed while the player is not on a team.
  */
 ScheduleAirstuckDecay(client)
 {
@@ -893,7 +892,7 @@ bool:IsPlaying(client)
 		&& IsPlayerAlive(client) && !IsClientObserver(client);
 }
 
-/* R52 fn_146748 (entity gravity 0 or 1); a changed movement speed is treated the same. */
+/* (entity gravity 0 or 1); a changed movement speed is treated the same. */
 bool:IsNormalGravity(client)
 {
 	new Float:gravity = GetEntityGravity(client);
@@ -927,7 +926,7 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
+/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)

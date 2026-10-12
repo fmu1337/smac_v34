@@ -58,7 +58,7 @@ public OnPluginStart()
 	
 	g_hCvarHldj = SMAC_CreateConVar("smac_hldj_mute", "1", "Automatically mute players on HLDJ/HLSS detections.", _, true, 0.0, true, 1.0);
 	HookConVarChange(g_hCvarHldj, OnCvarHldjChanged);
-	g_hCvarPlus = SMAC_CreateConVar("smac_cvars_plus", "1", "SMAC Plus cvar table: 0 = off, 1 = admin notice only, 2 = R52 kick/ban. Missing or protected cvars are ignored.", _, true, 0.0, true, 2.0);
+	g_hCvarPlus = SMAC_CreateConVar("smac_cvars_plus", "1", "SMAC Plus cvar table: 0 = off, 1 = admin notice only, 2 = kick/ban. Missing or protected cvars are ignored.", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarPlus, OnCvarPlusChanged);
 	g_hPlusNames = CreateArray(ByteCountToCells(MAX_CVAR_NAME_LEN));
 	
@@ -230,7 +230,7 @@ public OnCvarPlusChanged(Handle:convar, const String:oldValue[], const String:ne
 	}
 }
 
-/* Called by AddPlusCvars(). Mode 1 turns the R52 action into a notice. */
+/* Called by AddPlusCvars. Mode 1 turns the action into a notice. */
 AddPlusCvar(CvarOrder:COrder, const String:sName[], CvarComp:CCompType, CvarAction:CAction, const String:sValue[] = "", const String:sValue2[] = "")
 {
 	decl String:sCvar[MAX_CVAR_NAME_LEN], Handle:hDataTrie;
@@ -546,7 +546,7 @@ public OnConVarQueryFinished(QueryCookie:cookie, client, ConVarQueryResult:resul
 	decl CvarComp:CCompType, String:sValue[MAX_CVAR_VALUE_LEN], String:sValue2[MAX_CVAR_VALUE_LEN], String:sKickMessage[255];
 	GetTrieValue(hDataTrie, Cvar_CompType, CCompType);
 	
-	// R52 table: a cvar missing in this client build (or protected) is not a violation.
+	// table: a cvar missing in this client build (or protected) is not a violation.
 	new bPlus = 0;
 	GetTrieValue(hDataTrie, Cvar_Plus, bPlus);
 	if (bPlus && result != ConVarQuery_Okay && CCompType != Comp_NonExist)

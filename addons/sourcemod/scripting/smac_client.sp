@@ -112,7 +112,7 @@ public Action:Timer_MapStarted(Handle:timer)
 
 public OnConfigsExecuted()
 {
-	// R52: smac_Lock_Adm can only be set by the config, not by an admin at runtime.
+	// smac_Lock_Adm can only be set by the config, not by an admin at runtime.
 	g_iLockAdm = GetConVarInt(g_hCvarLockAdm);
 	g_bLockAdmLocked = true;
 }
@@ -207,7 +207,7 @@ public Action:Hook_TextMsg(UserMsg:msg_id, Handle:bf, const players[], playersNu
 	
 	if (StrEqual(sBuffer, "#Name_change_limit_exceeded"))
 	{
-		// R52: never kick from inside a usermessage hook, do it on a short timer.
+		// never kick from inside a usermessage hook, do it on a short timer.
 		CreateTimer(0.1, Timer_NameSpamKick, GetClientUserId(players[0]), TIMER_FLAG_NO_MAPCHANGE);
 	}
 	

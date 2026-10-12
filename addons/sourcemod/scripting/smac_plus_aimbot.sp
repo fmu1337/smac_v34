@@ -7,40 +7,40 @@
  * SMAC Plus: aimbot detectors.
  *
  *
- * Thresholds come from the client's sensitivity (queried like R52):
- *   thr2 = sens * 0.033, thr3 = min(thr2 * 2.6, 0.7), s = round(sens).
- * dYaw = |yaw(cmd) - yaw(prev cmd)| without 360 wrapping (as R52).
+ * Thresholds come from the client's sensitivity:
+ * thr2 = sens * 0.033, thr3 = min(thr2 * 2.6, 0.7), s = round(sens).
+ * dYaw = |yaw(cmd) - yaw(prev cmd)| without 360 wrapping.
  *
- * Target trace (R52 fn_35cd2c): ray from the eyes along the cmd angles; counts only an
+ * Target trace: ray from the eyes along the cmd angles; counts only an
  * enemy player at >= 200 units. Modes 1/2 add a small probe to the yaw and lower the
  * eyes by probe*180 while nothing was hit, and track hitgroup stability: the first two
  * distinct hitgroups are remembered, hits in them count up, a third one breaks the run.
  *
  * On ground, no mouse input (mouse[0] == mouse[1] == 0):
- *   PRG Pass.Mode:301  dYaw > thr2 several cmds while the trace keeps the same hitgroups (>= 4)
- *   PRG Pass.Mode:302  same streak > 5 cmds, hitgroups >= 2, after a 301 was seen
- *   AGTNL Mode:200     0.005 < dYaw < 0.007 on an enemy, not zoomed, once per 22 cmds
+ * PRG Pass.Mode:301 dYaw > thr2 several cmds while the trace keeps the same hitgroups (>= 4)
+ * PRG Pass.Mode:302 same streak > 5 cmds, hitgroups >= 2, after a 301 was seen
+ * AGTNL Mode:200 0.005 < dYaw < 0.007 on an enemy, not zoomed, once per 22 cmds
  * Mouse moving:
- *   AGTNL Mode:201     mouse moves but pitch and yaw change < 0.005; 6 such cmds (>= 22 apart,
- *                      one decays every 5 s)
- *   PRG Pass.Mode:303  on ground, steady mouse (|dmouse| <= s on an axis), trace mode 2 hitgroups >= 10
- *   PRG Pass.Mode:304  same streak > 11, hitgroups >= 8, after a 303 was seen
+ * AGTNL Mode:201 mouse moves but pitch and yaw change < 0.005; 6 such cmds (>= 22 apart,
+ * one decays every 5 s)
+ * PRG Pass.Mode:303 on ground, steady mouse (|dmouse| <= s on an axis), trace mode 2 hitgroups >= 10
+ * PRG Pass.Mode:304 same streak > 11, hitgroups >= 8, after a 303 was seen
  * While firing:
- *   AGTWS Mode:100     +attack pressed with a snap (dYaw >= thr3); within 7 cmds yaw freezes exactly
- *                      (dYaw == 0) while pitch still changes, on an enemy
- *   AMSAF Mode:101     shot right after the view moved without mouse input, with a mouse flick of
- *                      quantized size (multiples of s); two more held cmds are scored by the same
- *                      quantization plus the target trace; score > 1 at release adds to the counter
+ * AGTWS Mode:100 +attack pressed with a snap (dYaw >= thr3); within 7 cmds yaw freezes exactly
+ * (dYaw == 0) while pitch still changes, on an enemy
+ * AMSAF Mode:101 shot right after the view moved without mouse input, with a mouse flick of
+ * quantized size (multiples of s); two more held cmds are scored by the same
+ * quantization plus the target trace; score > 1 at release adds to the counter
  * Accurate Analysis Module (player_hurt with dmg >= 10 / player_death, distance >= 200):
- *   AGT Mode:299/288   weighted hit counter while the aim was still turning without mouse
- *   Trigger 199/188    same, only for hits within 2 cmds after the +attack press
- *   AGTAF 99/88, 109/108  hits during the PRG 303 steady-mouse streak with stable hitgroups
- * UsingWH Mode:103   6-tick window from the first shot after +attack: aim change above thr2
- *                    per axis on ground without mouse input sums to >= thr5 = max(sens / 8.5, 0.2)
- *                    and the shot did damage (R52 102 is dead code there and omitted)
- *   (first number = kill, second = hurt)
+ * AGT Mode:299/288 weighted hit counter while the aim was still turning without mouse
+ * Trigger 199/188 same, only for hits within 2 cmds after the +attack press
+ * AGTAF 99/88, 109/108 hits during the PRG 303 steady-mouse streak with stable hitgroups
+ * UsingWH Mode:103 6-tick window from the first shot after +attack: aim change above thr2
+ * per axis on ground without mouse input sums to >= thr5 = max(sens / 8.5, 0.2)
+ * and the shot did damage (mode 102 is dead code and omitted)
+ * (first number = kill, second = hurt)
  *
- * Counters start at -1 like R52: a detector reports when its counter reaches
+ * Counters start at -1: a detector reports when its counter reaches
  * "Warning" and punishes when it exceeds |Ban|. Every detection schedules a decrement
  * (420 s, 303/304 and AGTNL 300 s), postponed while the player is a spectator.
  * Defaults are admin-notice only (all Ban cvars 0).
@@ -76,22 +76,22 @@ public Plugin:myinfo =
 #define AGTWS_WINDOW		7
 #define WH_WINDOW			6
 
-/* Counters (R52 cnt[] slots). */
-#define C_TRIGGER	0	/* cnt[1]  Trigger 188/199 */
-#define C_STREAK	1	/* cnt[2]  PRG 301/302 streak */
-#define C_AGT		2	/* cnt[3]  AGT 288/299 */
-#define C_PRG301	3	/* cnt[4] */
-#define C_PRG302	4	/* cnt[5] */
-#define C_STEADY	5	/* cnt[6]  PRG 303/304 streak */
-#define C_PRG303	6	/* cnt[7] */
-#define C_PRG304	7	/* cnt[8] */
-#define C_AGTAF1	8	/* cnt[9]  AGTAF 88/99 */
-#define C_AGTNL		9	/* cnt[17] */
-#define C_AGTAF2	10	/* cnt[38] AGTAF 108/109 */
-#define C_NL201		11	/* cnt[45] */
-#define C_AMSAF		12	/* cnt[12] AMSAF 101 */
-#define C_AGTWS		13	/* cnt[16] AGTWS 100 */
-#define C_USINGWH	14	/* cnt[18] UsingWH 103 */
+/* Counters (cnt[] slots). */
+#define C_TRIGGER	0	/* Trigger 188/199 */
+#define C_STREAK	1	/* PRG 301/302 streak */
+#define C_AGT		2	/* AGT 288/299 */
+#define C_PRG301	3	
+#define C_PRG302	4	
+#define C_STEADY	5	/* PRG 303/304 streak */
+#define C_PRG303	6	
+#define C_PRG304	7	
+#define C_AGTAF1	8	/* AGTAF 88/99 */
+#define C_AGTNL		9	
+#define C_AGTAF2	10	/* AGTAF 108/109 */
+#define C_NL201		11	
+#define C_AMSAF		12	/* AMSAF 101 */
+#define C_AGTWS		13	/* AGTWS 100 */
+#define C_USINGWH	14	/* UsingWH 103 */
 #define C_COUNT		15
 
 /* Detector groups (cvar pairs). */
@@ -109,10 +109,10 @@ new Handle:g_hCvarWarn[G_COUNT];
 new Handle:g_hCvarBan[G_COUNT];
 new Handle:g_hCvarAdminImmune = INVALID_HANDLE;
 
-new Handle:g_hTrieExclude = INVALID_HANDLE;		/* R52 trie 4104: knife, grenades, world */
-new Handle:g_hTriePistol = INVALID_HANDLE;		/* R52 trie 4105 */
-new Handle:g_hTrieSniper = INVALID_HANDLE;		/* R52 trie 4106 */
-new Handle:g_hTrieGrenade = INVALID_HANDLE;		/* R52 trie 4103: aim checks skipped */
+new Handle:g_hTrieExclude = INVALID_HANDLE;		/* knife, grenades, world */
+new Handle:g_hTriePistol = INVALID_HANDLE;		/* pistols */
+new Handle:g_hTrieSniper = INVALID_HANDLE;		/* snipers */
+new Handle:g_hTrieGrenade = INVALID_HANDLE;		/* grenades: aim checks skipped */
 
 new g_iCnt[MAXPLAYERS+1][C_COUNT];
 new Float:g_fNl201Time[MAXPLAYERS+1];
@@ -132,12 +132,12 @@ new g_iTriggerUntil[MAXPLAYERS+1];
 new g_iNlCooldown[MAXPLAYERS+1];
 new bool:g_bGrenade[MAXPLAYERS+1];
 
-/* Trace state (R52 g1ece0 probe, g1ebd8 last hit, g1d848 / g1de78 / g1e3a0). */
-/* Last cmd with mouse input (R52 mouseSt[0..1], angles g57b0c[2..3]). */
+/* Trace state (g1ece0 probe, g1ebd8 last hit, g1d848 / g1de78 / g1e3a0). */
+/* Last cmd with mouse input (mouseSt[0..1], angles g57b0c[2..3]). */
 new g_iLastMouse[MAXPLAYERS+1][2];
 new Float:g_fLastMouseAng[MAXPLAYERS+1][2];
 
-/* AMSAF state (R52 cnt[10], cnt[11], g58874, g576ec, mouseSt[5..6], g57b0c[0..1]). */
+/* AMSAF state (cnt[10], cnt[11], g58874, g576ec, mouseSt[5..6], g57b0c[0..1]). */
 new g_iAmsStage[MAXPLAYERS+1];
 new g_iAmsStep[MAXPLAYERS+1];
 new g_iAmsScore[MAXPLAYERS+1];
@@ -147,7 +147,7 @@ new g_iAmsWindowEnd[MAXPLAYERS+1];
 new g_iAmsStillCmd[MAXPLAYERS+1];
 new Float:g_fAmsEye[MAXPLAYERS+1][2];
 
-/* AGTWS: cmd of the +attack press that snapped (R52 g4d81c[2]). */
+/* AGTWS: cmd of the +attack press that snapped (g4d81c[2]). */
 new g_iSnapCmd[MAXPLAYERS+1];
 
 new Float:g_fProbe[MAXPLAYERS+1];
@@ -156,7 +156,7 @@ new g_iHit1[MAXPLAYERS+1][4];	/* count, hits, hitgroup A, hitgroup B */
 new g_iHit2[MAXPLAYERS+1][4];
 new g_iHit2b[MAXPLAYERS+1];
 
-/* UsingWH 103 (R52 whState[0], [1], [6], [9], [10], g53fc4): window after the first shot. */
+/* UsingWH 103 (whState[0], [1], [6], [9], [10], g53fc4): window after the first shot. */
 new g_iWhEnd[MAXPLAYERS+1];
 new g_iWhShotTick[MAXPLAYERS+1];
 new g_iWhDmg[MAXPLAYERS+1];
@@ -173,21 +173,21 @@ public OnPluginStart()
 	LoadTranslations("smac.phrases");
 
 	g_hCvarWarn[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_PRG", "3", "AimBot PRG Pass.Mode:301-304: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_PRG", "0", "AimBot PRG Pass.Mode:301-304: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 5)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_PRG] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_PRG", "0", "AimBot PRG Pass.Mode:301-304: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGT", "7", "AimBot AGT Mode:288/299: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGT", "0", "AimBot AGT Mode:288/299: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 9)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_AGT] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGT", "0", "AimBot AGT Mode:288/299: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_Tr", "7", "AimBot Trigger Mode:188/199: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_Tr", "0", "AimBot Trigger Mode:188/199: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 9)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_TR] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_Tr", "0", "AimBot Trigger Mode:188/199: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTAF", "3", "AimBot AGTAF Mode:88/99/108/109: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTAF", "0", "AimBot AGTAF Mode:88/99/108/109: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 5)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_AGTAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTAF", "0", "AimBot AGTAF Mode:88/99/108/109: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTNL", "1", "AimBot AGTNL Mode:200/201: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTNL", "0", "AimBot AGTNL Mode:200/201: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 1)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_AGTNL] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTNL", "0", "AimBot AGTNL Mode:200/201: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AMSAF", "5", "AimBot AMSAF Mode:101: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AimBot AMSAF Mode:101: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 7)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_AMSAF] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AMSAF", "0", "AimBot AMSAF Mode:101: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Warning_AGTWS", "4", "AimBot AGTWS Mode:100: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AimBot AGTWS Mode:100: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 6)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_AGTWS] = SMAC_CreateConVar("smac_aimbot_Advanced_Ban_AGTWS", "0", "AimBot AGTWS Mode:100: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarWarn[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Warning_AMS", "3", "AimBot UsingWH Mode:103: notify admins from this counter value. (0 = never)", _, true, 0.0);
-	g_hCvarBan[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Ban_AMS", "0", "AimBot UsingWH Mode:103: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never (R52: 6)", _, true, -100.0, true, 100.0);
+	g_hCvarBan[G_USINGWH] = SMAC_CreateConVar("smac_aimbot_UsingWH_Ban_AMS", "0", "AimBot UsingWH Mode:103: punish when the counter exceeds |N|: -N kick, +N ban, 0 = never", _, true, -100.0, true, 100.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	g_hTrieExclude = CreateTrie();
@@ -294,7 +294,7 @@ public Query_Sensitivity(QueryCookie:cookie, client, ConVarQueryResult:result, c
 	if (!IS_CLIENT(client) || !IsClientInGame(client) || result != ConVarQuery_Okay)
 		return;
 
-	/* R52 kicks for sensitivity outside [1; 20]; here it is clamped instead. */
+	/* Kicks for sensitivity outside [1; 20]; here it is clamped instead. */
 	new Float:sens = StringToFloat(cvarValue);
 	if (sens < 1.0)
 		sens = 1.0;
@@ -335,7 +335,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_fDYaw[client] = FloatAbs(g_fPrevAng[client][1] - angles[1]);
 		g_bGrenade[client] = IsHoldingGrenade(client);
 
-		/* R52 keeps the last non-zero mouse input. */
+		/* Keeps the last non-zero mouse input. */
 		if (bMouse)
 		{
 			g_iLastMouse[client][0] = AbsValue(mouse[0]);
@@ -375,7 +375,7 @@ CheckNoMouse(client, const Float:angles[3], cmdnum)
 {
 	CheckNoMouseAim(client, angles, cmdnum);
 
-	/* R52: any cmd without mouse input ends the AMSAF shot and the steady-mouse streak. */
+	/* Any cmd without mouse input ends the AMSAF shot and the steady-mouse streak. */
 	if (g_iAmsStage[client] > 1)
 		AmsafEvaluate(client);
 	g_iCnt[client][C_STEADY] = -1;
@@ -458,7 +458,7 @@ CheckMouse(client, buttons, const Float:angles[3], cmdnum, prevMouse0, prevMouse
 	{
 		g_iNlCooldown[client] = cmdnum + NL_COOLDOWN;
 
-		/* R52 decays this counter by one every 5 s. */
+		/* Decays this counter by one every 5 s. */
 		if (g_iCnt[client][C_NL201] > -1 && g_fNl201Time[client] > 0.0)
 		{
 			new steps = RoundToFloor((GetGameTime() - g_fNl201Time[client]) / NL201_DECAY);
@@ -542,7 +542,7 @@ CheckSteadyMouse(client, const Float:angles[3], prevMouse0, prevMouse1)
 }
 
 /**
- * AGTWS Mode:100 and AMSAF Mode:101 (R52 attack section of OnPlayerRunCmd)
+ * AGTWS Mode:100 and AMSAF Mode:101 (attack section of OnPlayerRunCmd)
  */
 CheckAttack(client, buttons, const Float:vel[3], const Float:angles[3], cmdnum)
 {
@@ -652,7 +652,7 @@ ArmAmsaf(client, const Float:vel[3], cmdnum)
 	}
 }
 
-/* Mouse moving on the ground (R52 runs this inside the mouse branch). */
+/* Mouse moving on the ground (runs this inside the mouse branch). */
 CheckAmsafHeld(client, buttons, const Float:angles[3], cmdnum)
 {
 	if (!(buttons & IN_ATTACK))
@@ -735,7 +735,7 @@ CheckAmsafHeld(client, buttons, const Float:angles[3], cmdnum)
 	g_iAmsStillCmd[client] = cmdnum;
 }
 
-/* End of the shot (R52 fn_185afc). */
+/* End of the shot. */
 AmsafEvaluate(client)
 {
 	new score = g_iAmsScore[client];
@@ -760,7 +760,7 @@ AmsafEvaluate(client)
 	if (Evaluate(client, G_AMSAF, C_AMSAF, 480.0, "AimBot (Analysis Module Shooting After Firing)", sMode, sWeapon))
 		return;
 
-	/* R52 schedules one decay per score point (480 / 540 / 600 s). */
+	/* Schedules one decay per score point (480 / 540 / 600 s). */
 	if (g_iCnt[client][C_AMSAF] > -1)
 	{
 		ScheduleDecay(client, C_AMSAF, 540.0);
@@ -771,7 +771,7 @@ AmsafEvaluate(client)
 
 ResetPrg(client)
 {
-	/* R52 fn_34af34(14): grenades in hand reset the aim streaks. */
+	/* (14): grenades in hand reset the aim streaks. */
 	g_iCnt[client][C_STREAK] = -1;
 	g_iCnt[client][C_STEADY] = -1;
 	ResetHit1(client);
@@ -779,7 +779,7 @@ ResetPrg(client)
 }
 
 /**
- * Target trace (R52 fn_35cd2c). Returns the enemy client or -1.
+ * Target trace. Returns the enemy client or -1.
  */
 TraceTarget(client, const Float:angles[3], mode)
 {
@@ -901,11 +901,11 @@ public bool:TraceFilter_NotSelf(entity, contentsMask, any:client)
 }
 
 /**
- * UsingWH Mode:103 (R52 fn_37ba38 / fn_138a8). Despite the name it does not use the
+ * UsingWH Mode:103. Despite the name it does not use the
  * anti-wallhack: the first shot after +attack (and every third one after it) opens a
  * 6-tick window; on ground and without mouse input the per-axis aim change above thr2
  * is summed. If the shot did damage and the sum reached thr5 = max(sens / 8.5, 0.2),
- * the counter grows. R52 Mode:102 is omitted: its state never leaves -1 in R52.
+ * the counter grows. Mode 102 is omitted: its state never advances.
  */
 UsingWhCmd(client, buttons, const Float:angles[3], const mouse[2])
 {
@@ -936,7 +936,7 @@ UsingWhCmd(client, buttons, const Float:angles[3], const mouse[2])
 	}
 }
 
-/* R52 hooks the FireBullets temp entity ("Shotgun Shot" in CS:S). */
+/* Hooks the FireBullets temp entity ("Shotgun Shot" in CS:S). */
 public Action:TE_FireBullets(const String:te_name[], const clients[], numClients, Float:delay)
 {
 	new client = TE_ReadNum("m_iPlayer") + 1;
@@ -1042,7 +1042,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
-	/* R52: the victim's aim counters relax on death. */
+	/* The victim's aim counters relax on death. */
 	if (IS_CLIENT(victim) && IsClientInGame(victim))
 	{
 		RelaxOnDeath(victim, C_TRIGGER, DECAY_LONG);
@@ -1081,7 +1081,7 @@ AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill, dmg)
 	if (dist < MIN_TARGET_DIST_SQ)
 		return;
 
-	/* R52 Accurate Analysis adds the damage to the UsingWH window (whState[6]). */
+	/* Accurate Analysis adds the damage to the UsingWH window (whState[6]). */
 	g_iWhDmg[attacker] += dmg;
 
 	new bool:bPistol = GetTrieValue(g_hTriePistol, sWeapon, dummy);
@@ -1148,7 +1148,7 @@ AnalyzeHit(Handle:event, attacker, victim, bool:headshot, bool:kill, dmg)
 	}
 }
 
-/* R52 AAM bonus by distance band, headshot and weapon group. */
+/* AAM bonus by distance band, headshot and weapon group. */
 HitBonus(Float:dist, bool:headshot, bool:bPistol, bool:bSniper)
 {
 	if (dist < DIST_NEAR_SQ)
@@ -1171,7 +1171,7 @@ HitBonus(Float:dist, bool:headshot, bool:bPistol, bool:bSniper)
 }
 
 /**
- * Reporting (R52 semantics)
+ * Reporting (semantics)
  */
 bool:GroupEnabled(group)
 {
@@ -1179,7 +1179,7 @@ bool:GroupEnabled(group)
 }
 
 /* Counter already incremented by the caller; returns true if the client was removed.
-   Like R52, nothing is reported below the Warning value; each step schedules a decay. */
+ nothing is reported below the Warning value; each step schedules a decay. */
 bool:Evaluate(client, group, counter, Float:delay, const String:name[], const String:mode[], const String:weapon[])
 {
 	new ban = GetConVarInt(g_hCvarBan[group]);
@@ -1242,7 +1242,7 @@ Detect(client, group, counter, Float:delay, const String:name[], const String:mo
 }
 
 /**
- * R52 SetBan(client, code, delay) -> OnBanReleased: decrement the counter after the delay,
+ * SetBan(client, code, delay) -> OnBanReleased: decrement the counter after the delay,
  * postponed while the player is not on a team.
  */
 ScheduleDecay(client, counter, Float:delay)
@@ -1307,7 +1307,7 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
+/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= 0.15)

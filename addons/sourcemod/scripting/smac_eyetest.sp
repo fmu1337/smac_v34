@@ -14,21 +14,21 @@ public Plugin:myinfo =
 };
 
 /*
- * Eyetest 01-04 as in SMAC Plus (001_SMAC_Global.smx, OnPlayerRunCmd):
- *   01  cmdnum went back                                  (Detection_UserCmdReuse)
- *   02  cmdnum repeated, tickcount is not prev or prev+1  (Detection_UserCmdTamperingTickcount)
- *   03  cmdnum repeated, movement/score buttons changed   (Detection_UserCmdTamperingButtons)
- *   04  pitch outside +-89.9 or roll outside +-30         (Detection_Eyeangles)
- *   04L |yaw| above 100000 with legal pitch and roll (lisp yaw: insomnia sends ~697000;
- *       the yaw is wrapped to +-180)
- *   05  angles exactly (0, 0, 0) for 16 cmds in a row while the mouse moves
- *       (insomnia "AntiSMAC": zero angles between shots, the aim only on the shot cmd)
- *   04L and 05 react by smac_eyetest_new_reaction (default 1 = admin notice) until checked on
- *   live servers.
+ * Eyetest 01-04 as in SMAC Plus:
+ * 01 cmdnum went back (Detection_UserCmdReuse)
+ * 02 cmdnum repeated, tickcount is not prev or prev+1 (Detection_UserCmdTamperingTickcount)
+ * 03 cmdnum repeated, movement/score buttons changed (Detection_UserCmdTamperingButtons)
+ * 04 pitch outside +-89.9 or roll outside +-30 (Detection_Eyeangles)
+ * 04L |yaw| above 100000 with legal pitch and roll (lisp yaw: insomnia sends ~697000;
+ * the yaw is wrapped to +-180)
+ * 05 angles exactly (0, 0, 0) for 16 cmds in a row while the mouse moves
+ * (insomnia "AntiSMAC": zero angles between shots, the aim only on the shot cmd)
+ * 04L and 05 react by smac_eyetest_new_reaction (default 1 = admin notice) until checked on
+ * live servers.
  * Differences from stock SMAC: a violation is reported only when a second one of the same kind
  * comes within EYE_DECAY seconds, checks pause for 5 s (not 30 s) after a violation, the roll
  * limit is 30 (was 90) and the reaction is set by smac_eyetest_reaction.
- * smac_NoS_NoR (R52) gives every +attack usercmd a new random seed.
+ * smac_NoS_NoR gives every +attack usercmd a new random seed.
  * A large cmdnum skip on +attack is reported as nospread seed hunting (smac_eyetest_seed_ban),
  * and illegal angles are clamped so anti-aim gains nothing even when the reaction is off.
  */
@@ -37,8 +37,8 @@ public Plugin:myinfo =
 #define EYE_MAX_ROLL	30.0
 #define EYE_MAX_YAW		100000.0	// lisp yaw; a real client never gets near it
 #define EYE_ZERO_STREAK	16
-#define EYE_DECAY		528.0	// R52: SetBan(..., 528) releases one violation
-#define EYE_PAUSE		5.0		// R52: checks pause for 5 s worth of cmds after a violation
+#define EYE_DECAY		528.0	// SetBan(..., 528) releases one violation
+#define EYE_PAUSE		5.0		// checks pause for 5 s worth of cmds after a violation
 
 // ForceSeed / SeedHelp (insomnia, informant, 420hook): skip command_number until
 // (MD5_PseudoRandom(cmdnum) & 255) matches a desired seed. Average skip ~128.
@@ -161,7 +161,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	if (cmdnum <= 0)
 		return Plugin_Handled;
 
-	// R52 No Spread / No Recoil block: the cheat can't predict the spread of a shot it doesn't know the seed of.
+	// No Spread / No Recoil block: the cheat can't predict the spread of a shot it doesn't know the seed of.
 	if ((buttons & IN_ATTACK) && GetConVarBool(g_hCvarNoSpread))
 		seed = GetURandomInt();
 
@@ -233,7 +233,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			return Plugin_Handled;
 		}
 
-		// The tickcount should be incremented. R52 also lets the same tickcount through.
+		// The tickcount should be incremented. also lets the same tickcount through.
 		if (tickcount != g_iPrevTickCount[client] && tickcount != g_iPrevTickCount[client] + 1)
 		{
 			g_iPauseUntilCmd[client] = cmdnum + g_iPauseCmds;
@@ -302,7 +302,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		g_TickStatus[client] = State_Okay;
 	}
 
-	// Eye Angles 04 (R52): pitch +-89.9, roll +-30.
+	// Eye Angles 04: pitch +-89.9, roll +-30.
 	new flags = GetEntityFlags(client);
 
 	if (flags & (FL_FROZEN|FL_ATCONTROLS))
@@ -438,7 +438,7 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 	if (level <= 0)
 		return;
 
-	// R52: the first violation only arms a decay, the next one of the same kind is reported.
+	// the first violation only arms a decay, the next one of the same kind is reported.
 	if (++g_iViolations[client][check] <= 0)
 	{
 		CreateTimer(EYE_DECAY, Timer_Decay, (GetClientUserId(client) << 3) | check, TIMER_FLAG_NO_MAPCHANGE);
@@ -476,7 +476,7 @@ Eyetest_Violation(client, check, Handle:info, const String:detail[])
 		}
 	}
 
-	// As in R52: after a notice the next violation is reported again, after a kick/ban it takes 30 more.
+	// after a notice the next violation is reported again, after a kick/ban it takes 30 more.
 	g_iViolations[client][check] = (level > 1) ? -30 : -2;
 }
 

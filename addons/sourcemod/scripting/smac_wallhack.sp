@@ -376,7 +376,7 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 		newTotal = 0;
 	}
 	
-	// R52 fakes weapon, item and body sounds only.
+	// fakes weapon, item and body sounds only.
 	new bool:bFake = (g_iSoundESP > 0 && (channel == SNDCHAN_WEAPON || channel == SNDCHAN_ITEM || channel == SNDCHAN_BODY));
 	decl hiddenClients[MaxClients];
 	new hiddenTotal;
@@ -417,10 +417,10 @@ public Action:Hook_NormalSound(clients[64], &numClients, String:sample[PLATFORM_
 
 /**
  * Anti-SoundESP (SMAC Plus, smac_SoundESP). For each listener who can't see the source:
- *   1, 2, 4  the sound comes from a random point near the source (x/y -269.7..289, z -180..289);
- *   2+       level 75 and pitch 100, so the weapon can't be told from them;
- *   3, 4     volume 100000 / dist^2 limited to 0.7, nothing below 0.1 (about 1000 units).
- * R52 replayed one sound per server tick from OnPlayerRunCmd and dropped the rest; here every sound
+ * 1, 2, 4 the sound comes from a random point near the source (x/y -269.7..289, z -180..289);
+ * 2+ level 75 and pitch 100, so the weapon can't be told from them;
+ * 3, 4 volume 100000 / dist^2 limited to 0.7, nothing below 0.1 (about 1000 units).
+ * replayed one sound per server tick from OnPlayerRunCmd and dropped the rest; here every sound
  * is sent right away.
  */
 SoundESP_Emit(const clients[], numClients, const String:sample[], channel, level, flags, Float:volume, pitch, const Float:vSource[3])

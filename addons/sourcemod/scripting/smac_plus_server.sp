@@ -3,20 +3,19 @@
 #include <smac>
 
 /*
- * SMAC Plus: server protections from 001_SMAC_Rcon, 001_SMAC_Cvars and 001_SMAC_Client
- * that stock SMAC (smac_client, smac_commands, smac_rcon) does not have.
+ * SMAC Plus: server protections beyond stock smac_client / smac_commands / smac_rcon.
  *
- *   Half-connected command  a client command from a client that is connected but not in game
- *                           (R52 Rcon: SMAC_Hack + addip; "menuclosed" is only dropped).
- *   Rcon command            a client command named rcon* from a non-admin (R52 Cvars: ban).
- *   Argument overflow       the absolute values of the numeric arguments add up to more than
- *                           3e9 (R52 Cvars: kick; ucp_* and say are skipped).
- *   Iniuria (SIC)           voice_loopback / voice_inputfromfile sent as a command after more than
- *                           20 commands in the same second (R52 "cheat class Iniuria CS:S").
- *   Validate auth           the client is in game but still not authorized 10 s after joining
- *                           (R52 Client: kick SMAC_FailedAuth).
+ * Half-connected command a client command from a client that is connected but not in game
+ * (Rcon: SMAC_Hack + addip; "menuclosed" is only dropped).
+ * Rcon command a client command named rcon* from a non-admin (Cvars: ban).
+ * Argument overflow the absolute values of the numeric arguments add up to more than
+ * 3e9 (Cvars: kick; ucp_* and say are skipped).
+ * Iniuria (SIC) voice_loopback / voice_inputfromfile sent as a command after more than
+ * 20 commands in the same second ("cheat class Iniuria CS:S").
+ * Validate auth the client is in game but still not authorized 10 s after joining
+ * (Client: kick SMAC_FailedAuth).
  *
- * Defaults block the command and notify admins; the R52 kick/ban is level 2 (3 for Iniuria).
+ * Defaults block the command and notify admins; the kick/ban is level 2 (3 for Iniuria).
  */
 
 public Plugin:myinfo =
@@ -50,11 +49,11 @@ public OnPluginStart()
 {
 	LoadTranslations("smac.phrases");
 
-	g_hCvarHalfConnected = SMAC_CreateConVar("smac_plus_halfconnected", "1", "Commands from clients that are connected but not in game: 0=allow, 1=block and log, 2=block and ban (R52)", _, true, 0.0, true, 2.0);
-	g_hCvarRcon = SMAC_CreateConVar("smac_plus_rcon_command", "1", "rcon* client commands from non-admins: 0=allow, 1=block and notify, 2=block and ban (R52)", _, true, 0.0, true, 2.0);
-	g_hCvarOverflow = SMAC_CreateConVar("smac_plus_arg_overflow", "1", "Commands whose numeric arguments add up to more than 3e9: 0=allow, 1=block and notify, 2=block and kick (R52)", _, true, 0.0, true, 2.0);
-	g_hCvarIniuria = SMAC_CreateConVar("smac_indirect_cheat", "1", "Iniuria cheat (voice_loopback/voice_inputfromfile command flood): 0=off, 1=admin notice, 2=kick, 3=ban (R52: 3)", _, true, 0.0, true, 3.0);
-	g_hCvarAuth = SMAC_CreateConVar("smac_validate_auth", "1", "Client not authorized 10 s after joining: 0=off, 1=admin notice, 2=kick (R52)", _, true, 0.0, true, 2.0);
+	g_hCvarHalfConnected = SMAC_CreateConVar("smac_plus_halfconnected", "1", "Commands from clients that are connected but not in game: 0=allow, 1=block and log, 2=block and ban", _, true, 0.0, true, 2.0);
+	g_hCvarRcon = SMAC_CreateConVar("smac_plus_rcon_command", "1", "rcon* client commands from non-admins: 0=allow, 1=block and notify, 2=block and ban", _, true, 0.0, true, 2.0);
+	g_hCvarOverflow = SMAC_CreateConVar("smac_plus_arg_overflow", "1", "Commands whose numeric arguments add up to more than 3e9: 0=allow, 1=block and notify, 2=block and kick", _, true, 0.0, true, 2.0);
+	g_hCvarIniuria = SMAC_CreateConVar("smac_indirect_cheat", "1", "Iniuria cheat (voice_loopback/voice_inputfromfile command flood): 0=off, 1=admin notice, 2=kick, 3=ban", _, true, 0.0, true, 3.0);
+	g_hCvarAuth = SMAC_CreateConVar("smac_validate_auth", "1", "Client not authorized 10 s after joining: 0=off, 1=admin notice, 2=kick", _, true, 0.0, true, 2.0);
 	g_hCvarAdminImmune = SMAC_CreateConVar("smac_plus_admin_immune", "1", "Never kick/ban admins with ban/root flag (detections are still logged).", _, true, 0.0, true, 1.0);
 
 	AddCommandListener(Command_Listener);
@@ -108,7 +107,7 @@ public Action:Command_Listener(client, const String:command[], argc)
 
 	decl String:sArgs[192];
 
-	/* R52 Rcon: commands before the client is in game. */
+	/* Rcon: commands before the client is in game. */
 	if (!IsClientInGame(client))
 	{
 		new level = GetConVarInt(g_hCvarHalfConnected);
@@ -135,7 +134,7 @@ public Action:Command_Listener(client, const String:command[], argc)
 	if (StrEqual(command, "say", false) || StrEqual(command, "say_team", false))
 		return Plugin_Continue;
 
-	/* R52 Cvars: rcon from a client that is not an admin. */
+	/* Cvars: rcon from a client that is not an admin. */
 	if (StrContains(command, "rcon", false) == 0 && !CheckCommandAccess(client, "smac_plus_rcon", ADMFLAG_RCON, true))
 	{
 		new level = GetConVarInt(g_hCvarRcon);
@@ -153,7 +152,7 @@ public Action:Command_Listener(client, const String:command[], argc)
 		}
 	}
 
-	/* R52 Cvars: numeric arguments that overflow. */
+	/* Cvars: numeric arguments that overflow. */
 	if (argc > 1 && StrContains(command, "ucp_", false) != 0)
 	{
 		new level = GetConVarInt(g_hCvarOverflow);
@@ -171,7 +170,7 @@ public Action:Command_Listener(client, const String:command[], argc)
 		}
 	}
 
-	/* R52 Cvars: Iniuria floods voice_loopback / voice_inputfromfile as commands. */
+	/* Cvars: Iniuria floods voice_loopback / voice_inputfromfile as commands. */
 	if (g_iCmds[client] > INIURIA_CMDS
 		&& (StrEqual(command, "voice_loopback", false) || StrEqual(command, "voice_inputfromfile", false)))
 	{
@@ -226,7 +225,7 @@ bool:Detected(client, const String:name[], const String:detail[])
 	return true;
 }
 
-/* level: 1 notice (done), 2 kick, 3 ban, lowered by the R52 network gate. */
+/* level: 1 notice (done), 2 kick, 3 ban; lowered by the network gate. */
 Punish(client, level, const String:name[])
 {
 	if (level < 2 || IsImmune(client))
@@ -259,7 +258,7 @@ bool:IsImmune(client)
 	return GetConVarBool(g_hCvarAdminImmune) && (GetUserFlagBits(client) & (ADMFLAG_BAN | ADMFLAG_ROOT)) != 0;
 }
 
-/* R52 network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
+/* Network gate: lower ban -> kick -> notice once for bad ping and once for few packets. */
 LowerAction(client, action)
 {
 	if (action > 1 && GetClientAvgLatency(client, NetFlow_Outgoing) >= MAX_PING)

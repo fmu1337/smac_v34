@@ -8,15 +8,15 @@
  *
  *
  * Every player gets an invisible prop_dynamic_override:
- *   slot 0  du_crate_64x64_stone.mdl parented to the face attachment, angles 120 35 35,
- *           SOLID_VPHYSICS, bounds +-89.9;
- *   slot 1  (smac_AIM_Kill 2) a random grenade model at the player's position, SOLID_BBOX.
+ * slot 0 du_crate_64x64_stone.mdl parented to the face attachment, angles 120 35 35,
+ * SOLID_VPHYSICS, bounds +-89.9;
+ * slot 1 (smac_AIM_Kill 2) a random grenade model at the player's position, SOLID_BBOX.
  * Both use collision group 10 (COLLISION_GROUP_IN_VEHICLE), which the engine's ShouldCollide
  * rejects for every other group: bullets, movement and the client's own traces ignore them.
  * A cheat that traces with its own filter hits the box in front of the head and treats the
  * target as hidden. Render mode none, alpha 0, no shadows.
  *
- * R52 creates the decoys on its 1 s ticker (every 5th second) when they are missing and removes
+ * creates the decoys on its 1 s ticker (every 5th second) when they are missing and removes
  * them on spawn; there the feature also needs its anti-wallhack enabled, here it does not.
  */
 
@@ -50,7 +50,7 @@ new g_iDecoy[MAXPLAYERS+1][SLOTS];
 
 public OnPluginStart()
 {
-	g_hCvarAimKill = SMAC_CreateConVar("smac_AIM_Kill", "1", "Invisible anti-aimbot decoys: 0=off, 1=box at the face, 2=also a decoy at the player's position (R52: 1)", _, true, 0.0, true, 2.0);
+	g_hCvarAimKill = SMAC_CreateConVar("smac_AIM_Kill", "1", "Invisible anti-aimbot decoys: 0=off, 1=box at the face, 2=also a decoy at the player's position", _, true, 0.0, true, 2.0);
 	HookConVarChange(g_hCvarAimKill, OnAimKillChanged);
 
 	HookEvent("player_spawn", Event_PlayerReset, EventHookMode_Post);
@@ -170,7 +170,7 @@ CreateDecoy(client, slot)
 		SetVariantString("!activator");
 		AcceptEntityInput(ent, "SetParent", client, ent);
 
-		/* CS:S player models: "forward" is the eye attachment (R52 uses "facemask" on CS:GO). */
+		/* CS:S player models: "forward" is the eye attachment (uses "facemask" on CS:GO). */
 		SetVariantString("forward");
 		AcceptEntityInput(ent, "SetParentAttachment", ent, ent);
 		DispatchKeyValue(ent, "angles", "120 35 35");

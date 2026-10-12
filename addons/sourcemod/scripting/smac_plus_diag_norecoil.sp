@@ -6,10 +6,10 @@
 /*
  * SMAC Plus No Recoil A/B: diagnostics only. Nothing is punished.
  *
- * R52 compares the angles of the usercmd with m_angEyeAngles read in the OnPlayerRunCmd pre-hook.
- * If m_angEyeAngles there always equals the previous cmd's angles, R52's No Recoil A would fire on
- * every spray with mouse movement. This plugin measures that on a live server and replays the R52
- * logic exactly, writing what R52 would have done to logs/smac_norecoil_diag.log.
+ * Compares usercmd angles with m_angEyeAngles from the OnPlayerRunCmd pre-hook.
+ * If m_angEyeAngles there always equals the previous cmd's angles, No Recoil A would
+ * fire on every spray with mouse movement. This plugin measures that on a live server
+ * and replays the A/B logic, writing the result to logs/smac_norecoil_diag.log.
  *
  *   on a shot (FireBullets TE): A keeps the cmd angles; B is armed (state 1, max 0).
  *   +attack held:
@@ -20,15 +20,15 @@
  *        otherwise (pitch unchanged, or equal to eye pitch) -> state 0.
  *   +attack released: A counter > 0 -> 1101. B state > 0, pitch changed, != eye pitch, state + 1 > 1
  *     and |dPitch| >= 1.1 and > 1.5 * max -> 1102. B state 0.
- *   1101 / 1102 -> 1..3 s later counter42 + 1; more than |smac_NoR_Ban| (5) -> punish, else it
- *   decays in 300 s.
+ *   1101 / 1102 -> 1..3 s later the final counter + 1; more than |smac_NoR_Ban| (5) -> would
+ *   punish, else it decays in 300 s.
  */
 
 public Plugin:myinfo =
 {
 	name = "SMAC Plus: No Recoil diagnostics",
 	author = SMAC_AUTHOR,
-	description = "Measures m_angEyeAngles vs usercmd angles and replays R52 No Recoil A/B without punishing",
+	description = "Measures m_angEyeAngles vs usercmd angles and replays No Recoil A/B without punishing",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
@@ -49,7 +49,7 @@ new bool:g_bHasPrev[MAXPLAYERS+1];
 new Float:g_fAng[MAXPLAYERS+1][2][2];		/* [0] = previous cmd, [1] = this cmd */
 new g_iPrevButtons[MAXPLAYERS+1];
 
-/* R52 state: g590bc[6..8], g59b0c[3], g59b0c[4], cnt[42]. */
+/* No Recoil A/B state. */
 new Float:g_fKept[MAXPLAYERS+1][2];
 new g_iA[MAXPLAYERS+1];
 new g_iB[MAXPLAYERS+1];
@@ -69,9 +69,9 @@ new g_iSamples[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
-	g_hCvarEnable = CreateConVar("smac_norecoil_diag", "1", "R52 No Recoil diagnostics: 0 = off, 1 = log to logs/smac_norecoil_diag.log", _, true, 0.0, true, 1.0);
+	g_hCvarEnable = CreateConVar("smac_norecoil_diag", "1", "No Recoil diagnostics: 0 = off, 1 = log to logs/smac_norecoil_diag.log", _, true, 0.0, true, 1.0);
 	g_hCvarSamples = CreateConVar("smac_norecoil_diag_samples", "20", "Raw angle samples logged per player and map when eye angles differ from the previous cmd.", _, true, 0.0, true, 1000.0);
-	g_hCvarNoRBan = CreateConVar("smac_norecoil_diag_ban", "5", "|smac_NoR_Ban| used for the replay (R52 default 5).", _, true, 1.0, true, 100.0);
+	g_hCvarNoRBan = CreateConVar("smac_norecoil_diag_ban", "5", "|smac_NoR_Ban| used for the replay (default 5).", _, true, 1.0, true, 100.0);
 
 	BuildPath(Path_SM, g_sLog, sizeof(g_sLog), "logs/smac_norecoil_diag.log");
 
@@ -240,7 +240,7 @@ HoldB(client, const Float:angles[3], Float:eye0)
 	if (g_iB[client] <= 0)
 		return;
 
-	/* R52: an unchanged pitch while held disarms B as well. */
+	/* an unchanged pitch while held disarms B as well. */
 	if (angles[0] != g_fAng[client][0][0] && angles[0] != eye0)
 	{
 		g_iB[client]++;
@@ -277,7 +277,7 @@ Float:PitchStep(client)
 	return FloatAbs(NormalizeAngle(g_fAng[client][0][0]) - NormalizeAngle(g_fAng[client][1][0]));
 }
 
-/* R52 SetBan(1101/1102, 1..3 s) -> OnBanReleased: counter42 + 1. */
+/* After 1101/1102, 1..3 s later the final counter + 1. */
 Fire(client, code, const String:detail[])
 {
 	if (code == 1101)
@@ -287,7 +287,7 @@ Fire(client, code, const String:detail[])
 
 	decl String:sWeapon[32];
 	GetClientWeapon(client, sWeapon, sizeof(sWeapon));
-	LogToFileEx(g_sLog, "%L R52 would arm %d (%s) | weapon %s", client, code, detail, sWeapon);
+	LogToFileEx(g_sLog, "%L would arm %d (%s) | weapon %s", client, code, detail, sWeapon);
 
 	new Handle:pack;
 	CreateDataTimer(float(GetRandomInt(1, 3)), Timer_Final, pack, TIMER_FLAG_NO_MAPCHANGE);
@@ -308,7 +308,7 @@ public Action:Timer_Final(Handle:timer, Handle:pack)
 	{
 		g_iFinal[client] = -1;
 		g_iPunish[client]++;
-		LogToFileEx(g_sLog, "%L R52 WOULD PUNISH for No Recoil (last %d, counter over %d)", client, code, limit);
+		LogToFileEx(g_sLog, "%L WOULD PUNISH for No Recoil (last %d, counter over %d)", client, code, limit);
 		return Plugin_Stop;
 	}
 

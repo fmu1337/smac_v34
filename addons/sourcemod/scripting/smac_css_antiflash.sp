@@ -89,7 +89,7 @@ public Event_PlayerBlind(Handle:event, const String:name[], bool:dontBroadcast)
 		if (g_iMode == 2)
 		{
 			// SMAC Plus: a second flash that cheats removing the white fade don't touch.
-			// It is cleared after 0.72 of the flash duration (R52: duration * 900 / 1250).
+			// It is cleared after 0.72 of the flash duration.
 			new Float:fOverlay = duration * 0.72;
 			
 			ClientCommand(client, "r_screenoverlay \"%s\"", g_sOverlays[GetRandomInt(0, sizeof(g_sOverlays) - 1)]);
