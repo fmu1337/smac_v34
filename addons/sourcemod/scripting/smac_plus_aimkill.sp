@@ -7,7 +7,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: AIM_Kill",
 	author = SMAC_AUTHOR,
-	description = "Invisible anti-aimbot decoys (AIM_Kill) from SMAC Plus",
+	description = "Invisible anti-aimbot decoys (AIM_Kill)",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

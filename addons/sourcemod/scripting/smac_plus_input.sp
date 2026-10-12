@@ -7,7 +7,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Input",
 	author = SMAC_AUTHOR,
-	description = "AutoTrigger, 2X, KnifeBot, Advanced Trigger/AutoFire, Fast AIM, RCS and CheatCFG from SMAC Plus",
+	description = "AutoTrigger, 2X, KnifeBot, Advanced Trigger/AutoFire, Fast AIM, RCS and CheatCFG",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

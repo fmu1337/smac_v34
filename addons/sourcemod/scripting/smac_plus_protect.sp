@@ -8,7 +8,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Protect",
 	author = SMAC_AUTHOR,
-	description = "No_Team_Flash and Control_Entity from SMAC Plus",
+	description = "No_Team_Flash and Control_Entity",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

@@ -7,7 +7,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Netcode",
 	author = SMAC_AUTHOR,
-	description = "Airstuck, Lag Exploit, Backtrack A/B, PSilent and Changer Player Status from SMAC Plus; CmdNum Jump, Tick Ahead",
+	description = "Airstuck, Lag Exploit, Backtrack A/B, PSilent and Changer Player Status; CmdNum Jump, Tick Ahead",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

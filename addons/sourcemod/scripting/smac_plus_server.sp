@@ -6,7 +6,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Server",
 	author = SMAC_AUTHOR,
-	description = "Half-connected commands, rcon commands, argument overflow, Iniuria and auth checks from SMAC Plus",
+	description = "Half-connected commands, rcon commands, argument overflow, Iniuria and auth checks",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

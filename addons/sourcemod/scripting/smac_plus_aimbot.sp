@@ -7,7 +7,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Aimbot",
 	author = SMAC_AUTHOR,
-	description = "AimBot PRG 301-304, AGTNL 200/201, AGTWS 100, AMSAF 101, UsingWH 103 and Accurate Analysis (AGT, Trigger, AGTAF) from SMAC Plus",
+	description = "AimBot PRG 301-304, AGTNL 200/201, AGTWS 100, AMSAF 101, UsingWH 103 and Accurate Analysis (AGT, Trigger, AGTAF)",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

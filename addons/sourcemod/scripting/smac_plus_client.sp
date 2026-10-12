@@ -7,7 +7,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Client",
 	author = SMAC_AUTHOR,
-	description = "Impulse spam, sensitivity checks and FakeSendPacket (usercmd rate) from SMAC Plus",
+	description = "Impulse spam, sensitivity checks and FakeSendPacket (usercmd rate)",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };

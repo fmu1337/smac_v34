@@ -7,7 +7,7 @@ public Plugin:myinfo =
 {
 	name = "SMAC Plus: Movement",
 	author = SMAC_AUTHOR,
-	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack from SMAC Plus; FastWalk, AutoStrafe, CircleStrafe",
+	description = "Fast Run, Advanced BunnyHop, HaX2, Teleport, Airstuck and Spinhack; FastWalk, AutoStrafe, CircleStrafe",
 	version = SMAC_VERSION,
 	url = SMAC_URL
 };
