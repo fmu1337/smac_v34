@@ -4,8 +4,8 @@
 
 На no-steam серверах CSS v34 в архивных кварах `xbox_*` хранят метки:
 
-* **NoSteamBans** (KAC/kigen NSB) пишет игроку `xbox_throttlespoof` ≠ 200 и банит по нему, потому что SteamID на
-  no-steam меняется, а `config.cfg` остаётся.
+* **smac_nsb** пишет игроку метку в другой клиентский квар и банит по ней: SteamID на no-steam меняется, а
+  `config.cfg` остаётся. Имя квара собирается при загрузке. Это не `xbox_throttlespoof`.
 * **SteamID Protect** хранит пароль игрока в `xbox_autothrottle`.
 
 Чит **Insomnia** (CSS v34) и сборки на его основе каждый кадр (`Hooked_PaintTraverse`, панель `MatSystemTopPanel`)
