@@ -8,7 +8,8 @@
  *
  * Insomnia (CSS v34) and cheats built on it reset xbox_autothrottle / xbox_throttlebias /
  * xbox_throttlespoof to 1 / 100 / 200 every frame (Hooked_PaintTraverse, "leet ruski antiban"):
- * no-steam ban plugins (KAC NSB) and SteamID Protect keep their marks in these archived cvars.
+ * SteamID Protect keeps a password in xbox_autothrottle. smac_nsb marks a different
+ * client cvar; Insomnia resets the xbox trio anyway.
  *
  *   1. On connect the client's xbox_throttlebias is queried. Anything but 100 means nothing
  *      resets it, so the check is skipped.

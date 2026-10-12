@@ -165,4 +165,202 @@
 	{
 		"en"		"You were kicked by the anti-cheat (cheat signature)"
 	}
+
+	"SMAC_NsbMenu"
+	{
+		"en"		"No-Steam Bans"
+	}
+
+	"SMAC_NsbBan"
+	{
+		"en"		"Ban player"
+	}
+
+	"SMAC_NsbUnban"
+	{
+		"en"		"Unban player"
+	}
+
+	"SMAC_NsbCheckOn"
+	{
+		"en"		"Enable checking"
+	}
+
+	"SMAC_NsbCheckOff"
+	{
+		"en"		"Disable checking"
+	}
+
+	"SMAC_NsbNowOn"
+	{
+		"en"		"No-steam ban check is on."
+	}
+
+	"SMAC_NsbNowOff"
+	{
+		"en"		"No-steam ban check is off."
+	}
+
+	"SMAC_NsbNeedOn"
+	{
+		"en"		"Turn the no-steam ban check on first."
+	}
+
+	"SMAC_NsbWarnOff"
+	{
+		"en"		"No-steam ban check is off."
+	}
+
+	"SMAC_NsbSelect"
+	{
+		"en"		"Select a player:"
+	}
+
+	"SMAC_NsbMissing"
+	{
+		"en"		"The player you selected is no longer available."
+	}
+
+	"SMAC_NsbNoTarget"
+	{
+		"en"		"You cannot target this player."
+	}
+
+	"SMAC_NsbNoPlayers"
+	{
+		"en"		"No available players found."
+	}
+
+	"SMAC_NsbListClear"
+	{
+		"en"		"Ban list is clear."
+	}
+
+	"SMAC_NsbBanned"
+	{
+		"en"		"You are banned from this server"
+	}
+
+	"SMAC_NsbPlayerBanned"
+	{
+		"#format"	"{1:s}"
+		"en"		"Player {1} banned."
+	}
+
+	"SMAC_NsbPlayerUnbanned"
+	{
+		"#format"	"{1:s}"
+		"en"		"Player {1} unbanned."
+	}
+
+	"SMAC_NsbHit"
+	{
+		"#format"	"{1:N},{2:s}"
+		"en"		"{1} is on the no-steam ban list ({2})"
+	}
+
+	"SMAC_NsbPermanent"
+	{
+		"en"		"Permanent"
+	}
+
+	"SMAC_Nsb10m"
+	{
+		"en"		"10 Minutes"
+	}
+
+	"SMAC_Nsb30m"
+	{
+		"en"		"30 Minutes"
+	}
+
+	"SMAC_Nsb1h"
+	{
+		"en"		"1 Hour"
+	}
+
+	"SMAC_Nsb4h"
+	{
+		"en"		"4 Hours"
+	}
+
+	"SMAC_Nsb1d"
+	{
+		"en"		"1 Day"
+	}
+
+	"SMAC_Nsb1w"
+	{
+		"en"		"1 Week"
+	}
+
+	"SMAC_NsbReason"
+	{
+		"en"		"Ban reason"
+	}
+
+	"SMAC_NsbReason1"
+	{
+		"en"		"Abusive"
+	}
+
+	"SMAC_NsbReason2"
+	{
+		"en"		"Racism"
+	}
+
+	"SMAC_NsbReason3"
+	{
+		"en"		"General cheating/exploits"
+	}
+
+	"SMAC_NsbReason4"
+	{
+		"en"		"WallHack"
+	}
+
+	"SMAC_NsbReason5"
+	{
+		"en"		"AimBot"
+	}
+
+	"SMAC_NsbReason6"
+	{
+		"en"		"Speedhacking"
+	}
+
+	"SMAC_NsbReason7"
+	{
+		"en"		"Mic spamming"
+	}
+
+	"SMAC_NsbReason8"
+	{
+		"en"		"Admin disrespect"
+	}
+
+	"SMAC_NsbReason9"
+	{
+		"en"		"Camping"
+	}
+
+	"SMAC_NsbReason10"
+	{
+		"en"		"Team killing"
+	}
+
+	"SMAC_NsbReason11"
+	{
+		"en"		"Unacceptable Spray"
+	}
+
+	"SMAC_NsbReason12"
+	{
+		"en"		"Breaking Server Rules"
+	}
+
+	"SMAC_NsbReason13"
+	{
+		"en"		"Other"
+	}
 }

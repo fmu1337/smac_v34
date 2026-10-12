@@ -88,6 +88,9 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   углы ровно `(0, 0, 0)` 16 команд подряд при движущейся мыши (режим «AntiSMAC» в insomnia). Реакция у них своя —
   `smac_eyetest_new_reaction`, по умолчанию 1 (уведомление). `smac_cvars` проверяет, что `cl_interpolate` — целое 0 или 1
   (pizzahook пишет туда `"0.937"`; новый тип сравнения `integer`), по умолчанию уведомление.
+* `smac_nsb` — no-steam баны: игроку пишется метка в клиентский квар, бан хранится в `data/smac_nsblist.txt`
+  и переживает смену SteamID. Меню `sm_nsb` (бан / разбан / проверка). При старте подтягивает ещё не скопированные
+  записи из `data/kac_nsblist.txt`. Подробности — в [docs/NSB.md](docs/NSB.md).
 
 ## Из Cheat-Acid (LilAC, Oryx, Cow AC)
 

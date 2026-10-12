@@ -46,6 +46,7 @@ enum DetectionType {
 	/* Detections from the CSS v34 cheat sources (insomnia, pizzahook, sega). */
 	Detection_CvarTrap = 8000,		/* smac_cvar_trap: xbox_throttlebias reset to its default (Insomnia antiban) */
 	Detection_Usercmd = 8100,		/* smac_usercmd: MoveGrid, SnapBack, FakeLag, Roll (notices only) */
+	Detection_Nsb = 8200,			/* smac_nsb: client is on the no-steam ban list */
 };
 
 #if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 11

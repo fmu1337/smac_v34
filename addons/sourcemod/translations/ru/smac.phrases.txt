@@ -140,4 +140,199 @@
 	{
 		"ru"		"Вы кикнуты античитом (сигнатура чита)"
 	}
+
+	"SMAC_NsbMenu"
+	{
+		"ru"		"Меню no-Steam банов"
+	}
+
+	"SMAC_NsbBan"
+	{
+		"ru"		"Забанить игрока"
+	}
+
+	"SMAC_NsbUnban"
+	{
+		"ru"		"Разбанить игрока"
+	}
+
+	"SMAC_NsbCheckOn"
+	{
+		"ru"		"Включить проверку"
+	}
+
+	"SMAC_NsbCheckOff"
+	{
+		"ru"		"Выключить проверку"
+	}
+
+	"SMAC_NsbNowOn"
+	{
+		"ru"		"Проверка no-steam банов включена."
+	}
+
+	"SMAC_NsbNowOff"
+	{
+		"ru"		"Проверка no-steam банов выключена."
+	}
+
+	"SMAC_NsbNeedOn"
+	{
+		"ru"		"Сначала включите проверку."
+	}
+
+	"SMAC_NsbWarnOff"
+	{
+		"ru"		"Проверка no-steam банов выключена!"
+	}
+
+	"SMAC_NsbSelect"
+	{
+		"ru"		"Выберите игрока:"
+	}
+
+	"SMAC_NsbMissing"
+	{
+		"ru"		"Выбранный игрок больше не доступен."
+	}
+
+	"SMAC_NsbNoTarget"
+	{
+		"ru"		"Этого игрока нельзя выбрать."
+	}
+
+	"SMAC_NsbNoPlayers"
+	{
+		"ru"		"Доступные игроки не найдены."
+	}
+
+	"SMAC_NsbListClear"
+	{
+		"ru"		"Бан лист чист."
+	}
+
+	"SMAC_NsbBanned"
+	{
+		"ru"		"Вы забанены на этом сервере"
+	}
+
+	"SMAC_NsbPlayerBanned"
+	{
+		"ru"		"Игрок {1} забанен."
+	}
+
+	"SMAC_NsbPlayerUnbanned"
+	{
+		"ru"		"Игрок {1} разбанен."
+	}
+
+	"SMAC_NsbHit"
+	{
+		"ru"		"{1} в списке no-steam банов ({2})"
+	}
+
+	"SMAC_NsbPermanent"
+	{
+		"ru"		"Навсегда"
+	}
+
+	"SMAC_Nsb10m"
+	{
+		"ru"		"На 10 минут"
+	}
+
+	"SMAC_Nsb30m"
+	{
+		"ru"		"На 30 минут"
+	}
+
+	"SMAC_Nsb1h"
+	{
+		"ru"		"На 1 час"
+	}
+
+	"SMAC_Nsb4h"
+	{
+		"ru"		"На 4 часа"
+	}
+
+	"SMAC_Nsb1d"
+	{
+		"ru"		"На 1 день"
+	}
+
+	"SMAC_Nsb1w"
+	{
+		"ru"		"На 1 неделю"
+	}
+
+	"SMAC_NsbReason"
+	{
+		"ru"		"Причина бана"
+	}
+
+	"SMAC_NsbReason1"
+	{
+		"ru"		"Оскорбление"
+	}
+
+	"SMAC_NsbReason2"
+	{
+		"ru"		"Расизм"
+	}
+
+	"SMAC_NsbReason3"
+	{
+		"ru"		"Использование читов"
+	}
+
+	"SMAC_NsbReason4"
+	{
+		"ru"		"WallHack"
+	}
+
+	"SMAC_NsbReason5"
+	{
+		"ru"		"AimBot"
+	}
+
+	"SMAC_NsbReason6"
+	{
+		"ru"		"Speedhacking"
+	}
+
+	"SMAC_NsbReason7"
+	{
+		"ru"		"Спам микрофона"
+	}
+
+	"SMAC_NsbReason8"
+	{
+		"ru"		"Игнорирование админа"
+	}
+
+	"SMAC_NsbReason9"
+	{
+		"ru"		"Кемпинг"
+	}
+
+	"SMAC_NsbReason10"
+	{
+		"ru"		"Командное убийство"
+	}
+
+	"SMAC_NsbReason11"
+	{
+		"ru"		"Нецензурный спрей"
+	}
+
+	"SMAC_NsbReason12"
+	{
+		"ru"		"Нарушение правил сервера"
+	}
+
+	"SMAC_NsbReason13"
+	{
+		"ru"		"Другая причина"
+	}
 }
