@@ -73,6 +73,10 @@ chmod +x "$SPCOMP" scripts/compile-all.sh
   игроку пишется случайный `xbox_throttlebias`, через 2 с он читается обратно. Insomnia каждый кадр возвращает `xbox_*` к
   значениям по умолчанию, чтобы стереть метки NoSteamBans/SteamID Protect, — 100 вместо нашего значения и есть детект.
   Только CSS v34, по умолчанию уведомления (`smac_cvar_trap_action`). Подробности — в [docs/CVAR_TRAP.md](docs/CVAR_TRAP.md).
+* `smac_usercmd` — **только уведомления админам, без наказаний**: MoveGrid (движение повёрнуто под углы — FixMove /
+  автострейф, клавиатура так не умеет), SnapBack (взгляд прыгает на одну команду и возвращается — silent aim, jitter),
+  FakeLag (пачки по 8+ команд за тик) и Roll (roll ≠ 0 — nospread через `viewangles.z`). Лог —
+  `logs/smac_usercmd_diag.log`. Подробности — в [docs/USERCMD.md](docs/USERCMD.md).
 * `smac_aimbot`, `smac_eyetest`, `smac_client`, `smac_commands`, `smac_rcon` — доработки стоковых модулей:
   снап 35° и на попаданиях, Eyetest 01–04 со вторым нарушением, `smac_NoS_NoR`, `smac_Lock_Adm`, спам ником и командами,
   блок-лист `cfg/sourcemod/smac_cmd_block.cfg`. Подробности — в [docs/PLUS_STOCK.md](docs/PLUS_STOCK.md).
