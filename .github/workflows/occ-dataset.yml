@@ -32,9 +32,17 @@ on:
         description: "sourcemod-css34 git ref for the smoke-test server scripts"
         required: false
         default: "master"
+  # workflow_dispatch is only offered once this file is on the default branch.
+  # A pull_request run starts the full map list from this branch.
+  pull_request:
+    branches:
+      - claude/clever-shannon-jgos9l
+    paths:
+      - .github/workflows/occ-dataset.yml
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: occ-dataset-${{ github.ref }}
@@ -42,7 +50,7 @@ concurrency:
 
 jobs:
   setup:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       maps: ${{ steps.maps.outputs.maps }}
       css34_sha: ${{ steps.sha.outputs.sha }}
@@ -50,7 +58,8 @@ jobs:
       - name: Pin sourcemod-css34
         id: sha
         env:
-          REF: ${{ github.event.inputs.css34_ref || 'master' }}
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.event_name == 'workflow_dispatch' && inputs.css34_ref || 'master' }}
         run: |
           set -euo pipefail
           sha="$(gh api "repos/fmu1337/sourcemod-css34/commits/${REF}" --jq .sha)"
@@ -60,7 +69,7 @@ jobs:
       - name: Map matrix
         id: maps
         env:
-          MAPS: ${{ github.event.inputs.maps || 'de_dust2,de_dust,de_inferno,de_nuke,de_train,de_aztec,de_cbble,de_piranesi,de_prodigy,de_chateau,de_port,de_tides,cs_office,cs_italy,cs_assault,cs_compound,cs_havana' }}
+          MAPS: ${{ github.event_name == 'workflow_dispatch' && inputs.maps || 'de_dust2,de_dust,de_inferno,de_nuke,de_train,de_aztec,de_cbble,de_piranesi,de_prodigy,de_chateau,de_port,de_tides,cs_office,cs_italy,cs_assault,cs_compound,cs_havana' }}
         run: |
           python3 - <<'PY'
           import json, os
@@ -76,7 +85,7 @@ jobs:
 
   prepare-server:
     needs: setup
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       cache_key: ${{ steps.server-cache.outputs.cache-primary-key }}
     steps:
@@ -129,7 +138,7 @@ jobs:
 
   map:
     needs: [setup, prepare-server]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -175,10 +184,10 @@ jobs:
           SMAC_DIR: ${{ github.workspace }}/smac
           SERVER_DIR: ${{ github.workspace }}/.ci-server
           OUT_DIR: ${{ github.workspace }}/occ-out
-          MINUTES: ${{ github.event.inputs.minutes || '15' }}
-          MIN_RECORDS: ${{ github.event.inputs.min_records || '10000' }}
-          BOT_QUOTA: ${{ github.event.inputs.bot_quota || '20' }}
-          EXTRA_MAP_URLS: ${{ github.event.inputs.extra_map_urls }}
+          MINUTES: ${{ github.event_name == 'workflow_dispatch' && inputs.minutes || '15' }}
+          MIN_RECORDS: ${{ github.event_name == 'workflow_dispatch' && inputs.min_records || '10000' }}
+          BOT_QUOTA: ${{ github.event_name == 'workflow_dispatch' && inputs.bot_quota || '20' }}
+          EXTRA_MAP_URLS: ${{ github.event_name == 'workflow_dispatch' && inputs.extra_map_urls || '' }}
         run: bash smac/tools/occtest/ci/dataset.sh run "${{ matrix.map }}"
 
       - name: Upload dataset
@@ -193,7 +202,7 @@ jobs:
   summary:
     needs: map
     if: always() && needs.map.result != 'skipped'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout smac_v34
         uses: actions/checkout@v4
