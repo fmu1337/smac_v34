@@ -645,3 +645,26 @@ stock bool:Occ_SegmentBlocked(brush, const Float:a[3], const Float:b[3])
 	
 	return true;
 }
+
+/**
+ * Does the brush block every segment the visibility traces would test? The real eye and the peek eyes lie on one
+ * line, and the points from which a segment to a fixed sample hits a convex brush form a convex set, so checking
+ * from the two outermost eyes covers every eye between them. Eye 0 is the real one, 1 and 2 the peek eyes
+ * (bEyes says which are valid); every sample is checked from both outermost eyes.
+ */
+stock bool:Occ_Proves(brush, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3], numSamples)
+{
+	new iEyeA = bEyes[1] ? 1 : 0;
+	new iEyeB = bEyes[2] ? 2 : 0;
+	
+	for (new i = 0; i < numSamples; i++)
+	{
+		if (!Occ_SegmentBlocked(brush, vEyes[iEyeA], vSamples[i]))
+			return false;
+		
+		if (iEyeB != iEyeA && !Occ_SegmentBlocked(brush, vEyes[iEyeB], vSamples[i]))
+			return false;
+	}
+	
+	return true;
+}

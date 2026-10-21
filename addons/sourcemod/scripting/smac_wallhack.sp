@@ -900,7 +900,7 @@ bool:IsAbleToSee(entity, client, bool:bUseOcc=true)
 		g_iTraceCount++;
 		g_iStatProofs++;
 		
-		if (Occ_Proves(g_iOccCache[entity][client] - 1, vEyes, bEyes, vSamples))
+		if (Occ_Proves(g_iOccCache[entity][client] - 1, vEyes, bEyes, vSamples, SAMPLE_COUNT))
 		{
 			g_iStatOccCached++;
 			g_bLastByOcc = true;
@@ -973,7 +973,7 @@ bool:Occ_FindAlongRay(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSam
 		g_iTraceCount++;
 		g_iStatProofs++;
 		
-		if (Occ_Proves(iCandidates[i], vEyes, bEyes, vSamples))
+		if (Occ_Proves(iCandidates[i], vEyes, bEyes, vSamples, SAMPLE_COUNT))
 		{
 			g_iOccCache[entity][client] = iCandidates[i] + 1;
 			g_iStatOccFound++;
@@ -983,28 +983,6 @@ bool:Occ_FindAlongRay(entity, client, Float:vEyes[][3], bool:bEyes[], Float:vSam
 	}
 	
 	return false;
-}
-
-/**
- * Does the brush block every segment the visibility traces would test? The real eye and the peek eyes lie on one
- * line, and the points from which a segment to a fixed sample hits a convex brush form a convex set, so checking
- * from the two outermost eyes covers every eye between them. All 10 samples are checked from both.
- */
-bool:Occ_Proves(brush, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3])
-{
-	new iEyeA = bEyes[1] ? 1 : 0;
-	new iEyeB = bEyes[2] ? 2 : 0;
-	
-	for (new i = 0; i < SAMPLE_COUNT; i++)
-	{
-		if (!Occ_SegmentBlocked(brush, vEyes[iEyeA], vSamples[i]))
-			return false;
-		
-		if (iEyeB != iEyeA && !Occ_SegmentBlocked(brush, vEyes[iEyeB], vSamples[i]))
-			return false;
-	}
-	
-	return true;
 }
 
 Occ_MapStart()
