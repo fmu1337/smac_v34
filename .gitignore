@@ -1,2 +1,7 @@
 ﻿build/
+.ci-server/
+.ci-cache/
+occ-out/
+__pycache__/
+*.pyc
 

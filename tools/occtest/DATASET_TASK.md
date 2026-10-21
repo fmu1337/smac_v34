@@ -100,3 +100,21 @@ python3 tools/occtest/check_dataset.py <cstrike>/maps/<карта>.bsp <cstrike>
 
 * По каждой карте не меньше 10 000 записей.
 * `RESULT: OK` на всех картах, либо для каждой карты с `PROBLEMS` — полный вывод скрипта, CSV и строки лога.
+
+## GitHub Action
+
+Тот же прогон запускается вручную: Actions → **Occluder dataset** → Run workflow
+(`.github/workflows/occ-dataset.yml`). Код плагинов не меняется: `spcomp` 1.6.4 должен
+собрать `smac.sp`, `smac_wallhack.sp` и `occ_dataset.sp` без ошибок и предупреждений.
+
+Сервер берётся так же, как smoke test в [`fmu1337/sourcemod-css34`](https://github.com/fmu1337/sourcemod-css34):
+`testing/scripts/fetch-server.sh`, затем `apply-valve-rc-fix.sh` и `apply-srcds-patch.sh`
+(BufferFix, в том workflow он включён по умолчанию). Metamod ставит `install-addons.sh`
+этого репозитория (пакет по умолчанию, mmsource 1.10.6 css34). SourceMod — 1.6.4 css34
+с bitbucket `_4/smdrop-1.6`: в этом архиве нет бинарей Metamod, а датасет собирается именно этим `spcomp`.
+
+Каждая карта — отдельная job. Артефакт `occ-dataset-<карта>` содержит csv.gz, вывод
+`check_dataset.py`, статусы, `version` / `sm version` / `meta list` и строки лога.
+`occ-dataset-summary` — сводная таблица. Кастомных карт в архиве сервера нет: имя добавляется
+в `maps`, а файлы — в `extra_map_urls` как `имя=https://...bsp|https://...nav`.
+Если `.nav` нет, job делает `nav_generate` и перезапускает карту.

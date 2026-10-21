@@ -1,0 +1,219 @@
+name: Occluder dataset
+
+# Manual run of tools/occtest/DATASET_TASK.md.
+# The dedicated server is fetched and patched by the sourcemod-css34 smoke-test
+# scripts (fetch-server.sh, apply-valve-rc-fix.sh, apply-srcds-patch.sh).
+# SourceMod on that server is 1.6.4 css34; Metamod is install-addons.sh's default.
+
+on:
+  workflow_dispatch:
+    inputs:
+      maps:
+        description: "Comma-separated map names"
+        required: false
+        default: "de_dust2,de_dust,de_inferno,de_nuke,de_train,de_aztec,de_cbble,de_piranesi,de_prodigy,de_chateau,de_port,de_tides,cs_office,cs_italy,cs_assault,cs_compound,cs_havana"
+      extra_map_urls:
+        description: "Custom maps not in the v34 zip: name=https://host/map.bsp|https://host/map.nav"
+        required: false
+        default: ""
+      minutes:
+        description: "Minutes to sample each map"
+        required: false
+        default: "15"
+      min_records:
+        description: "Minimum CSV rows required per map"
+        required: false
+        default: "10000"
+      bot_quota:
+        description: "bot_quota"
+        required: false
+        default: "20"
+      css34_ref:
+        description: "sourcemod-css34 git ref for the smoke-test server scripts"
+        required: false
+        default: "master"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: occ-dataset-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-22.04
+    outputs:
+      maps: ${{ steps.maps.outputs.maps }}
+      css34_sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Pin sourcemod-css34
+        id: sha
+        env:
+          REF: ${{ github.event.inputs.css34_ref || 'master' }}
+        run: |
+          set -euo pipefail
+          sha="$(gh api "repos/fmu1337/sourcemod-css34/commits/${REF}" --jq .sha)"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "sourcemod-css34 ${REF} -> ${sha}"
+
+      - name: Map matrix
+        id: maps
+        env:
+          MAPS: ${{ github.event.inputs.maps || 'de_dust2,de_dust,de_inferno,de_nuke,de_train,de_aztec,de_cbble,de_piranesi,de_prodigy,de_chateau,de_port,de_tides,cs_office,cs_italy,cs_assault,cs_compound,cs_havana' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          maps = [part.strip() for part in os.environ["MAPS"].split(",") if part.strip()]
+          if not maps:
+              raise SystemExit("maps input is empty")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write("maps<<EOF\n")
+              handle.write(json.dumps(maps))
+              handle.write("\nEOF\n")
+          print(json.dumps(maps))
+          PY
+
+  prepare-server:
+    needs: setup
+    runs-on: ubuntu-22.04
+    outputs:
+      cache_key: ${{ steps.server-cache.outputs.cache-primary-key }}
+    steps:
+      - name: Checkout smac_v34
+        uses: actions/checkout@v4
+        with:
+          path: smac
+
+      - name: Checkout sourcemod-css34 smoke scripts
+        uses: actions/checkout@v4
+        with:
+          repository: fmu1337/sourcemod-css34
+          ref: ${{ needs.setup.outputs.css34_sha }}
+          path: sourcemod-css34
+          sparse-checkout: |
+            testing
+
+      - name: Restore cached server tree
+        id: server-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: server-art/css34-server.tar.gz
+          key: occ-dataset-server-v1-${{ hashFiles('sourcemod-css34/testing/scripts/fetch-server.sh', 'sourcemod-css34/testing/scripts/apply-valve-rc-fix.sh', 'sourcemod-css34/testing/scripts/apply-srcds-patch.sh', 'sourcemod-css34/testing/scripts/patch-srcds-bufferfix.py', 'sourcemod-css34/testing/configs/valve.rc') }}
+
+      - name: Install unpack tools
+        if: steps.server-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y curl unzip python3
+
+      - name: Fetch and patch srcds
+        if: steps.server-cache.outputs.cache-hit != 'true'
+        env:
+          CSS34_DIR: ${{ github.workspace }}/sourcemod-css34
+          SERVER_DIR: ${{ github.workspace }}/.ci-server
+          CACHE_DIR: ${{ github.workspace }}/.ci-cache
+        run: bash smac/tools/occtest/ci/dataset.sh prepare
+
+      - name: Pack server tree
+        if: steps.server-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p server-art
+          tar -C .ci-server -czf server-art/css34-server.tar.gz .
+          ls -lh server-art/css34-server.tar.gz
+
+      - name: Save server tree cache
+        if: steps.server-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: server-art/css34-server.tar.gz
+          key: ${{ steps.server-cache.outputs.cache-primary-key }}
+
+  map:
+    needs: [setup, prepare-server]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        map: ${{ fromJSON(needs.setup.outputs.maps) }}
+    steps:
+      - name: Checkout smac_v34
+        uses: actions/checkout@v4
+        with:
+          path: smac
+
+      - name: Checkout sourcemod-css34 install scripts
+        uses: actions/checkout@v4
+        with:
+          repository: fmu1337/sourcemod-css34
+          ref: ${{ needs.setup.outputs.css34_sha }}
+          path: sourcemod-css34
+          sparse-checkout: |
+            testing
+
+      - name: Restore cached server tree
+        uses: actions/cache/restore@v4
+        with:
+          path: server-art/css34-server.tar.gz
+          key: ${{ needs.prepare-server.outputs.cache_key }}
+          fail-on-cache-miss: true
+
+      - name: Extract server
+        run: |
+          mkdir -p .ci-server
+          tar -xzf server-art/css34-server.tar.gz -C .ci-server
+
+      - name: Install SourceMod 1.6.4 and compile plugins
+        env:
+          CSS34_DIR: ${{ github.workspace }}/sourcemod-css34
+          SMAC_DIR: ${{ github.workspace }}/smac
+          SERVER_DIR: ${{ github.workspace }}/.ci-server
+          CACHE_DIR: ${{ github.workspace }}/.ci-cache
+        run: bash smac/tools/occtest/ci/dataset.sh install
+
+      - name: Sample ${{ matrix.map }}
+        env:
+          SMAC_DIR: ${{ github.workspace }}/smac
+          SERVER_DIR: ${{ github.workspace }}/.ci-server
+          OUT_DIR: ${{ github.workspace }}/occ-out
+          MINUTES: ${{ github.event.inputs.minutes || '15' }}
+          MIN_RECORDS: ${{ github.event.inputs.min_records || '10000' }}
+          BOT_QUOTA: ${{ github.event.inputs.bot_quota || '20' }}
+          EXTRA_MAP_URLS: ${{ github.event.inputs.extra_map_urls }}
+        run: bash smac/tools/occtest/ci/dataset.sh run "${{ matrix.map }}"
+
+      - name: Upload dataset
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: occ-dataset-${{ matrix.map }}
+          path: occ-out/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  summary:
+    needs: map
+    if: always() && needs.map.result != 'skipped'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout smac_v34
+        uses: actions/checkout@v4
+        with:
+          path: smac
+
+      - name: Download map artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: occ-dataset-*
+          path: results
+
+      - name: Write summary
+        run: |
+          mkdir -p results
+          python3 smac/tools/occtest/ci/summarize.py results SUMMARY.md
+
+      - name: Upload summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: occ-dataset-summary
+          path: SUMMARY.md
+          retention-days: 14
