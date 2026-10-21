@@ -7,7 +7,7 @@
 import os, random, sys
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from occ import BSP, SHRINK
+from occ import BSP, MIN_CHORD, SHRINK
 import nav
 
 b = BSP(sys.argv[1]); areas = nav.load(sys.argv[2])
@@ -36,17 +36,27 @@ for bi in ids:
     box.append((mn, mx))
 mins = np.array([x[0] for x in box]); maxs = np.array([x[1] for x in box])
 
-def clip(bi, a, e, shrink):
+def clip(bi, a, e, shrink, min_chord=0.0):
     pl = P[bi]; da = pl[:, :3] @ a - pl[:, 3] + shrink; de = pl[:, :3] @ e - pl[:, 3] + shrink
     t0, t1 = 0.0, 1.0
+    d = e - a
+    len2 = float(d @ d)
+    min2 = min_chord * min_chord
     for x, y in zip(da, de):
         if x > 0 and y > 0: return False
         if x <= 0 and y <= 0: continue
         t = x / (x - y)
         if x > 0: t0 = max(t0, t)
         else: t1 = min(t1, t)
-        if t0 > t1: return False
-    return True
+        span = t1 - t0
+        if min_chord:
+            if span <= 0.0 or span * span * len2 < min2: return False
+        elif span < 0.0:
+            return False
+    if not min_chord:
+        return t1 >= t0
+    span = t1 - t0
+    return span > 0.0 and span * span * len2 >= min2
 
 def near(a, e):
     lo = np.minimum(a, e); hi = np.maximum(a, e)
@@ -65,7 +75,7 @@ def samples(eye, org):
     return [c] + rect(1.3) + [org + [0, 0, 64]] + rect(0.65)
 
 def proves(bi, eyes, sm):
-    return all(clip(bi, e, s, SHRINK) for e in eyes for s in sm)
+    return all(clip(bi, e, s, SHRINK, MIN_CHORD) for e in eyes for s in sm)
 
 random.seed(3)
 wts = [abs(a[2][0] - a[1][0]) * abs(a[2][1] - a[1][1]) + 1 for a in areas]

@@ -4,6 +4,8 @@ import struct, sys, random
 SOLID, WINDOW, GRATE, WATER, SLIME, TRANSLUCENT = 0x1, 0x2, 0x8, 0x20, 0x10, 0x10000000
 SURF_TRANS, SURF_NODRAW, SURF_TRIGGER = 0x10, 0x80, 0x40
 SHRINK = 1.0
+# Chord that must lie inside the shrunk brush. Matches OCC_MIN_CHORD in smac_wallhack_occ.inc.
+MIN_CHORD = 0.01
 
 class BSP:
     def __init__(s, path):
@@ -94,6 +96,9 @@ class BSP:
         return -1 - n
     def blocked(s, bi, a, b):
         t0, t1 = 0.0, 1.0
+        dx, dy, dz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
+        len2 = dx * dx + dy * dy + dz * dz
+        min2 = MIN_CHORD * MIN_CHORD
         for pl in s.occ[bi]:
             n = s.planes[pl]
             da = n[0]*a[0]+n[1]*a[1]+n[2]*a[2]-n[3]+SHRINK
@@ -103,8 +108,10 @@ class BSP:
             t = da / (da - db)
             if da > 0: t0 = max(t0, t)
             else: t1 = min(t1, t)
-            if t0 > t1: return False
-        return True
+            span = t1 - t0
+            if span <= 0.0 or span * span * len2 < min2: return False
+        span = t1 - t0
+        return span > 0.0 and span * span * len2 >= min2
     def inside(s, bi, p, eps=0.0):
         for pl in s.occ[bi]:
             n = s.planes[pl]

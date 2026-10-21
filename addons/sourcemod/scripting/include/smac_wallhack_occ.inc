@@ -44,6 +44,9 @@
 
 // Brushes are shrunk by this much, so a line that only grazes an edge never counts as blocked.
 #define OCC_SHRINK				1.0
+// Chord that must lie inside the shrunk brush. A corner touch (enter and leave at the same
+// fraction of the segment) flips between float32 and the Python reference, so it is not a block.
+#define OCC_MIN_CHORD			0.01
 
 new bool:g_bOccLoaded;
 new g_iOccHeadNode;
@@ -609,7 +612,10 @@ stock Occ_RayCandidates(const Float:a[3], const Float:b[3], out[], max)
  */
 stock bool:Occ_SegmentBlocked(brush, const Float:a[3], const Float:b[3])
 {
-	new Float:fEnter = 0.0, Float:fLeave = 1.0, Float:fA, Float:fB, Float:fT;
+	new Float:fEnter = 0.0, Float:fLeave = 1.0, Float:fA, Float:fB, Float:fT, Float:fSpan;
+	new Float:dx = b[0] - a[0], Float:dy = b[1] - a[1], Float:dz = b[2] - a[2];
+	new Float:fLen2 = dx * dx + dy * dy + dz * dz;
+	new Float:fMin2 = OCC_MIN_CHORD * OCC_MIN_CHORD;
 	new iEnd = g_iOccBrushFirst[brush] + g_iOccBrushCount[brush], iPlane;
 	
 	for (new s = g_iOccBrushFirst[brush]; s < iEnd; s++)
@@ -639,11 +645,13 @@ stock bool:Occ_SegmentBlocked(brush, const Float:a[3], const Float:b[3])
 			fLeave = fT;
 		}
 		
-		if (fEnter > fLeave)
+		fSpan = fLeave - fEnter;
+		if (fSpan <= 0.0 || fSpan * fSpan * fLen2 < fMin2)
 			return false;
 	}
 	
-	return true;
+	fSpan = fLeave - fEnter;
+	return fSpan > 0.0 && fSpan * fSpan * fLen2 >= fMin2;
 }
 
 /**
