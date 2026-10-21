@@ -24,6 +24,12 @@ on:
         description: "Minimum CSV rows required per map"
         required: false
         default: "10000"
+      mode:
+        description: "live = bots on the nav mesh, synth = standing spots anywhere on the map (no bots)"
+        required: false
+        default: "live"
+        type: choice
+        options: [live, synth]
       bot_quota:
         description: "bot_quota"
         required: false
@@ -187,6 +193,7 @@ jobs:
           MINUTES: ${{ github.event_name == 'workflow_dispatch' && inputs.minutes || '15' }}
           MIN_RECORDS: ${{ github.event_name == 'workflow_dispatch' && inputs.min_records || '10000' }}
           BOT_QUOTA: ${{ github.event_name == 'workflow_dispatch' && inputs.bot_quota || '20' }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'live' }}
           EXTRA_MAP_URLS: ${{ github.event_name == 'workflow_dispatch' && inputs.extra_map_urls || '' }}
         run: bash smac/tools/occtest/ci/dataset.sh run "${{ matrix.map }}"
 
@@ -194,7 +201,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: occ-dataset-${{ matrix.map }}
+          name: occ-dataset-${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'live' }}-${{ matrix.map }}
           path: occ-out/
           if-no-files-found: ignore
           retention-days: 14

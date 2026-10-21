@@ -112,6 +112,11 @@ class BSP:
             if span <= 0.0 or span * span * len2 < min2: return False
         span = t1 - t0
         return span > 0.0 and span * span * len2 >= min2
+    def in_solid(s, p):
+        # Mirror of Occ_PointInSolid: solid leaf, or inside an opaque brush listed in the leaf (detail brushes).
+        c, fb, nb = s.leafs[s.leaf(p)]
+        if c & SOLID: return True
+        return any(x in s.occ and s.inside(x, p, -0.1) for x in s.leafbrush[fb:fb + nb])
     def inside(s, bi, p, eps=0.0):
         for pl in s.occ[bi]:
             n = s.planes[pl]

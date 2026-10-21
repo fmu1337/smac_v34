@@ -27,6 +27,8 @@ MAXPLAYERS="${MAXPLAYERS:-32}"
 BOT_QUOTA="${BOT_QUOTA:-20}"
 MINUTES="${MINUTES:-15}"
 MIN_RECORDS="${MIN_RECORDS:-10000}"
+# live: pairs of bots walking the nav mesh. synth: pairs of standing spots anywhere on the map, no bots needed.
+MODE="${MODE:-live}"
 STATUS_EVERY="${STATUS_EVERY:-300}"
 OUT_DIR="${OUT_DIR:-}"
 EXTRA_MAP_URLS="${EXTRA_MAP_URLS:-}"
@@ -518,7 +520,12 @@ run_map() {
   rm -f "${CONSOLE_LOG}" "${SRCDS_OUT}"
   rm -f "${SERVER_DIR}/cstrike/addons/sourcemod/logs/"L*.log \
         "${SERVER_DIR}/cstrike/addons/sourcemod/logs/"errors_*.log || true
-  rm -f "${SERVER_DIR}/cstrike/addons/sourcemod/data/occ_dataset_${MAP}.csv" || true
+  case "${MODE}" in
+    live) START_ARG=""; CSV_PREFIX="occ_dataset" ;;
+    synth) START_ARG="synth"; CSV_PREFIX="occ_synth" ;;
+    *) echo "FAIL: MODE must be live or synth, got '${MODE}'" >&2; exit 1 ;;
+  esac
+  rm -f "${SERVER_DIR}/cstrike/addons/sourcemod/data/${CSV_PREFIX}_${MAP}.csv" || true
 
   write_server_cfg
   local binary="./srcds_i686"
@@ -551,15 +558,19 @@ run_map() {
   wait_map
   wait_rcon
   apply_cvars
-  ensure_nav
-  # Map restart after nav_generate needs the cvars again.
-  if [[ "${NAV_GENERATED}" == "1" ]]; then
-    wait_rcon
-    apply_cvars
+  if [[ "${MODE}" == "live" ]]; then
+    ensure_nav
+    # Map restart after nav_generate needs the cvars again.
+    if [[ "${NAV_GENERATED}" == "1" ]]; then
+      wait_rcon
+      apply_cvars
+    fi
   fi
   capture_versions
   plugins_loaded
-  wait_bots
+  if [[ "${MODE}" == "live" ]]; then
+    wait_bots
+  fi
 
   if [[ -s "${OUT_DIR}/occluders.txt" ]]; then
     :
@@ -570,7 +581,7 @@ run_map() {
   cat "${OUT_DIR}/occluders.txt" || true
 
   local start_reply
-  start_reply="$(rcon_try "smac_occ_dataset_start" || true)"
+  start_reply="$(rcon_try "smac_occ_dataset_start ${START_ARG}" || true)"
   printf '%s\n' "${start_reply}" | tee "${OUT_DIR}/start.txt"
   if ! grep -E -q 'Writing |Already running' <<<"${start_reply}"; then
     echo "FAIL: smac_occ_dataset_start did not start the dataset" >&2
@@ -602,12 +613,12 @@ run_map() {
   rcon_try "smac_occ_dataset_status" | tee -a "${OUT_DIR}/status.txt" || true
   rcon_try "smac_occ_dataset_stop" | tee "${OUT_DIR}/stop.txt" || true
 
-  local csv="${SERVER_DIR}/cstrike/addons/sourcemod/data/occ_dataset_${MAP}.csv"
+  local csv="${SERVER_DIR}/cstrike/addons/sourcemod/data/${CSV_PREFIX}_${MAP}.csv"
   if [[ ! -s "${csv}" ]]; then
     echo "FAIL: dataset file missing: ${csv}" >&2
     exit 1
   fi
-  gzip -c "${csv}" >"${OUT_DIR}/occ_dataset_${MAP}.csv.gz"
+  gzip -c "${csv}" >"${OUT_DIR}/${CSV_PREFIX}_${MAP}.csv.gz"
   local records
   records="$(($(wc -l <"${csv}") - 1))"
   echo "Records: ${records}"

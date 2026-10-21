@@ -655,6 +655,50 @@ stock bool:Occ_SegmentBlocked(brush, const Float:a[3], const Float:b[3])
 }
 
 /**
+ * Is the point inside the brush or on its surface (not shrunk)?
+ */
+stock bool:Occ_PointInside(brush, const Float:p[3])
+{
+	new iEnd = g_iOccBrushFirst[brush] + g_iOccBrushCount[brush], iPlane;
+	
+	for (new s = g_iOccBrushFirst[brush]; s < iEnd; s++)
+	{
+		iPlane = g_iOccSidePlane[s] * 4;
+		
+		if (g_fOccPlane[iPlane] * p[0] + g_fOccPlane[iPlane + 1] * p[1] + g_fOccPlane[iPlane + 2] * p[2] - g_fOccPlane[iPlane + 3] > 0.1)
+			return false;
+	}
+	
+	return true;
+}
+
+/**
+ * Is the point inside any opaque world brush? Checks the brushes listed in its leaf, which covers detail brushes
+ * that don't make the leaf itself solid.
+ */
+stock bool:Occ_PointInSolid(const Float:p[3])
+{
+	new iLeaf = Occ_PointLeaf(p);
+	
+	if (iLeaf < 0)
+		return true;
+	
+	if (g_iOccLeaf[iLeaf * 3] & OCC_CONTENTS_SOLID)
+		return true;
+	
+	new iFirst = g_iOccLeaf[iLeaf * 3 + 1];
+	new iEnd = iFirst + g_iOccLeaf[iLeaf * 3 + 2];
+	
+	for (new i = iFirst; i < iEnd; i++)
+	{
+		if (g_iOccBrushCount[g_iOccLeafBrush[i]] && Occ_PointInside(g_iOccLeafBrush[i], p))
+			return true;
+	}
+	
+	return false;
+}
+
+/**
  * Does the brush block every segment the visibility traces would test? The real eye and the peek eyes lie on one
  * line, and the points from which a segment to a fixed sample hits a convex brush form a convex set, so checking
  * from the two outermost eyes covers every eye between them. Eye 0 is the real one, 1 and 2 the peek eyes
@@ -664,6 +708,15 @@ stock bool:Occ_Proves(brush, Float:vEyes[][3], bool:bEyes[], Float:vSamples[][3]
 {
 	new iEyeA = bEyes[1] ? 1 : 0;
 	new iEyeB = bEyes[2] ? 2 : 0;
+	
+	// An engine trace that starts inside solid sees through walls (measured on de_dust2: an eye inside a func_detail
+	// brush, whose leaf isn't solid, saw through the next wall). With an eye inside a brush the traces are the only
+	// answer: no proof.
+	for (new e = 0; e < 3; e++)
+	{
+		if ((e == 0 || bEyes[e]) && Occ_PointInSolid(vEyes[e]))
+			return false;
+	}
 	
 	for (new i = 0; i < numSamples; i++)
 	{

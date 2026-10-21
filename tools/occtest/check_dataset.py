@@ -2,7 +2,7 @@
 # Usage: python3 check_dataset.py map.bsp occ_dataset_<map>.csv [geometry_records=2000]
 #
 # 1. Safety: a pair the occluder proved hidden must have no segment the engine lets through.
-# 2. Geometry: for every recorded segment (first N records), if any kept world brush (shrunk like in the plugin)
+# 2. Geometry: for every recorded segment (about N records spread over the file), if any kept world brush (shrunk like in the plugin)
 #    blocks it, the engine trace must be blocked too. A failure names a brush the plugin must not trust.
 # 3. Same answer as the reference: the brush the plugin proved with also proves in Python.
 # 4. Usefulness: how many engine-hidden pairs one brush proves, what blocks the rest, time per record.
@@ -19,11 +19,16 @@ def vec(s):
 def vecs(s):
     return [vec(x) for x in s.split(';')]
 
-def proves(brush, eyes, samples):
+def proves(brush, eyes, samples, all_eyes=()):
+    # Same rule as Occ_Proves: no proof while an eye is inside solid (engine traces from there see through walls).
+    if any(bsp.in_solid(e) for e in all_eyes):
+        return False
     return all(bsp.blocked(brush, e, s) for e in eyes for s in samples)
 
 rows = list(csv.DictReader(open(sys.argv[2], newline='')))
 n = len(rows)
+# Geometry check on about geom_limit records spread over the whole file.
+geom_step = max(1, n // max(geom_limit, 1))
 hidden = proven = unsafe = mismatch = 0
 geom_segments = geom_bad = 0
 no_world = by_entity = 0
@@ -49,15 +54,16 @@ for idx, r in enumerate(rows):
             unsafe += 1; unsafe_rows.append(idx + 2)
         # The plugin's proof uses the two outermost valid eyes.
         ea = pa if ok_a else eye; eb = pb if ok_b else eye
-        if brush not in bsp.occ or not proves(brush, [ea, eb], samples):
+        if brush not in bsp.occ or not proves(brush, [ea, eb], samples, [p for p, ok in eyes_all if ok]):
             mismatch += 1
     elif is_hidden:
         if int(r['centre_ent']) > 0: by_entity += 1
         elif r['candidates'] == '': no_world += 1
 
-    if idx < geom_limit:
+    if idx % geom_step == 0:
         for e, (p, ok) in enumerate(eyes_all):
-            if not ok: continue
+            # A trace that starts inside solid sees through walls; Occ_Proves never uses such an eye.
+            if not ok or bsp.in_solid(p): continue
             for i, s in enumerate(samples):
                 geom_segments += 1
                 if not (vis[e] >> i) & 1:
